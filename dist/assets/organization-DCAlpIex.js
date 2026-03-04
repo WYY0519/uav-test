@@ -1,0 +1,1 @@
+import{aA as t}from"./index-WQxmHSsR.js";const n=t("organization",{state:()=>({currentOrgName:"",currentOrgId:""}),actions:{setCurrentOrg(r){if(console.log(r,"orgStore11111111111"),!r){this.currentOrgName="",this.currentOrgId="";return}this.currentOrgName=r.name||"",this.currentOrgId=r.organizationId||""}}});export{n as u};

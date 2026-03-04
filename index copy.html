@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/2.jpg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>无人机管理平台</title>
+    <!-- 添加天地图 API -->
+    <script
+      type="text/javascript"
+      src="http://api.tianditu.gov.cn/api?v=4.0&tk=69a5cdb2a588f9138791d3ec5136addc"
+    ></script>
+    <script
+      src="//lbs.tianditu.gov.cn/js/lib/d3/d3.min.js"
+      charset="utf-8"
+    ></script>
+    <script src="//lbs.tianditu.gov.cn/api/js4.0/opensource/openlibrary/D3SvgOverlay.js"></script>
+    <script src="//lbs.tianditu.gov.cn/api/js4.0/opensource/openlibrary/CarTrack.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"
+    />
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <!-- <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw-lang.zh-CN.js"></script> -->
+    <!-- Leaflet 核心样式 -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"
+    />
+    <!-- Leaflet 核心库 - 必须在 draw 之前加载 -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <!-- Leaflet.draw 样式 -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"
+    />
+
+    <!-- Vue 框架 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+    <!-- Leaflet.draw 库 - 必须在 Leaflet 之后加载 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <!-- 假设中文语言包路径 -->
+    <!-- VLC的Web插件 -->
+    <script
+      type="text/javascript"
+      src="https://cdn.jsdelivr.net/npm/vlc-web-plugin@latest/dist/vlc.js"
+    ></script>
+    <script src="https://jsmpeg.com/jsmpeg.min.js" charset="utf-8"></script>
+    <!-- 引入 flv.js 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/flv.js@1.6.2/dist/flv.min.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
