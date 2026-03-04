@@ -32,11 +32,14 @@
             :disabled="
               typeof item.disabled === 'boolean'
                 ? item.disabled
-                : item.disabled?.value || (isEdit && item.prop === 'phone')
+                : typeof item.disabled === 'function'
+                  ? item.disabled(formData)
+                  : item.disabled?.value || (isEdit && item.prop === 'phone')
             "
             :maxlength="item.maxlength"
             :show-word-limit="!!item.maxlength"
             clearable="true"
+            style="width: 100%"
             @blur="item.validateOnBlur && handleFieldBlur(item)"
           />
         </template>
@@ -199,7 +202,7 @@ const initFormData = () => {
 watch(
   () => props.initialData,
   (newVal) => {
-    if (newVal && props.modelValue) {
+    if (newVal) {
       initFormData();
     }
   },

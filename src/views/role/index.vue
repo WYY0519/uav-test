@@ -110,23 +110,23 @@
     <CommonFormDialog
       ref="formRef"
       v-model="deviceDialogVisible"
-      :title="dialogTitle"
+      :form-dialog-title="dialogTitle"
       :form-items="formItems"
-      :form-data="deviceFormData"
+      :initial-data="deviceFormData"
       :rules="deviceRules"
-      @confirm="handleSubmit"
+      @submit="submitForm"
     >
       <template #form-videoIp>
-        <div>
+        <div style="width: 100%">
           <el-input
             v-model="deviceFormData.videoIp"
             placeholder="请输入视频流地址"
             disabled
-            maxlength="200"
             clearable
             style="width: 100%"
           />
           <el-button
+            v-if="!isEditMode"
             type="primary"
             @click="videoStreamURL"
             style="margin-top: 8px"
@@ -293,7 +293,7 @@ const columns = [
 ];
 
 // 表单项配置
-const formItems = [
+const formItems = computed(() => [
   {
     prop: "name",
     label: "设备名称",
@@ -309,7 +309,7 @@ const formItems = [
     placeholder: "请输入设备编号",
     required: true,
     maxlength: 22,
-    disabled: (formData) => isEditMode.value,
+    disabled: isEditMode.value,
   },
   {
     prop: "videoIp",
@@ -317,7 +317,7 @@ const formItems = [
     slotName: "videoIp",
     required: true,
   },
-];
+]);
 
 // 表单验证规则
 const deviceRules = {
@@ -476,7 +476,10 @@ const handleEdit = (row) => {
     deviceNumber: row.deviceNumber,
     videoIp: row.videoIp,
   };
-  deviceDialogVisible.value = true;
+  // 使用 nextTick 确保数据更新后再打开弹窗
+  nextTick(() => {
+    deviceDialogVisible.value = true;
+  });
 };
 
 // 删除设备
