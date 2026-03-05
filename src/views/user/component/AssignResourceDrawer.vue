@@ -79,6 +79,10 @@ const props = defineProps({
     type: String,
     default: "",
   },
+  currentRoleId: {
+    type: String,
+    default: "",
+  },
   // 查询所有后台资源分类的函数
   getAllResourceCategories: {
     type: Function,
@@ -238,6 +242,7 @@ const extractCheckedIds = (treeData) => {
   traverseNodes(treeData);
   return result;
 };
+console.log(props, "====");
 
 // 提交分配资源
 const handleSubmit = async () => {

@@ -393,8 +393,9 @@ const convertToTree = (data) => {
 const assignmentsMenu = async (row) => {
   menuIds.value = [];
   menuVisible.value = true;
+  let data = { roleId: row.id };
   const res = await rolelistMenu(row.id);
-  const res2 = await roleTreeList();
+  const res2 = await roleTreeList(data);
   mockData.value = convertToTree(res2.data);
   const aaIdMap = new Set(res.data.map((item) => item.id));
   console.log(res, "res");

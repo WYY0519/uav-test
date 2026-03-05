@@ -25,12 +25,16 @@
           <el-icon> <ArrowLeft /> </el-icon>返回
         </el-button>
         <!-- 添加角色按钮权限：
-             1. 超级管理员：可以点击
-             2. 二级管理员且在自己管理角色的子级下：可以点击
-             3. 其他情况：不可点击 -->
+             1. 超级管理员：可以点击（最多到三级）
+             2. 二级管理员且在自己管理角色的子级下：可以点击（最多到三级）
+             3. 角色层级已达到三级（roleStack.length >= 2）：不可点击
+             4. 其他情况：不可点击 -->
         <el-button
           type="success"
-          :disabled="!superAdmin && !(secondAdmin && currentRoleId === parentRoleId)"
+          :disabled="
+            (!superAdmin && !(secondAdmin && currentRoleId === parentRoleId)) ||
+            roleStack.length >= 2
+          "
           @click="handleAdd"
         >
           <el-icon> <Plus /> </el-icon>添加角色
@@ -53,16 +57,24 @@
            1. parentId === null 的超级管理员行：不可点击
            2. 子级表格第一页第一条数据：不可点击
            3. 二级管理员在子级中且是自己那一行：不可点击
-           4. 超级管理员：可以点击（除顶级角色外）
-           5. 二级管理员在子级中且不是自己那一行：可以点击 -->
+           4. 角色层级已达到二级（roleStack.length >= 1）：不可点击进入三级
+           5. 超级管理员：可以点击（除顶级角色外）
+           6. 二级管理员在子级中且不是自己那一行：可以点击 -->
       <template #name="{ row }">
         <el-button
           type="primary"
           link
           :disabled="
             row.parentId === null ||
-            (isSubLevel && currentPage === 1 && filteredUserList.length > 0 && row.id === filteredUserList[0].id) ||
-            (!superAdmin && secondAdmin && isSubLevel && row.id === currentRoleId)
+            (isSubLevel &&
+              currentPage === 1 &&
+              filteredUserList.length > 0 &&
+              row.id === filteredUserList[0].id) ||
+            (!superAdmin &&
+              secondAdmin &&
+              isSubLevel &&
+              row.id === currentRoleId) ||
+            roleStack.length >= 1
           "
           @click="handleNameClick(row)"
         >
@@ -97,8 +109,14 @@
               :disabled="
                 row.parentId === null ||
                 (!superAdmin && !secondAdmin) ||
-                (!superAdmin && secondAdmin && isSubLevel && currentRoleId !== parentRoleId) ||
-                (!superAdmin && secondAdmin && isSubLevel && row.id === currentRoleId)
+                (!superAdmin &&
+                  secondAdmin &&
+                  isSubLevel &&
+                  currentRoleId !== parentRoleId) ||
+                (!superAdmin &&
+                  secondAdmin &&
+                  isSubLevel &&
+                  row.id === currentRoleId)
               "
               @click="assignmentsMenu(row)"
             >
@@ -114,8 +132,14 @@
               :disabled="
                 row.parentId === null ||
                 (!superAdmin && !secondAdmin) ||
-                (!superAdmin && secondAdmin && isSubLevel && currentRoleId !== parentRoleId) ||
-                (!superAdmin && secondAdmin && isSubLevel && row.id === currentRoleId)
+                (!superAdmin &&
+                  secondAdmin &&
+                  isSubLevel &&
+                  currentRoleId !== parentRoleId) ||
+                (!superAdmin &&
+                  secondAdmin &&
+                  isSubLevel &&
+                  row.id === currentRoleId)
               "
               @click="allocateResources(row)"
             >
@@ -131,8 +155,14 @@
               :disabled="
                 row.parentId === null ||
                 (!superAdmin && !secondAdmin) ||
-                (!superAdmin && secondAdmin && isSubLevel && currentRoleId !== parentRoleId) ||
-                (!superAdmin && secondAdmin && isSubLevel && row.id === currentRoleId)
+                (!superAdmin &&
+                  secondAdmin &&
+                  isSubLevel &&
+                  currentRoleId !== parentRoleId) ||
+                (!superAdmin &&
+                  secondAdmin &&
+                  isSubLevel &&
+                  row.id === currentRoleId)
               "
               @click="handleEdit(row)"
             >
@@ -148,8 +178,14 @@
               :disabled="
                 row.parentId === null ||
                 (!superAdmin && !secondAdmin) ||
-                (!superAdmin && secondAdmin && isSubLevel && currentRoleId !== parentRoleId) ||
-                (!superAdmin && secondAdmin && isSubLevel && row.id === currentRoleId)
+                (!superAdmin &&
+                  secondAdmin &&
+                  isSubLevel &&
+                  currentRoleId !== parentRoleId) ||
+                (!superAdmin &&
+                  secondAdmin &&
+                  isSubLevel &&
+                  row.id === currentRoleId)
               "
               @click="handleDelete(row)"
             >
@@ -190,6 +226,7 @@
     <AssignMenuDialog
       v-model="menuVisible"
       :role-id="selectedUserId"
+      :current-role-id="currentRoleId"
       :get-role-menu-list="rolelistMenu"
       :get-menu-tree-list="roleTreeList"
       :allocate-menu="roleAllocMenu"
@@ -200,6 +237,7 @@
     <AssignResourceDrawer
       v-model="allocateResourcesDrawer"
       :role-id="selectedUserId"
+      :current-role-id="currentRoleId"
       :get-all-resource-categories="listAllResourceCategory"
       :get-all-resources="listAllResource"
       :get-role-resources="listResource"
@@ -387,6 +425,14 @@ const handleEdit = (row) => {
 
 // 点击角色名称，查询子角色列表
 const handleNameClick = (row) => {
+  // 检查当前层级，最多只能到三级
+  // roleStack.length === 0: 当前在一级（超级管理员），点击后进入二级
+  // roleStack.length >= 1: 当前已经在二级或更深层，不能再进入下一级
+  if (roleStack.value.length >= 1) {
+    ElMessage.warning("最多只能创建三级角色");
+    return;
+  }
+
   selectedUserId.value = row.id;
   // 将当前角色压入栈中
   roleStack.value.push({
@@ -483,6 +529,8 @@ const userlistdata = async (
           userRoleId.value = res.data.roleId;
         }
         currentRoleId.value = res.data.roleId;
+        // currentRoleId.value = selectedUserId.value;
+        //selectedUserId.value
       }
       // 保存管理员权限状态
       superAdmin.value = res.data.superAdmin || false;

@@ -51,7 +51,7 @@
 
           <div class="header-right">
             <el-button-group>
-              <el-button type="success" @click="handleAdd">
+              <el-button type="success" :disabled="!isSuperAdminUser" @click="handleAdd">
                 <el-icon> <Plus /> </el-icon>添加用户
               </el-button>
             </el-button-group>
@@ -114,14 +114,14 @@
           <template #default="{ row }">
             <el-button-group>
               <el-tooltip content="编辑用户" placement="top">
-                <el-button type="primary" link @click="handleEdit(row)">
+                <el-button type="primary" link :disabled="!isSuperAdminUser" @click="handleEdit(row)">
                   <el-icon>
                     <Edit />
                   </el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="删除用户" placement="top">
-                <el-button type="danger" link @click="handleDelete(row)">
+                <el-button type="danger" link :disabled="!isSuperAdminUser" @click="handleDelete(row)">
                   <el-icon>
                     <Delete />
                   </el-icon>
@@ -172,7 +172,6 @@
             placeholder="请选择角色"
             style="width: 100%"
             clearable
-            multiple
           >
             <el-option
               v-for="item in roleOptions"
@@ -203,9 +202,10 @@ import {
   adminAddUser, //管理员添加用户
   admiadminUpdaten, //修改用户信息
   updateStatus, //修改用户状态
+  isSuperAdmin, //查询自己是否为超级管理员
 } from "@/api/admin";
 
-import { listAll } from "@/api/role";
+import { listAllSelectable } from "@/api/role";
 // 状态变量
 const loading = ref(false); //
 const dialogVisible = ref(false);
@@ -217,6 +217,7 @@ const userList = ref([]);
 const userFormRef = ref(null);
 const selectedUserId = ref("");
 const adminupId = ref("");
+const isSuperAdminUser = ref(false); // 是否为超级管理员
 // 用户表单
 const userForm = ref({
   username: "",
@@ -258,11 +259,14 @@ const filteredUserList = ref([]);
 const handleAdd = async () => {
   dialogTitle.value = "添加用户";
   dialogVisible.value = true;
-  await roletAllList();
+  await roletAllList(null);
 };
 //获取所有角色
-const roletAllList = async () => {
-  const res = await listAll();
+const roletAllList = async (targetUserId = null) => {
+  // const currentUser = await getCurrentUser();
+  // console.log(currentUser, "currentUser");
+  let data = targetUserId ? { targetUserId } : {};
+  const res = await listAllSelectable(data);
   console.log(res.data, "res");
   newRole.value = res.data;
   roleOptions.value = res.data.map((item) => {
@@ -277,14 +281,14 @@ const handleEdit = async (row) => {
   dialogTitle.value = "编辑用户";
   dialogVisible.value = true;
   userForm.value = { ...row };
-  let newForm = row.roleList.map((item) => {
-    console.log(item, "qwqefdv");
-    return item.id;
-  });
-  userForm.value.roleList = newForm;
-  console.log(newForm);
+  // 改为单选，只取第一个角色的ID
+  if (row.roleList && row.roleList.length > 0) {
+    userForm.value.roleList = row.roleList[0].id;
+  } else {
+    userForm.value.roleList = "";
+  }
   adminupId.value = row.userId;
-  await roletAllList();
+  await roletAllList(row.userId);
 };
 // 删除用户
 const handleDelete = (row) => {
@@ -360,16 +364,16 @@ const submitForm = async () => {
           console.log(error);
         }
       } else {
-        const filteredRoles = newRole.value.filter((item) =>
-          userForm.value.roleList.includes(item.id)
+        const filteredRole = newRole.value.find(
+          (item) => item.id === userForm.value.roleList,
         );
         const data = {
           username: userForm.value.username,
           phone: userForm.value.phone,
           email: userForm.value.email,
-          roleList: filteredRoles,
+          roleList: filteredRole ? [filteredRole] : [],
         };
-        console.log(filteredRoles, userForm.value.roleList, newRole.value);
+        console.log(filteredRole, userForm.value.roleList, newRole.value);
 
         const res = await admiadminUpdaten(adminupId.value, data);
         if (res.code == 200) {
@@ -489,6 +493,8 @@ const handleRadioChange = (row) => {
 // 生命周期钩子
 onMounted(() => {
   userlistdata();
+  //查询自己是否是超级管理员
+  checkSuperAdminStatus();
 });
 watch(dialogVisible, (newValue) => {
   if (newValue === false) {
@@ -503,6 +509,22 @@ watch(dialogVisible, (newValue) => {
 // 监听clear事件
 const handleUserClea = () => {
   userlistdata();
+};
+
+// 查询自己是否是超级管理员
+const checkSuperAdminStatus = async () => {
+  try {
+    const res = await isSuperAdmin();
+    console.log(res, "超级管理员状态======");
+    if (res && res.data !== undefined) {
+      isSuperAdminUser.value = res.data;
+    }
+    return res;
+  } catch (error) {
+    console.error("查询超级管理员状态失败", error);
+    isSuperAdminUser.value = false;
+    return false;
+  }
 };
 </script>
 

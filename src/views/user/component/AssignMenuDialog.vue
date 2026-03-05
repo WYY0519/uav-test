@@ -42,6 +42,10 @@ const props = defineProps({
     type: String,
     default: "",
   },
+  currentRoleId: {
+    type: String,
+    default: "",
+  },
   // 获取角色已分配菜单的函数
   getRoleMenuList: {
     type: Function,
@@ -88,8 +92,12 @@ const loadMenuData = async () => {
   if (!props.roleId) return;
 
   try {
+    console.log(props, "props");
+
+    // 获取当前选中角色已分配的菜单（使用选中行的 roleId）
     const roleMenuRes = await props.getRoleMenuList(props.roleId);
-    const menuTreeRes = await props.getMenuTreeList();
+    // 获取所有菜单树（使用当前用户的 currentRoleId）
+    const menuTreeRes = await props.getMenuTreeList({ roleId: props.currentRoleId });
 
     treeData.value = convertToTree(menuTreeRes.data);
     const roleMenuIds = new Set(roleMenuRes.data.map((item) => item.id));

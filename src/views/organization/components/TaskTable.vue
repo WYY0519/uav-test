@@ -455,13 +455,13 @@ const memberColumns = [
     align: "center",
     showOverflowTooltip: true,
   },
-  {
-    prop: "createdAt",
-    label: "加入时间",
-    width: "200",
-    align: "center",
-    showOverflowTooltip: true,
-  },
+  // {
+  //   prop: "createdAt",
+  //   label: "加入时间",
+  //   width: "200",
+  //   align: "center",
+  //   showOverflowTooltip: true,
+  // },
 ];
 
 // 可添加成员列表列配置

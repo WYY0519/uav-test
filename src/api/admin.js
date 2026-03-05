@@ -58,3 +58,11 @@ export const updatePassword = (data) => {
     data,
   });
 };
+
+//查看自己是否是超级管理员
+export const isSuperAdmin = () => {
+  return service({
+    url: `api/admin/isSuperAdmin`,
+    method: "GET",
+  });
+};

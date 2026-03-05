@@ -79,7 +79,7 @@
         <div class="form-item">
           <div class="label">账号</div>
           <el-input
-            v-model="formData.field100"
+            v-model.trim="formData.field100"
             placeholder="请输入账号"
             @keydown.enter="submitForm"
           />

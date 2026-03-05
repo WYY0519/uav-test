@@ -52,3 +52,11 @@ export const individualRegister = (data) => {
     data,
   });
 };
+//
+//获取当前用户
+export const getCurrentUser = () => {
+  return service({
+    url: "/api/user/getCurrentUser ",
+    method: "get",
+  });
+};
