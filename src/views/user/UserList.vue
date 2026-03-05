@@ -51,7 +51,11 @@
 
           <div class="header-right">
             <el-button-group>
-              <el-button type="success" :disabled="!isSuperAdminUser" @click="handleAdd">
+              <el-button
+                type="success"
+                :disabled="!isSuperAdminUser"
+                @click="handleAdd"
+              >
                 <el-icon> <Plus /> </el-icon>添加用户
               </el-button>
             </el-button-group>
@@ -114,14 +118,24 @@
           <template #default="{ row }">
             <el-button-group>
               <el-tooltip content="编辑用户" placement="top">
-                <el-button type="primary" link :disabled="!isSuperAdminUser" @click="handleEdit(row)">
+                <el-button
+                  type="primary"
+                  link
+                  :disabled="!isSuperAdminUser"
+                  @click="handleEdit(row)"
+                >
                   <el-icon>
                     <Edit />
                   </el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="删除用户" placement="top">
-                <el-button type="danger" link :disabled="!isSuperAdminUser" @click="handleDelete(row)">
+                <el-button
+                  type="danger"
+                  link
+                  :disabled="!isSuperAdminUser"
+                  @click="handleDelete(row)"
+                >
                   <el-icon>
                     <Delete />
                   </el-icon>
