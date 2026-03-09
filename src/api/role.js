@@ -40,10 +40,11 @@ export const rolelistMenu = (roleId) => {
 };
 ///
 //树形结构返回所有菜单列表
-export const roleTreeList = () => {
+export const roleTreeList = (params) => {
   return service({
     url: `/api/role/treeList`,
     method: "GET",
+    params,
   });
 };
 //给角色分配菜单
@@ -84,10 +85,10 @@ export const allocResource = (params) => {
   });
 };
 // 获取所有角色
-export const listAll = () => {
+export const listAllSelectable = (params) => {
   return service({
-    url: `/api/role/listAll`,
+    url: `/api/role/selectable`,
     method: "GET",
+    params,
   });
 };
-
