@@ -530,8 +530,8 @@ const checkSuperAdminStatus = async () => {
   try {
     const res = await isSuperAdmin();
     console.log(res, "超级管理员状态======");
-    if (res && res.data !== undefined) {
-      isSuperAdminUser.value = res.data;
+    if (res && res.data && res.data.isSuperAdmin !== undefined) {
+      isSuperAdminUser.value = res.data.isSuperAdmin === "true" || res.data.isSuperAdmin === true;
     }
     return res;
   } catch (error) {

@@ -775,19 +775,55 @@ const addZoneToMap = (zone) => {
     radius = 0;
 
   try {
-    const parsedCoords = JSON.parse(zone.coordinates);
+    // 检查 coordinates 是否存在
+    if (!zone.coordinates) {
+      console.error("禁飞区坐标数据为空:", zone);
+      return;
+    }
+
+    let parsedCoords;
+    
+    // 尝试解析坐标数据
+    try {
+      parsedCoords = JSON.parse(zone.coordinates);
+    } catch (parseError) {
+      console.error("JSON 解析失败:", zone.coordinates, parseError);
+      // 如果解析失败，尝试直接使用（假设已经是数组）
+      if (Array.isArray(zone.coordinates)) {
+        parsedCoords = zone.coordinates;
+      } else {
+        console.error("无法解析坐标数据:", zone);
+        return;
+      }
+    }
+
     if (zone.shape === "circle") {
-      const centerLat = parsedCoords[0][0][0];
-      const centerLng = parsedCoords[0][0][1];
+      // 圆形处理
+      const centerLat = parsedCoords[0]?.[0]?.[0];
+      const centerLng = parsedCoords[0]?.[0]?.[1];
+      
+      if (centerLat === undefined || centerLng === undefined) {
+        console.error("圆形中心坐标无效:", parsedCoords);
+        return;
+      }
+      
       coordinates = new T.LngLat(centerLng, centerLat);
       zoneCoordinates = [{ lng: centerLng, lat: centerLat }];
+      
       const areaSquareKm = zone.area || 0;
       if (areaSquareKm > 0) {
         const areaSquareM = areaSquareKm * 1000000;
         radius = Math.sqrt(areaSquareM / Math.PI);
       }
     } else {
-      coordinates = parsedCoords[0].map((point) => {
+      // 多边形处理
+      const points = parsedCoords[0];
+      if (!Array.isArray(points) || points.length === 0) {
+        console.error("多边形坐标数据无效:", parsedCoords);
+        return;
+      }
+
+      coordinates = points.map((point) => {
         const lng = point[1];
         const lat = point[0];
         zoneCoordinates.push({ lng, lat });
@@ -795,7 +831,7 @@ const addZoneToMap = (zone) => {
       });
     }
   } catch (e) {
-    console.error("坐标解析失败", e);
+    console.error("坐标解析失败", e, zone);
     return;
   }
 

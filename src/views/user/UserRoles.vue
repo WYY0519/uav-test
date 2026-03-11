@@ -230,7 +230,7 @@
       :get-role-menu-list="rolelistMenu"
       :get-menu-tree-list="roleTreeList"
       :allocate-menu="roleAllocMenu"
-      @success="userlistdata"
+      @success="handleSuccess"
     />
 
     <!-- 分配资源抽屉 -->
@@ -242,7 +242,7 @@
       :get-all-resources="listAllResource"
       :get-role-resources="listResource"
       :allocate-resource="allocResource"
-      @success="userlistdata"
+      @success="handleSuccess"
     />
   </div>
 </template>
@@ -502,6 +502,17 @@ const assignmentsMenu = (row) => {
 const allocateResources = (row) => {
   selectedUserId.value = row.id;
   allocateResourcesDrawer.value = true;
+};
+
+// 处理分配成功回调
+const handleSuccess = async (resetPage = true) => {
+  if (resetPage) {
+    // 重置到第一页
+    currentPage.value = 1;
+  }
+  // 保留当前分页和 parentId 状态
+  const parentId = isSubLevel.value ? parentRoleId.value : "";
+  await userlistdata(currentPage.value, pageSize.value, parentId);
 };
 
 // 获取角色列表数据

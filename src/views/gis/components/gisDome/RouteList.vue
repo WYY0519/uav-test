@@ -120,168 +120,179 @@
       title="航点设置"
       width="25%"
       type="warning"
-      style="max-height: 80%; overflow-y: auto"
+      style="max-height: 70%; overflow-y: hidden"
     >
-      <el-form :model="formData" label-width="100px">
-        <el-form-item label="航点序号:">
-          <el-input
-            disabled
-            v-model="formData.waypointNumber"
-            placeholder="请输入航点序号"
-          />
-        </el-form-item>
-        <el-form-item label="经度(度):">
-          <el-input v-model="formData.lat" />
-        </el-form-item>
-        <el-form-item label="纬度(度):">
-          <el-input v-model="formData.lon" />
-        </el-form-item>
-        <el-form-item label="停留时间" prop="residenceTime">
-          <el-input
-            v-model="formData.residence_time"
-            placeholder="请输入停留时间"
-            type="number"
-            :formatter="formatNumber"
-            :parser="parseNumber"
-          >
-            <template #suffix>s</template>
-          </el-input>
-        </el-form-item>
-        <el-form-item label="动作:" prop="action">
-          <el-select
-            v-model="formData.action"
-            placeholder="请选择航向角类型"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="item in headingActionOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="速度:" prop="velocity">
-          <el-input
-            v-model="formData.velocity"
-            placeholder="请输入速度"
-            type="number"
-            :formatter="formatNumber"
-            :parser="parseNumber"
-          >
-            <template #suffix>m/s</template>
-          </el-input>
-        </el-form-item>
-        <el-form-item label="航向角:" prop="headingAngle">
-          <el-select
-            v-model="formData.heading_angle.mode"
-            placeholder="请选择航向角类型"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="item in headingAngleOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-          <!-- 与目标点成一定角度 -->
-          <el-input
-            v-show="
-              formData.heading_angle.mode === 'at an angle to the target point'
-            "
-            v-model="formData.heading_angle.angle"
-            style="width: 50%; margin-top: 10px"
-            placeholder="请输入与目标点的角度"
-            type="number"
-            min="0"
-            max="360"
-          >
-            <template #suffix>°</template>
-          </el-input>
-          <!-- 朝某一点不变 -->
-          <div
-            v-show="formData.heading_angle.mode === 'towards a certain point'"
-            class="coordinate-inputs"
-          >
+      <el-form
+        :model="formData"
+        label-width="100px"
+        style="
+          max-height: calc(70vh - 120px);
+          display: flex;
+          flex-direction: column;
+        "
+      >
+        <div style="flex: 1; overflow-y: auto; margin: 10px 0">
+          <el-form-item label="航点序号:">
             <el-input
-              v-model="formData.heading_angle.lon"
-              style="width: 50%; margin-top: 10px"
-              placeholder="请输入经度"
+              disabled
+              v-model="formData.waypointNumber"
+              placeholder="请输入航点序号"
+            />
+          </el-form-item>
+          <el-form-item label="经度(度):">
+            <el-input v-model="formData.lat" />
+          </el-form-item>
+          <el-form-item label="纬度(度):">
+            <el-input v-model="formData.lon" />
+          </el-form-item>
+          <el-form-item label="停留时间" prop="residenceTime">
+            <el-input
+              v-model="formData.residence_time"
+              placeholder="请输入停留时间"
               type="number"
-              step="0.000001"
+              :formatter="formatNumber"
+              :parser="parseNumber"
+            >
+              <template #suffix>s</template>
+            </el-input>
+          </el-form-item>
+          <el-form-item label="动作:" prop="action">
+            <el-select
+              v-model="formData.action"
+              placeholder="请选择航向角类型"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in headingActionOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="速度:" prop="velocity">
+            <el-input
+              v-model="formData.velocity"
+              placeholder="请输入速度"
+              type="number"
+              :formatter="formatNumber"
+              :parser="parseNumber"
+            >
+              <template #suffix>m/s</template>
+            </el-input>
+          </el-form-item>
+          <el-form-item label="航向角:" prop="headingAngle">
+            <el-select
+              v-model="formData.heading_angle.mode"
+              placeholder="请选择航向角类型"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in headingAngleOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+            <!-- 与目标点成一定角度 -->
+            <el-input
+              v-show="
+                formData.heading_angle.mode ===
+                'at an angle to the target point'
+              "
+              v-model="formData.heading_angle.angle"
+              style="width: 50%; margin-top: 10px"
+              placeholder="请输入与目标点的角度"
+              type="number"
               min="0"
+              max="360"
             >
               <template #suffix>°</template>
             </el-input>
-            <el-input
-              v-model="formData.heading_angle.lat"
-              style="width: 50%; margin-top: 10px"
-              placeholder="请输入纬度"
-              type="number"
-              step="0.000001"
-              min="0"
+            <!-- 朝某一点不变 -->
+            <div
+              v-show="formData.heading_angle.mode === 'towards a certain point'"
+              class="coordinate-inputs"
             >
-              <template #suffix>°</template>
-            </el-input>
-          </div>
-        </el-form-item>
-        <el-form-item label="高度策略:" prop="heightStrategy">
-          <el-select
-            v-model="formData.height_strategy"
-            placeholder="请选择高度策略类型"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="item in heightStrategyOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="优先级:" prop="priority">
-          <el-select
-            v-model="formData.priority"
-            placeholder="请选择优先级类型"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="item in priorityOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="分类:" prop="sort">
-          <el-select
-            v-model="formData.sort"
-            placeholder="请选择分类类型"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="item in categoryOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="航线失联行为:" prop="routeLossBehavior">
-          <el-select
-            v-model="formData.route_loss_behavior"
-            placeholder="请选择航线失联行为"
-            style="width: 100%"
-          >
-            <el-option
-              v-for="item in lossBehaviorOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
-          </el-select>
-        </el-form-item>
+              <el-input
+                v-model="formData.heading_angle.lon"
+                style="width: 50%; margin-top: 10px"
+                placeholder="请输入经度"
+                type="number"
+                step="0.000001"
+                min="0"
+              >
+                <template #suffix>°</template>
+              </el-input>
+              <el-input
+                v-model="formData.heading_angle.lat"
+                style="width: 50%; margin-top: 10px"
+                placeholder="请输入纬度"
+                type="number"
+                step="0.000001"
+                min="0"
+              >
+                <template #suffix>°</template>
+              </el-input>
+            </div>
+          </el-form-item>
+          <el-form-item label="高度策略:" prop="heightStrategy">
+            <el-select
+              v-model="formData.height_strategy"
+              placeholder="请选择高度策略类型"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in heightStrategyOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="优先级:" prop="priority">
+            <el-select
+              v-model="formData.priority"
+              placeholder="请选择优先级类型"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in priorityOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="分类:" prop="sort">
+            <el-select
+              v-model="formData.sort"
+              placeholder="请选择分类类型"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in categoryOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="航线失联行为:" prop="routeLossBehavior">
+            <el-select
+              v-model="formData.route_loss_behavior"
+              placeholder="请选择航线失联行为"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in lossBehaviorOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+        </div>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
@@ -313,13 +324,18 @@
       :title="dialogTitle"
       width="30%"
       type="warning"
-      style="max-height: 70%; overflow-y: auto"
+      style="max-height: 70%; overflow: hidden"
     >
       <el-form
         ref="saveRouteFormRef"
         :model="saveRouteForm"
         :rules="saveRouteRules"
         label-width="90px"
+        style="
+          max-height: calc(70vh - 120px);
+          display: flex;
+          flex-direction: column;
+        "
       >
         <el-form-item label="路线名称:" prop="name">
           <el-input v-model="saveRouteForm.name" placeholder="请输入路线名称" />
@@ -349,62 +365,69 @@
             />
           </el-select>
         </el-form-item>
-        <!-- 数据行 -->
+
+        <!-- 关键修改：航点数据行容器 - 独立滚动区域 -->
         <div
-          class="save-route"
-          v-for="(item, index) in saveRouteForm.points"
-          :key="index"
-          style="display: flex; align-items: center; margin-bottom: 10px"
+          class="waypoints-scroll-container"
+          style="flex: 1; overflow-y: auto; margin: 10px 0"
         >
-          <el-form-item
-            label="高度:"
-            :prop="`points[${index}].alt`"
-            :rules="[
-              { required: true, message: '请输入高度', trigger: 'blur' },
-            ]"
-          >
-            <el-input v-model="item.alt" placeholder="高度" />
-          </el-form-item>
-          <el-form-item
-            label="经度:"
-            :prop="`points.[${index}].lng`"
-            :rules="[
-              { required: true, message: '请输入经度', trigger: 'blur' },
-            ]"
-          >
-            <el-input v-model="item.lng" placeholder="经度" />
-          </el-form-item>
-          <el-form-item
-            label="纬度:"
-            :prop="`points.[${index}].lat`"
-            :rules="[
-              { required: true, message: '请输入纬度', trigger: 'blur' },
-            ]"
-          >
-            <el-input v-model="item.lat" placeholder="纬度" />
-          </el-form-item>
-          <!-- 操作按钮 -->
+          <!-- 数据行 -->
           <div
-            style="
-              display: flex;
-              gap: 10px;
-              margin-left: 10px;
-              margin-bottom: 16px;
-            "
+            class="save-route"
+            v-for="(item, index) in saveRouteForm.points"
+            :key="index"
+            style="display: flex; align-items: center; margin-bottom: 10px"
           >
-            <span
-              class="operation-btn add-btn"
-              @click="handleAddRow(index, item)"
-              title="添加行"
-              >+</span
+            <el-form-item
+              label="高度:"
+              :prop="`points[${index}].alt`"
+              :rules="[
+                { required: true, message: '请输入高度', trigger: 'blur' },
+              ]"
             >
-            <span
-              class="operation-btn delete-btn"
-              @click="handleDeleteRow(index, item)"
-              title="删除行"
-              :disabled="saveRouteForm.points.length <= 1"
-              >-</span
+              <el-input v-model="item.alt" placeholder="高度" />
+            </el-form-item>
+            <el-form-item
+              label="经度:"
+              :prop="`points[${index}].lng`"
+              :rules="[
+                { required: true, message: '请输入经度', trigger: 'blur' },
+              ]"
             >
+              <el-input v-model="item.lng" placeholder="经度" />
+            </el-form-item>
+            <el-form-item
+              label="纬度:"
+              :prop="`points[${index}].lat`"
+              :rules="[
+                { required: true, message: '请输入纬度', trigger: 'blur' },
+              ]"
+            >
+              <el-input v-model="item.lat" placeholder="纬度" />
+            </el-form-item>
+            <!-- 操作按钮 -->
+            <div
+              style="
+                display: flex;
+                gap: 10px;
+                margin-left: 10px;
+                margin-bottom: 16px;
+              "
+            >
+              <span
+                class="operation-btn add-btn"
+                @click="handleAddRow(index, item)"
+                title="添加行"
+                >+</span
+              >
+              <span
+                class="operation-btn delete-btn"
+                @click="handleDeleteRow(index, item)"
+                title="删除行"
+                :disabled="saveRouteForm.points.length <= 1"
+                >-</span
+              >
+            </div>
           </div>
         </div>
       </el-form>
@@ -441,6 +464,10 @@ const props = defineProps({
   map: {
     type: Object,
     required: true,
+  },
+  noFlyZoneManagerRef: {
+    type: Object,
+    default: null,
   },
 });
 
@@ -669,6 +696,39 @@ const editAirline = (value, index) => {
 
 // 添加禁飞区/警告区校验
 const editWaypoint = async () => {
+  // 检查禁飞区/禁高区管理器是否可用
+  if (!props.noFlyZoneManagerRef) {
+    ElMessage.warning("禁飞区数据未加载，无法进行校验");
+    return;
+  }
+
+  // 检查禁飞区数据是否加载完成
+  if (!props.noFlyZoneManagerRef.isZonesLoaded()) {
+    ElMessage.warning("禁飞区数据正在加载中，请稍候再试");
+    return;
+  }
+
+  // 构建航点坐标对象
+  const pointToCheck = {
+    lng: parseFloat(formData.value.lon),
+    lat: parseFloat(formData.value.lat),
+  };
+
+  // 校验1：检查航点是否在禁飞区内
+  const isPointInNoFlyZone =
+    props.noFlyZoneManagerRef.isPointInNoFlyZone(pointToCheck);
+  if (isPointInNoFlyZone) {
+    ElMessage.error("该航点位置在禁飞区内，无法保存");
+    return;
+  }
+
+  // 校验2：检查航点是否在禁高区（警告区）内
+  const isPointInWarningZone =
+    props.noFlyZoneManagerRef?.isRouteCrossingWarningZone([pointToCheck]);
+  if (isPointInWarningZone) {
+    ElMessage.warning("该航点位置在禁高区（警告区）内，请注意飞行安全");
+  }
+
   // ===== 原有编辑航点逻辑 =====
   try {
     let data = {
@@ -736,6 +796,39 @@ const handleDeleteRow = (index, item) => {
 const confirmSaveRoute = async () => {
   saveRouteFormRef.value.validate(async (valid) => {
     if (valid) {
+      // 检查禁飞区/禁高区管理器是否可用
+      if (!props.noFlyZoneManagerRef) {
+        ElMessage.warning("禁飞区数据未加载，无法进行校验");
+        return;
+      }
+
+      // 检查禁飞区数据是否加载完成
+      if (!props.noFlyZoneManagerRef.isZonesLoaded()) {
+        ElMessage.warning("禁飞区数据正在加载中，请稍候再试");
+        return;
+      }
+
+      // 提取航线航点坐标
+      const routePoints = saveRouteForm.value.points.map((point) => ({
+        lng: parseFloat(point.lng),
+        lat: parseFloat(point.lat),
+      }));
+
+      // 校验1：检查航线是否穿越禁飞区
+      const isCrossingNoFlyZone =
+        props.noFlyZoneManagerRef.isRouteCrossingNoFlyZone(routePoints);
+      if (isCrossingNoFlyZone) {
+        ElMessage.error("航线穿越禁飞区域，无法保存");
+        return;
+      }
+
+      // 校验2：检查航线是否穿越禁高区（警告区）
+      const isCrossingWarningZone =
+        props.noFlyZoneManagerRef.isRouteCrossingWarningZone(routePoints);
+      if (isCrossingWarningZone) {
+        ElMessage.warning("注意：当前航线穿越禁高区（警告区），请注意飞行安全");
+      }
+
       // ===== 原有保存/编辑逻辑 =====
       if (dialogTitle.value === "保存路线") {
         // 原有保存逻辑
@@ -1069,6 +1162,27 @@ routeList();
 .delete-btn:disabled {
   background-color: #ccc;
   cursor: not-allowed;
+}
+
+/* 新增：航点滚动容器样式优化 */
+:deep(.waypoints-scroll-container) {
+  /* 自定义滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: #409eff rgba(0, 0, 0, 0.1);
+}
+
+:deep(.waypoints-scroll-container::-webkit-scrollbar) {
+  width: 6px;
+}
+
+:deep(.waypoints-scroll-container::-webkit-scrollbar-track) {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+:deep(.waypoints-scroll-container::-webkit-scrollbar-thumb) {
+  background: #409eff;
+  border-radius: 3px;
 }
 
 @media screen and (max-width: 800px) {

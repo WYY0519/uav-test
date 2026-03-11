@@ -76,7 +76,7 @@ const getCityByLatLng = async (lat, lng) => {
     ElMessage.error("网络异常，查询失败");
     currentCity.value = null;
   }
-};
+} 
 
 // 结合你的项目使用：从项目数据中获取经纬度查询
 const getProjectCity = (project) => {
@@ -86,4 +86,7 @@ const getProjectCity = (project) => {
     ElMessage.warning("项目暂无经纬度信息");
   }
 };
+
+
+
 </script>

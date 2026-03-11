@@ -160,7 +160,7 @@ const handleSubmit = async () => {
     const res = await props.allocateMenu(data);
     if (res.code === 200) {
       ElMessage.success("分配菜单成功");
-      emit("success");
+      emit("success", false); // 传递 false 表示不跳转到第一页
       emit("update:modelValue", false);
     } else {
       ElMessage.error(res.message || "分配菜单失败");

@@ -318,7 +318,7 @@
         <div style="font-size: 14px">{{ tooltipTile }}</div>
       </div>
       <!-- 引入禁飞区管理组件 -->
-      <!-- <NoFlyZoneManager
+      <NoFlyZoneManager
         ref="noFlyZoneManagerRef"
         :map="map"
         :visible="noFlyZoneToolbar"
@@ -327,7 +327,7 @@
         @zone-updated="handleZoneUpdated"
         @zone-deleted="handleZoneDeleted"
         @zones-cleared="handleZonesCleared"
-      /> -->
+      />
     </div>
   </div>
 </template>

@@ -226,14 +226,19 @@ const toggleModule = (module) => {
   console.log(module, "module");
 };
 
-// 递归函数：提取checked为true的节点ID
+// 递归函数：提取checked为true的节点ID（只收集子模块，不包含父模块）
 const extractCheckedIds = (treeData) => {
+  console.log(treeData, "treeData");
   const result = [];
   function traverseNodes(nodes) {
     nodes.forEach((node) => {
-      if (node.checked) {
-        result.push(node.id);
+      // 只收集没有子节点的叶子节点（子模块）
+      if (!node.children || node.children.length === 0) {
+        if (node.checked) {
+          result.push(node.id);
+        }
       }
+      // 递归遍历子节点
       if (node.children && node.children.length > 0) {
         traverseNodes(node.children);
       }
@@ -248,6 +253,8 @@ console.log(props, "====");
 const handleSubmit = async () => {
   try {
     const checkedIds = extractCheckedIds(modules.value);
+    console.log(checkedIds);
+
     const data = {
       roleId: props.roleId,
       resourceIds: checkedIds.join(","),
@@ -255,7 +262,7 @@ const handleSubmit = async () => {
     const res = await props.allocateResource(data);
     if (res.code === 200) {
       ElMessage.success("分配资源成功");
-      emit("success");
+      emit("success", false); // 传递 false 表示不跳转到第一页
       emit("update:modelValue", false);
     } else {
       ElMessage.error(res.message || "分配资源失败");
