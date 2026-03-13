@@ -66,6 +66,7 @@
                 @route-delete="handleRouteDelete"
                 @waypoint-edit="handleWaypointEdit"
                 @route-save="handleRouteSave"
+                @route-cancel-edit="handleRouteCancelEdit"
               />
             </div>
           </el-card>
@@ -1045,7 +1046,13 @@ const debounceUpdatePolyline = debounce((polyline, newPath) => {
     polyline.setLngLats(newPath);
   }
 }, 10);
-
+// 新增：处理取消编辑事件
+const handleRouteCancelEdit = (route) => {
+  console.log("取消编辑，恢复原始航线:", route);
+  // 重新渲染原始航线
+  viewRoute(route);
+  ElMessage.info("已取消编辑，恢复原始航线");
+};
 const viewRoute = (route) => {
   console.log("viewRoute", route);
   if (!map) {
@@ -1053,6 +1060,7 @@ const viewRoute = (route) => {
     return;
   }
   try {
+    // 清除现有航线覆盖物
     clearRouteOverlaysOnly();
     currentRoutePolyline.value = null;
     activeRouteId.value = route.id;
@@ -1062,6 +1070,7 @@ const viewRoute = (route) => {
       return;
     }
 
+    // 使用当前传入的 route.points（恢复后的原始数据）
     const path = route.points.map((p) => new T.LngLat(p.lng, p.lat));
     const polyline = new T.Polyline(path, {
       color: "#2c64a7",
@@ -1074,6 +1083,7 @@ const viewRoute = (route) => {
     map.addOverLay(polyline);
     currentRoutePolyline.value = polyline;
 
+    // 重新添加所有航点标记（使用恢复后的坐标）
     route.points.forEach((point, index) => {
       const markerId = `marker-${route.id}-${index}`;
       const marker = addDraggablePointMarker(
@@ -1083,6 +1093,7 @@ const viewRoute = (route) => {
         markerId,
       );
 
+      // 保留原有的拖拽事件监听
       marker.addEventListener("dragstart", () => {
         const iconElement = document.getElementById(markerId);
         if (iconElement) {
@@ -1163,6 +1174,7 @@ const viewRoute = (route) => {
       });
     });
 
+    // 地图视野调整逻辑（保持不变）
     let minLng = Infinity,
       minLat = Infinity;
     let maxLng = -Infinity,
@@ -1240,7 +1252,6 @@ const viewRoute = (route) => {
     ElMessage.error("查看路线失败，请重试");
   }
 };
-
 const addDraggablePointMarker = (point, index, totalPoints, markerId) => {
   const isStart = index === 0;
   const isEnd = index === totalPoints - 1;

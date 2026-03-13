@@ -139,77 +139,6 @@
   </div>
 </template>
 
-<style scoped>
-.manage-container {
-  height: 100%;
-  background-color: #f5f7fa;
-  box-sizing: border-box;
-}
-
-.operation-card {
-  margin-bottom: 20px;
-  border-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-}
-
-.right-section {
-  display: flex;
-  align-items: center;
-}
-
-.action-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  overflow-x: auto;
-  padding: 8px 16px;
-}
-
-.left-section {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.search-input {
-  width: 250px;
-}
-
-.action-button {
-  padding: 10px 20px;
-}
-
-.upload-btn {
-  display: inline-block;
-  margin-left: 12px;
-}
-
-/* 表格单元格居中 */
-.el-table .cell {
-  text-align: center !important;
-}
-
-/* 响应式调整 */
-@media (max-width: 768px) {
-  .action-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .left-section {
-    width: 100%;
-  }
-
-  .search-input {
-    width: 100%;
-  }
-
-  .action-button {
-    width: 100%;
-  }
-}
-</style>
 <script setup>
 import { ref, onUnmounted, onMounted, watch, computed, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
@@ -245,6 +174,10 @@ const filteredDeviceList = ref([]);
 const uploadRef = ref(null);
 const selectedRows = ref([]);
 const tableRef = ref(null);
+const formRef = ref(null);
+
+// 定时器变量（必须定义在顶层，便于在 unmounted 中清除）
+let updateTimer = null;
 
 // 搜索表单配置
 const searchForm = ref({
@@ -694,9 +627,6 @@ const handleDialogCancel = () => {
   };
 };
 
-// 表单ref
-const formRef = ref(null);
-
 // 申请视频流地址
 const videoStreamURL = async () => {
   try {
@@ -722,90 +652,25 @@ watch(deviceDialogVisible, (newVal) => {
     };
   }
 });
+
 onMounted(() => {
+  // 初始获取列表
   fetchDeviceList();
-  const updateTimer = setInterval(async () => {
+
+  // 启动每秒轮询更新设备状态（注意：间隔改为1000ms）
+  if (updateTimer) clearInterval(updateTimer); // 确保没有旧的定时器
+  updateTimer = setInterval(async () => {
     if (deviceList.value.length > 0) {
       await updateDeviceStatus(deviceList.value);
     }
-  }, 5000);
+  }, 1000); // 每秒调用一次
 });
+
 onUnmounted(() => {
-  // clearInterval(updateTimer);
-  // const handleSubmit = (formData) => {
-  //   submitForm(formData);
-  // };
+  // 清除定时器，避免内存泄漏
+  if (updateTimer) {
+    clearInterval(updateTimer);
+    updateTimer = null;
+  }
 });
 </script>
-
-<style scoped>
-.manage-container {
-  height: 100%;
-  background-color: #f5f7fa;
-  box-sizing: border-box;
-}
-
-.operation-card {
-  margin-bottom: 20px;
-  border-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-}
-
-.right-section {
-  display: flex;
-  align-items: center;
-}
-
-.action-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  overflow-x: auto;
-  padding: 8px 16px;
-}
-
-.left-section {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.search-input {
-  width: 250px;
-}
-
-.action-button {
-  padding: 10px 20px;
-}
-
-.upload-btn {
-  display: inline-block;
-  margin-left: 12px;
-}
-
-/* 表格单元格居中 */
-.el-table .cell {
-  text-align: center !important;
-}
-
-/* 响应式调整 */
-@media (max-width: 768px) {
-  .action-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .left-section {
-    width: 100%;
-  }
-
-  .search-input {
-    width: 100%;
-  }
-
-  .action-button {
-    width: 100%;
-  }
-}
-</style>

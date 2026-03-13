@@ -13,6 +13,7 @@
     <!-- 任务列表主体 -->
     <div v-if="showTaskList" class="top-section">
       <div class="top-section2">
+        <!-- 搜索框区域 - 固定 -->
         <div style="margin-bottom: 12px">
           <el-input
             v-model="taskName"
@@ -35,23 +36,23 @@
             </template>
           </el-input>
         </div>
-        <div>任务列表</div>
-        <div
-          v-for="item in taskAllList"
-          style="
-            background: #2e3649db;
-            padding: 12px;
-            margin: 12px 0;
-            border-radius: 12px;
-            border-radius: 12px;
-            cursor: pointer !important;
-            pointer-events: auto !important;
-          "
-          @click.stop="handleSelectTask(item)"
-          @mouseleave="handleMouseleaveTask()"
-        >
-          {{ item.name }}
+
+        <!-- 标题 - 固定 -->
+        <div class="task-list-title">任务列表</div>
+
+        <!-- 任务项滚动容器 - 核心修改：独立滚动区域 -->
+        <div class="task-items-scroll-container">
+          <div
+            v-for="item in taskAllList"
+            class="task-item"
+            @click.stop="handleSelectTask(item)"
+            @mouseleave="handleMouseleaveTask()"
+          >
+            {{ item.name }}
+          </div>
         </div>
+
+        <!-- 分页区域 - 固定在底部 -->
         <div class="pagination-wrapper">
           <el-pagination
             v-model:current-page="currentPage"
@@ -234,13 +235,8 @@ onMounted(() => {
   padding: 35px 12px 12px 12px;
   color: #fff;
   font-size: 16px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  /* border-radius: 12px; */
+  overflow: hidden !important; /* 禁止整体滚动 */
   border: 2px solid rgba(60, 127, 231, 0.7);
-  /* margin: 20px 0 20px 20px; */
-  scrollbar-width: thin;
-  scrollbar-color: rgba(60, 127, 231, 0.7) transparent;
   box-sizing: border-box;
 }
 
@@ -250,6 +246,51 @@ onMounted(() => {
   flex-direction: column;
 }
 
+/* 任务列表标题样式 */
+.task-list-title {
+  margin-bottom: 12px;
+}
+
+/* 核心：任务项滚动容器 */
+.task-items-scroll-container {
+  flex: 1; /* 占满除了搜索、标题、分页外的所有空间 */
+  overflow-y: auto; /* 仅纵向滚动 */
+  overflow-x: hidden;
+  margin-bottom: 12px;
+  /* 自定义滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(60, 127, 231, 0.7) transparent;
+}
+
+/* 任务项样式（提取内联样式到css） */
+.task-item {
+  background: #2e3649db;
+  padding: 12px;
+  margin: 12px 0;
+  border-radius: 12px;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+/* 滚动条样式 - Webkit浏览器 */
+:deep(.task-items-scroll-container::-webkit-scrollbar) {
+  width: 6px;
+}
+
+:deep(.task-items-scroll-container::-webkit-scrollbar-track) {
+  background: transparent;
+  border-radius: 3px;
+}
+
+:deep(.task-items-scroll-container::-webkit-scrollbar-thumb) {
+  background: rgba(60, 127, 231, 0.7);
+  border-radius: 3px;
+}
+
+:deep(.task-items-scroll-container::-webkit-scrollbar-thumb:hover) {
+  background: rgba(60, 127, 231, 0.9);
+}
+
 .pagination-wrapper {
   background-color: #2e3649db;
   width: 100%;
@@ -257,7 +298,7 @@ onMounted(() => {
   -webkit-overflow-scrolling: touch;
   padding-bottom: 8px;
   border-radius: 12px;
-  margin-top: auto;
+  margin-top: auto; /* 固定在底部 */
 }
 
 :deep(.pagination-wrapper .el-pagination) {

@@ -62,6 +62,26 @@
                   {{ itemInfo.id === activeRouteId ? "收起" : "查看" }}</span
                 >
                 <span
+                  v-if="
+                    itemInfo.id === activeRouteId &&
+                    isRouteEditing &&
+                    itemInfo.id === editingRouteId
+                  "
+                  class="routeOperation-box-complete"
+                  @click="completeRouteEdit(itemInfo)"
+                  >完成</span
+                >
+                <span
+                  v-if="
+                    itemInfo.id === activeRouteId &&
+                    isRouteEditing &&
+                    itemInfo.id === editingRouteId
+                  "
+                  class="routeOperation-box-cancel"
+                  @click="cancelRouteEdit(itemInfo)"
+                  >取消</span
+                >
+                <span
                   class="routeOperation-box-edit"
                   @click="routeEdit(itemInfo)"
                   >编辑</span
@@ -479,6 +499,7 @@ const emit = defineEmits([
   "route-delete",
   "waypoint-edit",
   "route-save",
+  "route-cancel-edit",
 ]);
 
 // 状态变量
@@ -499,6 +520,9 @@ const waypointOptions = ref([]);
 const selectedItemStrategy = ref({});
 const deletingRouteIndex = ref(-1);
 const newArr = ref([]);
+const isRouteEditing = ref(false);
+const editingRouteId = ref(null);
+const originalRoutePoints = ref([]);
 const formData = ref({
   heading_angle: {
     mode: "",
@@ -631,11 +655,20 @@ const handleCurrentChange = (val) => {
 const viewRoute = (route) => {
   emit("route-view", route);
   activeRouteId.value = route.id;
+  // 进入编辑模式
+  isRouteEditing.value = true;
+  editingRouteId.value = route.id;
+  // 深度保存原始航点数据（关键：确保保存的是原始数据的副本）
+  originalRoutePoints.value = JSON.parse(JSON.stringify(route.points || []));
+  console.log("保存原始航点数据:", originalRoutePoints.value);
 };
 
 const retractRoute = () => {
   emit("route-retract");
   activeRouteId.value = null;
+  isRouteEditing.value = false;
+  editingRouteId.value = null;
+  originalRoutePoints.value = [];
 };
 //编辑航线
 const routeEdit = async (route) => {
@@ -664,10 +697,74 @@ const confirmDelete = async () => {
   if (res.code === 200) {
     deleteDialogVisible.value = false;
     activeRouteId.value = null;
+    isRouteEditing.value = false;
+    editingRouteId.value = null;
+    originalRoutePoints.value = [];
     ElMessage.success("删除成功");
     emit("route-delete", route);
     await routeList(searchKeyword.value);
   }
+};
+
+// 完成航线编辑
+const completeRouteEdit = async (route) => {
+  try {
+    // 获取当前编辑后的航点数据
+    const currentRoute = routeInfo.value[0].find(
+      (item) => item.id === route.id,
+    );
+    if (!currentRoute) {
+      ElMessage.error("航线数据未找到");
+      return;
+    }
+
+    // 构建保存参数
+    const pointsJson = convertPoints(currentRoute.points);
+    let params = {
+      id: route.id,
+      description: route.description,
+      name: route.name,
+      pointsJson: pointsJson,
+      policyId: route.policyId,
+    };
+
+    let res = await updateMission(params);
+    if (res.code === 200) {
+      ElMessage.success("航线编辑成功");
+      // 更新原始航点数据为当前数据，保持编辑模式
+      originalRoutePoints.value = JSON.parse(
+        JSON.stringify(currentRoute.points),
+      );
+      emit("route-save");
+    }
+  } catch (error) {
+    console.error("航线编辑失败：", error);
+    ElMessage.error("航线编辑失败，请重试");
+  }
+};
+
+// 取消航线编辑
+const cancelRouteEdit = (route) => {
+  // 找到当前航线
+  const currentRoute = routeInfo.value[0].find((item) => item.id === route.id);
+  if (currentRoute && originalRoutePoints.value.length > 0) {
+    // 深度复制原始航点数据覆盖当前数据
+    currentRoute.points = JSON.parse(JSON.stringify(originalRoutePoints.value));
+    console.log("恢复航点数据:", currentRoute.points);
+
+    // 通知父组件恢复地图上的航线
+    emit("route-cancel-edit", JSON.parse(JSON.stringify(currentRoute)));
+  } else {
+    // 没有找到航线数据，通知父组件收起航线
+    emit("route-retract");
+  }
+
+  // 重置编辑状态
+  isRouteEditing.value = false;
+  editingRouteId.value = null;
+  originalRoutePoints.value = [];
+
+  ElMessage.info("已取消编辑，恢复原始航点位置");
 };
 
 //记录当前编辑的航线和航点索引
@@ -1042,6 +1139,18 @@ routeList();
 
 .routeOperation-box-edit {
   color: #1677ff;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.routeOperation-box-complete {
+  color: #67c23a;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.routeOperation-box-cancel {
+  color: #f56c6c;
   cursor: pointer;
   margin-right: 6px;
 }
