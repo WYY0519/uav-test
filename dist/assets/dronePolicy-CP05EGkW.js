@@ -1,1 +1,0 @@
-import{s as e}from"./request-BtN2WUPq.js";const n=o=>e({url:"/api/dronePolicy/list",method:"get",params:o}),i=o=>e({url:"/api/dronePolicy/creat",method:"post",data:o}),c=(o,r)=>e({url:`/api/dronePolicy/${o}`,method:"put",data:r}),d=o=>e({url:`/api/dronePolicy/${o}`,method:"delete"});export{i as a,d as b,c,n as d};
