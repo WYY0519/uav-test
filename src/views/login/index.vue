@@ -269,6 +269,8 @@ const forgotRules = ref({
 
 // 登录方法
 const login = async (url, requestBody) => {
+  console.log(url, requestBody);
+
   try {
     const response = await http.post(url, requestBody, {
       headers: {
@@ -283,7 +285,7 @@ const login = async (url, requestBody) => {
       ElMessage.error(response.message || "登录失败");
     }
   } catch (error) {
-    ElMessage.error("网络请求失败，请稍后再试");
+    ElMessage.error("网络请求失败，请稍后再试1");
   }
 };
 
@@ -484,7 +486,7 @@ const submitForgotPasswordWithValidation = async () => {
       ElMessage.error(response.message || "密码重置失败");
     }
   } catch (error) {
-    ElMessage.error("网络请求失败，请稍后再试");
+    ElMessage.error("网络请求失败，请稍后再试2");
   }
 };
 // 生命周期钩子

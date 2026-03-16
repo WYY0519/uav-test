@@ -1,4 +1,5 @@
 <template>
+  <!-- 模板部分和你原来的完全一致，无需修改 -->
   <div class="route-list-container">
     <!-- 搜索区域 -->
     <div class="route-search">
@@ -64,7 +65,7 @@
                 <span
                   v-if="
                     itemInfo.id === activeRouteId &&
-                    isRouteEditing &&
+                    isEditMode &&
                     itemInfo.id === editingRouteId
                   "
                   class="routeOperation-box-complete"
@@ -74,7 +75,7 @@
                 <span
                   v-if="
                     itemInfo.id === activeRouteId &&
-                    isRouteEditing &&
+                    isEditMode &&
                     itemInfo.id === editingRouteId
                   "
                   class="routeOperation-box-cancel"
@@ -94,22 +95,33 @@
               </div>
             </div>
           </div>
+          <!-- 航点列表 - 新增拖拽功能 -->
           <div class="routeInformation" v-if="itemInfo.id === activeRouteId">
             <div
               class="routeInformation-list"
-              v-for="(itemPrototype, indexPrototype) in itemInfo.points"
+              v-for="(itemPrototype, indexPrototype) in getCurrentPoints(
+                itemInfo,
+              )"
               :key="indexPrototype"
+              draggable="true"
+              @dragstart="handleDragStart(indexPrototype, itemInfo)"
+              @dragover="handleDragOver"
+              @drop="handleDrop(indexPrototype, itemInfo)"
+              @dragend="handleDragEnd"
+              :class="{ dragging: isDragging }"
             >
               航点 {{ indexPrototype + 1 }}
               {{
                 indexPrototype === 0
                   ? "(起点)"
-                  : indexPrototype === itemInfo.points.length - 1
+                  : indexPrototype === getCurrentPoints(itemInfo).length - 1
                     ? "(终点)"
                     : ""
               }}
               <div
-                v-show="indexPrototype !== itemInfo.points.length - 1"
+                v-show="
+                  indexPrototype !== getCurrentPoints(itemInfo).length - 1
+                "
                 class="routeInformation-list-edit"
                 @click="editAirline(itemPrototype, indexPrototype + 1)"
               >
@@ -214,7 +226,6 @@
                 :value="item.value"
               />
             </el-select>
-            <!-- 与目标点成一定角度 -->
             <el-input
               v-show="
                 formData.heading_angle.mode ===
@@ -229,7 +240,6 @@
             >
               <template #suffix>°</template>
             </el-input>
-            <!-- 朝某一点不变 -->
             <div
               v-show="formData.heading_angle.mode === 'towards a certain point'"
               class="coordinate-inputs"
@@ -386,12 +396,10 @@
           </el-select>
         </el-form-item>
 
-        <!-- 关键修改：航点数据行容器 - 独立滚动区域 -->
         <div
           class="waypoints-scroll-container"
           style="flex: 1; overflow-y: auto; margin: 10px 0"
         >
-          <!-- 数据行 -->
           <div
             class="save-route"
             v-for="(item, index) in saveRouteForm.points"
@@ -425,7 +433,6 @@
             >
               <el-input v-model="item.lat" placeholder="纬度" />
             </el-form-item>
-            <!-- 操作按钮 -->
             <div
               style="
                 display: flex;
@@ -500,9 +507,10 @@ const emit = defineEmits([
   "waypoint-edit",
   "route-save",
   "route-cancel-edit",
+  "waypoint-updated",
 ]);
 
-// 状态变量
+// 基础状态变量
 const searchKeyword = ref("");
 const routeInfo = ref([]);
 const currentPage = ref(1);
@@ -520,9 +528,8 @@ const waypointOptions = ref([]);
 const selectedItemStrategy = ref({});
 const deletingRouteIndex = ref(-1);
 const newArr = ref([]);
-const isRouteEditing = ref(false);
+const isEditMode = ref(false);
 const editingRouteId = ref(null);
-const originalRoutePoints = ref([]);
 const formData = ref({
   heading_angle: {
     mode: "",
@@ -537,6 +544,14 @@ const saveRouteForm = ref({
   points: [],
   waypointStrategy: "",
 });
+
+// 拖拽相关状态（核心新增）
+const isDragging = ref(false); // 是否正在拖拽
+const dragSourceIndex = ref(-1); // 拖拽源索引
+const dragTempPoints = ref({}); // 各航线的拖拽临时航点 { routeId: points }
+const originalPoints = ref({}); // 各航线的原始航点备份 { routeId: points }
+const isEditCompleted = ref(false); // 是否点击完成保存拖拽
+
 // 选项数据
 const headingActionOptions = ref([
   { label: "悬停", value: "hover" },
@@ -631,7 +646,8 @@ const routeList = async (value = "") => {
     console.error(error);
   }
 };
-//搜索的航线
+
+// 搜索处理
 const handleSearchInput = debounce((param) => {
   let inputValue;
   if (param instanceof InputEvent) {
@@ -651,26 +667,127 @@ const handleCurrentChange = (val) => {
   currentPage.value = val;
   routeList(searchKeyword.value);
 };
-//查看航线
+
+// 获取当前显示的航点（核心：区分临时/正式数据）
+const getCurrentPoints = (route) => {
+  if (!route || !activeRouteId.value) return [];
+
+  // 已完成编辑：显示正式数据；未完成：显示临时数据
+  if (isEditCompleted.value) {
+    return route.points || [];
+  } else {
+    return dragTempPoints.value[route.id] || route.points || [];
+  }
+};
+
+// 查看航线（核心：初始化拖拽临时数据）
 const viewRoute = (route) => {
   emit("route-view", route);
   activeRouteId.value = route.id;
-  // 进入编辑模式
-  isRouteEditing.value = true;
+  isEditMode.value = true;
   editingRouteId.value = route.id;
-  // 深度保存原始航点数据（关键：确保保存的是原始数据的副本）
-  originalRoutePoints.value = JSON.parse(JSON.stringify(route.points || []));
-  console.log("保存原始航点数据:", originalRoutePoints.value);
+
+  // 保存原始航点（用于回滚）
+  originalPoints.value[route.id] = JSON.parse(
+    JSON.stringify(route.points || []),
+  );
+  // 初始化临时拖拽航点
+  dragTempPoints.value[route.id] = JSON.parse(
+    JSON.stringify(route.points || []),
+  );
+  // 重置完成状态（未点完成，不保存拖拽）
+  isEditCompleted.value = false;
+
+  console.log("初始化航线数据:", {
+    original: originalPoints.value[route.id],
+    temp: dragTempPoints.value[route.id],
+  });
 };
 
+// 收起航线（核心：回滚未保存的拖拽数据）
 const retractRoute = () => {
   emit("route-retract");
+
+  // 未完成编辑：回滚到原始航点
+  if (activeRouteId.value && !isEditCompleted.value) {
+    const currentRoute = routeInfo.value[0]?.find(
+      (r) => r.id === activeRouteId.value,
+    );
+    if (currentRoute && originalPoints.value[activeRouteId.value]) {
+      // 回滚为原始数据
+      currentRoute.points = JSON.parse(
+        JSON.stringify(originalPoints.value[activeRouteId.value]),
+      );
+      ElMessage.info("未保存的拖拽已重置");
+    }
+  }
+
+  // 重置所有状态
   activeRouteId.value = null;
-  isRouteEditing.value = false;
+  isEditMode.value = false;
   editingRouteId.value = null;
-  originalRoutePoints.value = [];
+  isDragging.value = false;
+  dragSourceIndex.value = -1;
+  dragTempPoints.value = {};
+  originalPoints.value = {};
+  isEditCompleted.value = false;
 };
-//编辑航线
+
+// 拖拽开始
+const handleDragStart = (index, route) => {
+  isDragging.value = true;
+  dragSourceIndex.value = index;
+  // 初始化临时数据（如果未初始化）
+  if (!dragTempPoints.value[route.id]) {
+    dragTempPoints.value[route.id] = JSON.parse(
+      JSON.stringify(route.points || []),
+    );
+  }
+  // 标记为未完成（未点完成，不保存）
+  isEditCompleted.value = false;
+};
+
+// 拖拽经过
+const handleDragOver = (e) => {
+  e.preventDefault(); // 必须阻止默认行为才能触发drop
+};
+
+// 拖拽放下（交换航点位置）
+const handleDrop = (targetIndex, route) => {
+  if (!isDragging.value || dragSourceIndex.value === -1) return;
+
+  const points = dragTempPoints.value[route.id];
+  if (!points) return;
+
+  // 创建新数组，交换元素
+  const newPoints = [...points];
+  const [dragged] = newPoints.splice(dragSourceIndex.value, 1);
+  newPoints.splice(targetIndex, 0, dragged);
+
+  // 整体赋值，触发响应式更新
+  dragTempPoints.value[route.id] = newPoints;
+
+  // 调试：打印拖拽后的顺序
+  console.log(
+    "拖拽后新顺序:",
+    newPoints.map((p) => p.lat + "," + p.lng),
+  );
+
+  // 通知父组件（可选）
+  emit("waypoint-updated", {
+    route,
+    pointIndex: targetIndex,
+    newPoint: dragged,
+  });
+};
+
+// 拖拽结束
+const handleDragEnd = () => {
+  isDragging.value = false;
+  dragSourceIndex.value = -1;
+};
+
+// 编辑航线
 const routeEdit = async (route) => {
   await getAllPolicies();
   saveRouteForm.value = {
@@ -685,31 +802,34 @@ const routeEdit = async (route) => {
   policyIdDialog.value = route.policyId;
   emit("route-edit", route);
 };
-//删除航线
+
+// 删除航线
 const deleteRoute = (route) => {
   deletingRouteIndex.value = route;
   deleteDialogVisible.value = true;
 };
-//确认删除航线
+
+// 确认删除
 const confirmDelete = async () => {
   const route = deletingRouteIndex.value;
   let res = await deleteManageRoute(route.id);
   if (res.code === 200) {
     deleteDialogVisible.value = false;
     activeRouteId.value = null;
-    isRouteEditing.value = false;
+    isEditMode.value = false;
     editingRouteId.value = null;
-    originalRoutePoints.value = [];
+    isEditCompleted.value = false;
+    delete dragTempPoints.value[route.id];
+    delete originalPoints.value[route.id];
     ElMessage.success("删除成功");
     emit("route-delete", route);
     await routeList(searchKeyword.value);
   }
 };
 
-// 完成航线编辑
+// 修正后的 completeRouteEdit 函数
 const completeRouteEdit = async (route) => {
   try {
-    // 获取当前编辑后的航点数据
     const currentRoute = routeInfo.value[0].find(
       (item) => item.id === route.id,
     );
@@ -718,58 +838,130 @@ const completeRouteEdit = async (route) => {
       return;
     }
 
-    // 构建保存参数
-    const pointsJson = convertPoints(currentRoute.points);
-    let params = {
-      id: route.id,
-      description: route.description,
-      name: route.name,
-      pointsJson: pointsJson,
-      policyId: route.policyId,
+    console.log("=== 开始保存航点 ===");
+    console.log("航线ID:", route.id);
+
+    // 打印拖拽临时数据（应为最新顺序）
+    console.log(
+      "dragTempPoints 存在?",
+      !!dragTempPoints.value[route.id],
+    );
+    if (dragTempPoints.value[route.id]) {
+      console.log(
+        "dragTempPoints 长度:",
+        dragTempPoints.value[route.id].length,
+      );
+      console.log(
+        "dragTempPoints 内容:",
+        dragTempPoints.value[route.id].map((p) => ({ lat: p.lat, lng: p.lng })),
+      );
+    }
+    // 打印原始航线数据（应为旧顺序）
+    console.log(
+      "currentRoute.points 长度:",
+      currentRoute.points.length,
+    );
+    console.log(
+      "currentRoute.points 内容:",
+      currentRoute.points.map((p) => ({ lat: p.lat, lng: p.lng })),
+    );
+    console.log("isEditCompleted:", isEditCompleted.value);
+
+    // 优先使用 dragTempPoints（若存在且有数据）
+    let finalPoints = [];
+    if (dragTempPoints.value[route.id]?.length > 0) {
+      console.log("使用 dragTempPoints 作为最终数据");
+      finalPoints = JSON.parse(JSON.stringify(dragTempPoints.value[route.id]));
+    } else {
+      console.log("dragTempPoints 为空，使用 currentRoute.points");
+      finalPoints = JSON.parse(JSON.stringify(currentRoute.points));
+    }
+
+    console.log(
+      "finalPoints 最终数据:",
+      finalPoints.map((p) => ({ lat: p.lat, lng: p.lng })),
+    );
+
+    // 【关键修复】先更新 currentRoute.points，确保后续使用的是最新数据
+    currentRoute.points = finalPoints;
+
+    // 构建后端所需格式（注意字段名：lat, lon, alt）
+    const pointsForBackend = finalPoints.map((point) => ({
+      lat: String(point.lat),
+      lon: String(point.lng), // 前端字段 lng 转后端 lon
+      alt: String(point.alt),
+    }));
+
+    console.log(
+      "pointsForBackend:",
+      pointsForBackend.map((p) => ({ lat: p.lat, lon: p.lon })),
+    );
+
+    // 构造 pointsJson 字符串（与接口要求一致）
+    const routeData = {
+      routeData: {
+        type: "mission",
+        points: pointsForBackend,
+        home_pos:
+          pointsForBackend.length > 0
+            ? {
+                lat: pointsForBackend[0].lat,
+                lon: pointsForBackend[0].lon,
+                alt: "0",
+              }
+            : { lat: "", lon: "", alt: "0" },
+      },
     };
 
-    let res = await updateMission(params);
+    const pointsJsonString = JSON.stringify(routeData);
+
+    const params = {
+      id: currentRoute.id,
+      description: currentRoute.description,
+      name: currentRoute.name,
+      pointsJson: pointsJsonString,
+      policyId: Number(currentRoute.policyId),
+    };
+
+    console.log("最终发送参数:", params);
+
+    let res = await updateMission(params); // 只传一个参数
+
     if (res.code === 200) {
-      ElMessage.success("航线编辑成功");
-      // 更新原始航点数据为当前数据，保持编辑模式
-      originalRoutePoints.value = JSON.parse(
-        JSON.stringify(currentRoute.points),
-      );
+      isEditCompleted.value = true;
+      originalPoints.value[route.id] = JSON.parse(JSON.stringify(finalPoints));
+      dragTempPoints.value[route.id] = JSON.parse(JSON.stringify(finalPoints));
+      await routeList(searchKeyword.value);
+      emit("route-saved-and-refresh-map", route.id);
+      ElMessage.success("航线编辑成功！");
       emit("route-save");
+    } else {
+      ElMessage.error(`保存失败：${res.msg || "接口返回非200状态"}`);
     }
   } catch (error) {
     console.error("航线编辑失败：", error);
-    ElMessage.error("航线编辑失败，请重试");
+    ElMessage.error("航线编辑失败，请检查控制台日志");
   }
 };
-
 // 取消航线编辑
 const cancelRouteEdit = (route) => {
-  // 找到当前航线
   const currentRoute = routeInfo.value[0].find((item) => item.id === route.id);
-  if (currentRoute && originalRoutePoints.value.length > 0) {
-    // 深度复制原始航点数据覆盖当前数据
-    currentRoute.points = JSON.parse(JSON.stringify(originalRoutePoints.value));
-    console.log("恢复航点数据:", currentRoute.points);
-
-    // 通知父组件恢复地图上的航线
+  if (currentRoute && originalPoints.value[route.id]) {
+    // 恢复原始航点
+    currentRoute.points = JSON.parse(
+      JSON.stringify(originalPoints.value[route.id]),
+    );
+    dragTempPoints.value[route.id] = JSON.parse(
+      JSON.stringify(originalPoints.value[route.id]),
+    );
     emit("route-cancel-edit", JSON.parse(JSON.stringify(currentRoute)));
-  } else {
-    // 没有找到航线数据，通知父组件收起航线
-    emit("route-retract");
   }
-
-  // 重置编辑状态
-  isRouteEditing.value = false;
-  editingRouteId.value = null;
-  originalRoutePoints.value = [];
 
   ElMessage.info("已取消编辑，恢复原始航点位置");
 };
 
-//记录当前编辑的航线和航点索引
+// 编辑航点
 const editAirline = (value, index) => {
-  // 原有逻辑
   formData.value.waypointNumber = index;
   formData.value.lon = value.lng;
   formData.value.lat = value.lat;
@@ -791,27 +983,30 @@ const editAirline = (value, index) => {
   emit("waypoint-edit", { value, index });
 };
 
-// 添加禁飞区/警告区校验
+// 保存编辑的航点
 const editWaypoint = async () => {
-  // 检查禁飞区/禁高区管理器是否可用
   if (!props.noFlyZoneManagerRef) {
     ElMessage.warning("禁飞区数据未加载，无法进行校验");
     return;
   }
 
-  // 检查禁飞区数据是否加载完成
   if (!props.noFlyZoneManagerRef.isZonesLoaded()) {
     ElMessage.warning("禁飞区数据正在加载中，请稍候再试");
     return;
   }
 
-  // 构建航点坐标对象
-  const pointToCheck = {
-    lng: parseFloat(formData.value.lon),
-    lat: parseFloat(formData.value.lat),
-  };
+  // ========== 1. 强制校验并格式化输入的经纬度 ==========
+  const newLng = parseFloat(formData.value.lon); // 编辑后的经度（如113.341220）
+  const newLat = parseFloat(formData.value.lat); // 编辑后的纬度（如23.041830）
+  const waypointNum = parseInt(formData.value.waypointNumber); // 航点编号（如1）
+  const pointIndex = waypointNum - 1; // 转为数组索引（0开始）
 
-  // 校验1：检查航点是否在禁飞区内
+  if (isNaN(newLng) || isNaN(newLat) || isNaN(waypointNum)) {
+    ElMessage.error("航点数据格式错误，请输入有效的数字");
+    return;
+  }
+
+  const pointToCheck = { lng: newLng, lat: newLat };
   const isPointInNoFlyZone =
     props.noFlyZoneManagerRef.isPointInNoFlyZone(pointToCheck);
   if (isPointInNoFlyZone) {
@@ -819,25 +1014,82 @@ const editWaypoint = async () => {
     return;
   }
 
-  // 校验2：检查航点是否在禁高区（警告区）内
   const isPointInWarningZone =
     props.noFlyZoneManagerRef?.isRouteCrossingWarningZone([pointToCheck]);
   if (isPointInWarningZone) {
     ElMessage.warning("该航点位置在禁高区（警告区）内，请注意飞行安全");
   }
 
-  // ===== 原有编辑航点逻辑 =====
   try {
-    let data = {
+    // ========== 2. 先调用接口保存航点编辑 ==========
+    const updateData = {
       pointData: JSON.stringify(formData.value),
-      pointId: formData.value.waypointNumber,
+      pointId: waypointNum,
       missionDataId: activeRouteId.value,
     };
-    let res = await updatePoint(data);
+    const res = await updatePoint(updateData);
+
     if (res.code === 200) {
-      ElMessage.success("航点编辑成功");
+      ElMessage.success(`航点${waypointNum}编辑成功`);
       waypointSettingVisible.value = false;
-      activeRouteId.value = null;
+
+      // ========== 3. 强制找到当前航线并更新所有缓存 ==========
+      const currentRoute = routeInfo.value[0]?.find(
+        (item) => item.id === activeRouteId.value,
+      );
+      if (!currentRoute) {
+        ElMessage.error("未找到当前航线数据");
+        return;
+      }
+
+      // ========== 核心：手动构建编辑后的完整航点数据 ==========
+      const updatedWaypoint = {
+        lat: newLat.toString(), // 强制用编辑后的纬度（23.041830）
+        lng: newLng.toString(), // 强制用编辑后的经度（113.341220）
+        alt: parseInt(formData.value.alt) || 30,
+        action: formData.value.action || "hover",
+        headingAngle: formData.value.heading_angle || {
+          mode: "towards the goal",
+          angle: "",
+          lon: "",
+          lat: "",
+        },
+        heightStrategy:
+          formData.value.height_strategy || "Rise at a uniform rate",
+        residenceTime: parseInt(formData.value.residence_time) || 0,
+        routeLossBehavior: formData.value.route_loss_behavior || "return",
+        velocity: parseInt(formData.value.velocity) || 1,
+        priority: formData.value.priority || "high",
+        sort: formData.value.sort || "Regular tasks",
+      };
+
+      // ========== 4. 暴力更新所有相关缓存（确保100%同步） ==========
+      // ① 更新本地航线数据
+      currentRoute.points[pointIndex] = { ...updatedWaypoint };
+      // ② 更新拖拽临时数据（核心：如果不存在则初始化，存在则直接替换）
+      if (!dragTempPoints.value[activeRouteId.value]) {
+        dragTempPoints.value[activeRouteId.value] = [...currentRoute.points];
+      }
+      dragTempPoints.value[activeRouteId.value][pointIndex] = {
+        ...updatedWaypoint,
+      };
+
+      // ========== 5. 调试日志：确认更新后的数据 ==========
+      console.log(
+        `【调试】航点${waypointNum}编辑后 - 本地数据：`,
+        currentRoute.points[pointIndex],
+      );
+      console.log(
+        `【调试】航点${waypointNum}编辑后 - 拖拽缓存：`,
+        dragTempPoints.value[activeRouteId.value][pointIndex],
+      );
+
+      // ========== 6. 通知地图更新 + 刷新列表 ==========
+      emit("waypoint-updated", {
+        route: currentRoute,
+        pointIndex: pointIndex,
+        newPoint: updatedWaypoint,
+      });
       await routeList(searchKeyword.value);
       emit("route-save");
     }
@@ -846,7 +1098,8 @@ const editWaypoint = async () => {
     ElMessage.error("航点编辑失败，请重试");
   }
 };
-//获取所有策略
+
+// 获取所有策略
 const getAllPolicies = async () => {
   try {
     const res = await dronePolicyList();
@@ -862,14 +1115,16 @@ const getAllPolicies = async () => {
     ElMessage.error("获取所有策略失败");
   }
 };
-//航点策略
+
+// 航点策略变更
 const handleSelectStrategyChange = (value) => {
   selectedItemStrategy.value = waypointOptions.value.find(
     (item) => item.value === value,
   );
   policyIdDialog.value = selectedItemStrategy.value?.value || "";
 };
-//添加行
+
+// 添加航点行
 const handleAddRow = (index, item) => {
   const newPoint = {
     alt: "",
@@ -879,7 +1134,8 @@ const handleAddRow = (index, item) => {
   saveRouteForm.value.points.splice(index + 1, 0, newPoint);
   ElMessage.info(`在第${index + 1}行后添加了新行`);
 };
-//删除行
+
+// 删除航点行
 const handleDeleteRow = (index, item) => {
   if (saveRouteForm.value.points.length <= 2) {
     ElMessage.warning("至少保留两个航点");
@@ -889,29 +1145,25 @@ const handleDeleteRow = (index, item) => {
   ElMessage.info(`已删除第${index + 1}行`);
 };
 
-// 修改中的校验逻辑
+// 确认保存路线
 const confirmSaveRoute = async () => {
   saveRouteFormRef.value.validate(async (valid) => {
     if (valid) {
-      // 检查禁飞区/禁高区管理器是否可用
       if (!props.noFlyZoneManagerRef) {
         ElMessage.warning("禁飞区数据未加载，无法进行校验");
         return;
       }
 
-      // 检查禁飞区数据是否加载完成
       if (!props.noFlyZoneManagerRef.isZonesLoaded()) {
         ElMessage.warning("禁飞区数据正在加载中，请稍候再试");
         return;
       }
 
-      // 提取航线航点坐标
       const routePoints = saveRouteForm.value.points.map((point) => ({
         lng: parseFloat(point.lng),
         lat: parseFloat(point.lat),
       }));
 
-      // 校验1：检查航线是否穿越禁飞区
       const isCrossingNoFlyZone =
         props.noFlyZoneManagerRef.isRouteCrossingNoFlyZone(routePoints);
       if (isCrossingNoFlyZone) {
@@ -919,16 +1171,13 @@ const confirmSaveRoute = async () => {
         return;
       }
 
-      // 校验2：检查航线是否穿越禁高区（警告区）
       const isCrossingWarningZone =
         props.noFlyZoneManagerRef.isRouteCrossingWarningZone(routePoints);
       if (isCrossingWarningZone) {
         ElMessage.warning("注意：当前航线穿越禁高区（警告区），请注意飞行安全");
       }
 
-      // ===== 原有保存/编辑逻辑 =====
       if (dialogTitle.value === "保存路线") {
-        // 原有保存逻辑
         try {
           const routeData = {
             type: "mission",
@@ -960,7 +1209,6 @@ const confirmSaveRoute = async () => {
           console.error("表单验证失败", error);
         }
       } else if (dialogTitle.value === "编辑路线") {
-        // 原有编辑逻辑
         newArr.value = {
           name: saveRouteForm.value.name,
           description: saveRouteForm.value.description,
@@ -994,6 +1242,15 @@ const formatNumber = (value) => {
 const parseNumber = (value) => {
   return value;
 };
+
+// 更新 dragTempPoints（供父组件调用）
+const updateDragTempPoints = (routeId, points) => {
+  if (dragTempPoints.value[routeId] && points) {
+    dragTempPoints.value[routeId] = JSON.parse(JSON.stringify(points));
+    console.log("更新 dragTempPoints:", routeId, points.map((p) => ({ lat: p.lat, lng: p.lng })));
+  }
+};
+
 // 监听器
 watch(waypointSettingVisible, (newValue) => {
   if (!newValue) {
@@ -1017,18 +1274,18 @@ watch(saveRouteDialogVisible, (newValue) => {
     };
   }
 });
+
 onMounted(() => {
-  // 初始化
+  getAllPolicies();
+  routeList();
 });
+
 // 暴露方法给父组件
 defineExpose({
   routeList,
   retractRoute,
+  updateDragTempPoints,
 });
-
-// 初始化
-getAllPolicies();
-routeList();
 </script>
 
 <style scoped>
@@ -1045,7 +1302,6 @@ routeList();
 .route-list-content {
   flex: 1;
   overflow-y: auto;
-  /* max-height: calc(100vh - 460px); */
   padding-right: 6px;
 }
 
@@ -1066,10 +1322,6 @@ routeList();
 .route-list-content::-webkit-scrollbar-thumb:hover {
   background: rgba(88, 130, 179, 0.8);
 }
-
-/* .pagination-container {
-  margin-top: 10px;
-} */
 
 .routeOperation {
   background-color: #2e3649db;
@@ -1168,12 +1420,15 @@ routeList();
   margin-top: 16px;
 }
 
+/* 拖拽样式增强 */
 .routeInformation-list {
   display: flex;
   justify-content: space-between;
   background-color: #50505066;
   padding: 12px;
   margin-top: 16px;
+  cursor: grab;
+  transition: all 0.2s ease;
 }
 
 .routeInformation-list:first-child {
@@ -1183,6 +1438,13 @@ routeList();
 .routeInformation-list-edit {
   color: #1677ff;
   cursor: pointer;
+}
+
+/* 拖拽中样式 */
+.routeInformation-list.dragging {
+  opacity: 0.7;
+  background-color: #404858;
+  cursor: grabbing;
 }
 
 :deep(.el-pagination) {
@@ -1197,9 +1459,11 @@ routeList();
 :deep(.el-pagination__classifier) {
   color: #fff;
 }
+
 :deep(.el-select__wrapper) {
   margin: 6px 0 0 0;
 }
+
 :deep(.el-pagination .el-select__wrapper),
 :deep(.el-pagination .btn-prev),
 :deep(.el-pager li),
@@ -1273,9 +1537,7 @@ routeList();
   cursor: not-allowed;
 }
 
-/* 新增：航点滚动容器样式优化 */
 :deep(.waypoints-scroll-container) {
-  /* 自定义滚动条样式 */
   scrollbar-width: thin;
   scrollbar-color: #409eff rgba(0, 0, 0, 0.1);
 }

@@ -65,6 +65,7 @@
                 @route-edit="handleRouteEdit"
                 @route-delete="handleRouteDelete"
                 @waypoint-edit="handleWaypointEdit"
+                @waypoint-updated="handleWaypointUpdated"
                 @route-save="handleRouteSave"
                 @route-cancel-edit="handleRouteCancelEdit"
               />
@@ -589,9 +590,36 @@ const handleRouteDelete = (route) => {
 const handleWaypointEdit = (data) => {
   console.log("编辑航点:", data);
 };
+// 🔴 新增：处理航点更新事件
+const handleWaypointUpdated = (data) => {
+  const { route, pointIndex, newPoint } = data;
 
+  console.log("航点已更新，更新地图显示:", { route, pointIndex, newPoint });
+
+  // 重新渲染整个航线（最简单可靠的方式）
+  viewRoute(route);
+
+  ElMessage.success(`航点 ${pointIndex + 1} 已更新，地图已同步`);
+};
 const handleRouteSave = () => {
-  console.log("航线保存");
+  console.log("航线保存，刷新地图显示");
+
+  // 如果当前有激活的航线，重新加载并显示
+  if (activeRouteId.value) {
+    // 从列表中获取最新的航线数据
+    const routeListComponent = routeListRef.value;
+    if (routeListComponent && routeListComponent.routeInfo) {
+      const currentRoute = routeListComponent.routeInfo[0].find(
+        (item) => item.id === activeRouteId.value,
+      );
+
+      if (currentRoute) {
+        viewRoute(currentRoute);
+      }
+    }
+  }
+
+  ElMessage.success("航线已保存，地图已同步更新");
 };
 
 // 绘制功能
@@ -1035,6 +1063,22 @@ const confirmSaveRoute = async () => {
           saveRouteDialogVisible.value = false;
           ElMessage.success("编辑成功");
           routeListRef.value.routeList();
+          // 🔴 关键修改：更新地图上的航线显示
+          if (listRouteEditId.value) {
+            // 重新获取最新的航线数据并更新地图
+            setTimeout(async () => {
+              // 等待列表刷新完成
+              const currentRoute = routeListRef.value.routeInfo[0].find(
+                (item) => item.id === listRouteEditId.value,
+              );
+
+              if (currentRoute) {
+                viewRoute(currentRoute);
+              }
+            }, 500);
+          }
+
+          emit("route-save");
         }
       }
     }
@@ -1167,6 +1211,11 @@ const viewRoute = (route) => {
         // 记录新位置
         route.points[pointIndex].lng = newLngLat.lng;
         route.points[pointIndex].lat = newLngLat.lat;
+
+        // 【关键修复】同步更新 RouteList 中的 dragTempPoints
+        if (routeListRef.value && routeListRef.value.updateDragTempPoints) {
+          routeListRef.value.updateDragTempPoints(route.id, route.points);
+        }
 
         ElMessage.success(`航点 ${pointIndex + 1} 已更新：
     经度 ${newLngLat.lng.toFixed(6)},

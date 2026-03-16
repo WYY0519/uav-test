@@ -668,9 +668,9 @@ onMounted(() => {
 
 onUnmounted(() => {
   // 清除定时器，避免内存泄漏
-  if (updateTimer) {
-    clearInterval(updateTimer);
-    updateTimer = null;
-  }
+  // if (updateTimer) {
+  //   clearInterval(updateTimer);
+  //   updateTimer = null;
+  // }
 });
 </script>

@@ -2923,6 +2923,7 @@ watch(
 );
 // 生命周期钩子
 onMounted(() => {
+  // console.log('%c ', 'color:pink; font-size:14px')
   const topElement = document.querySelector(".drone-monitor");
   if (topElement) {
     topElement.scrollIntoView({

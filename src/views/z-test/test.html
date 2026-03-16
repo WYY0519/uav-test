@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>天地图 - 禁飞区航线高亮（呼吸动画版）</title>
+    <style>
+      html,
+      body,
+      #map {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      .tip {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 10px 16px;
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        z-index: 999;
+        font-family: "Microsoft Yahei", sans-serif;
+        color: #333;
+        border: 1px solid #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="tip">呼吸红高亮=冲突｜淡蓝色=正常航线｜浅黄=禁飞区</div>
+    <div id="map"></div>
+
+    <script src="https://api.tianditu.gov.cn/api?v=4.0&tk=69a5cdb2a588f9138791d3ec5136addc"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+    <script>
+      const TDK = "69a5cdb2a588f9138791d3ec5136addc";
+
+      // 1. 初始化地图
+      const map = new T.Map("map");
+      map.centerAndZoom(new T.LngLat(116.4, 39.92), 12);
+      map.enableScrollWheelZoom();
+
+      // 2. 加载天地图图层
+      const vec = new T.TileLayer(
+        `https://t0.tianditu.gov.cn/vec_w/wmts?tk=${TDK}`,
+      );
+      const cva = new T.TileLayer(
+        `https://t0.tianditu.gov.cn/cva_w/wmts?tk=${TDK}`,
+      );
+      map.addLayer(vec);
+      map.addLayer(cva);
+
+      // 3. 禁飞区（多边形）
+      const noFly = [
+        [116.38, 39.9],
+        [116.4, 39.92],
+        [116.42, 39.9],
+        [116.4, 39.88],
+        [116.38, 39.9],
+      ];
+
+      // 4. 航线
+      const path = [
+        [116.35, 39.89],
+        [116.39, 39.89],
+        [116.41, 39.91],
+        [116.43, 39.9],
+        [116.45, 39.91],
+      ];
+
+      // 5. 画禁飞区（优化样式）
+      const polygon = new T.Polygon(
+        noFly.map((p) => new T.LngLat(p[0], p[1])),
+        {
+          color: "#ffc107",
+          weight: 2,
+          fillColor: "#fff3cd",
+          fillOpacity: 0.4,
+        },
+      );
+      map.addOverLay(polygon);
+
+      // 6. 核心：检测航线与禁飞区冲突
+      const line = turf.lineString(path);
+      const poly = turf.polygon([noFly]);
+
+      const normal = [];
+      const conflict = [];
+
+      for (let i = 0; i < path.length - 1; i++) {
+        const seg = turf.lineString([path[i], path[i + 1]]);
+        if (turf.booleanIntersects(seg, poly)) {
+          if (conflict.length === 0 || conflict.at(-1)[0] !== path[i][0]) {
+            conflict.push(path[i]);
+          }
+          conflict.push(path[i + 1]);
+        } else {
+          if (normal.length === 0 || normal.at(-1)[0] !== path[i][0]) {
+            normal.push(path[i]);
+          }
+          normal.push(path[i + 1]);
+        }
+      }
+
+      // 7. 画正常航线（淡蓝色，更柔和）
+      if (normal.length > 1) {
+        const pl = new T.Polyline(
+          normal.map((p) => new T.LngLat(p[0], p[1])),
+          { color: "#409eff", weight: 3, opacity: 0.7 },
+        );
+        map.addOverLay(pl);
+      }
+
+      // 8. 画冲突高亮 + 呼吸动画
+      if (conflict.length > 1) {
+        // 底层红色粗线（呼吸动画主体）
+        const plBase = new T.Polyline(
+          conflict.map((p) => new T.LngLat(p[0], p[1])),
+          { color: "#f44336", weight: 8, opacity: 1 },
+        );
+        map.addOverLay(plBase);
+
+        // 上层白色细描边（无动画，保持清晰）
+        const plTop = new T.Polyline(
+          conflict.map((p) => new T.LngLat(p[0], p[1])),
+          { color: "#ffffff", weight: 2, opacity: 0.8 },
+        );
+        map.addOverLay(plTop);
+
+        // 核心：呼吸动画逻辑
+        let opacity = 1; // 初始透明度
+        let direction = -0.01; // 透明度变化方向（-=降低，+=升高）
+        function breathAnimation() {
+          // 调整透明度
+          opacity += direction;
+          // 边界反转：透明度低于0.3时升高，高于1时降低
+          if (opacity <= 0.3 || opacity >= 1) {
+            direction *= -1;
+          }
+          // 应用透明度到高亮底图
+          plBase.setOpacity(opacity);
+          // 循环执行动画（浏览器原生动画API，性能最优）
+          requestAnimationFrame(breathAnimation);
+        }
+        // 启动动画
+        breathAnimation();
+      }
+    </script>
+  </body>
+</html>
