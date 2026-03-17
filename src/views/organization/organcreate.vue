@@ -18,7 +18,7 @@
           <el-input
             v-model="formData.name"
             placeholder="请输入组织名称"
-            maxlength="10"
+            maxlength="20"
             show-word-limit
           />
         </el-form-item>
@@ -26,7 +26,7 @@
           <el-input
             v-model="formData.describe"
             placeholder="请输入组织描述"
-            maxlength="20"
+            maxlength="200"
             show-word-limit
             type="textarea"
           />

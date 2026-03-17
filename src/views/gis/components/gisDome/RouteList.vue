@@ -172,10 +172,20 @@
             />
           </el-form-item>
           <el-form-item label="经度(度):">
-            <el-input v-model="formData.lat" />
+            <el-input
+              v-model="formData.lon"
+              type="number"
+              step="0.00001"
+              precision="5"
+            />
           </el-form-item>
           <el-form-item label="纬度(度):">
-            <el-input v-model="formData.lon" />
+            <el-input
+              v-model="formData.lat"
+              type="number"
+              step="0.00001"
+              precision="5"
+            />
           </el-form-item>
           <el-form-item label="停留时间" prop="residenceTime">
             <el-input
@@ -366,6 +376,8 @@
           display: flex;
           flex-direction: column;
         "
+        maxlength="20"
+        show-word-limit
       >
         <el-form-item label="路线名称:" prop="name">
           <el-input v-model="saveRouteForm.name" placeholder="请输入路线名称" />
@@ -375,7 +387,7 @@
             v-model="saveRouteForm.description"
             :rows="2"
             type="textarea"
-            maxlength="20"
+            maxlength="200"
             show-word-limit
             placeholder="请输入路线描述"
           />
@@ -842,10 +854,7 @@ const completeRouteEdit = async (route) => {
     console.log("航线ID:", route.id);
 
     // 打印拖拽临时数据（应为最新顺序）
-    console.log(
-      "dragTempPoints 存在?",
-      !!dragTempPoints.value[route.id],
-    );
+    console.log("dragTempPoints 存在?", !!dragTempPoints.value[route.id]);
     if (dragTempPoints.value[route.id]) {
       console.log(
         "dragTempPoints 长度:",
@@ -857,10 +866,7 @@ const completeRouteEdit = async (route) => {
       );
     }
     // 打印原始航线数据（应为旧顺序）
-    console.log(
-      "currentRoute.points 长度:",
-      currentRoute.points.length,
-    );
+    console.log("currentRoute.points 长度:", currentRoute.points.length);
     console.log(
       "currentRoute.points 内容:",
       currentRoute.points.map((p) => ({ lat: p.lat, lng: p.lng })),
@@ -887,8 +893,8 @@ const completeRouteEdit = async (route) => {
 
     // 构建后端所需格式（注意字段名：lat, lon, alt）
     const pointsForBackend = finalPoints.map((point) => ({
-      lat: String(point.lat),
-      lon: String(point.lng), // 前端字段 lng 转后端 lon
+      lat: formatLatLng(point.lat),
+      lon: formatLatLng(point.lng), // 前端字段 lng 转后端 lon
       alt: String(point.alt),
     }));
 
@@ -959,7 +965,12 @@ const cancelRouteEdit = (route) => {
 
   ElMessage.info("已取消编辑，恢复原始航点位置");
 };
-
+// 经纬度格式化：保留小数点后5位（四舍五入）
+const formatLatLng = (value) => {
+  if (!value || isNaN(Number(value))) return "";
+  // 转数字后保留5位小数，避免科学计数法
+  return Number(Number(value).toFixed(5)).toString();
+};
 // 编辑航点
 const editAirline = (value, index) => {
   formData.value.waypointNumber = index;
@@ -972,8 +983,11 @@ const editAirline = (value, index) => {
   formData.value.heading_angle = {
     mode: value.headingAngle?.mode || "",
     angle: value.headingAngle?.angle || "",
-    lon: value.headingAngle?.lon || "",
-    lat: value.headingAngle?.lat || "",
+    // lon: value.headingAngle?.lon || "",
+    // lat: value.headingAngle?.lat || "",
+    // 格式化航向角的经纬度
+    lon: formatLatLng(value.headingAngle?.lon) || "",
+    lat: formatLatLng(value.headingAngle?.lat) || "",
   };
   formData.value.height_strategy = value.heightStrategy;
   formData.value.priority = value.priority;
@@ -1043,16 +1057,36 @@ const editWaypoint = async () => {
       }
 
       // ========== 核心：手动构建编辑后的完整航点数据 ==========
+      // const updatedWaypoint = {
+      //   lat: newLat.toString(), // 强制用编辑后的纬度（23.041830）
+      //   lng: newLng.toString(), // 强制用编辑后的经度（113.341220）
+      //   alt: parseInt(formData.value.alt) || 30,
+      //   action: formData.value.action || "hover",
+      //   headingAngle: formData.value.heading_angle || {
+      //     mode: "towards the goal",
+      //     angle: "",
+      //     lon: "",
+      //     lat: "",
+      //   },
+      //   heightStrategy:
+      //     formData.value.height_strategy || "Rise at a uniform rate",
+      //   residenceTime: parseInt(formData.value.residence_time) || 0,
+      //   routeLossBehavior: formData.value.route_loss_behavior || "return",
+      //   velocity: parseInt(formData.value.velocity) || 1,
+      //   priority: formData.value.priority || "high",
+      //   sort: formData.value.sort || "Regular tasks",
+      // };
       const updatedWaypoint = {
-        lat: newLat.toString(), // 强制用编辑后的纬度（23.041830）
-        lng: newLng.toString(), // 强制用编辑后的经度（113.341220）
+        // 格式化后转字符串保存
+        lat: formatLatLng(newLat),
+        lng: formatLatLng(newLng),
         alt: parseInt(formData.value.alt) || 30,
         action: formData.value.action || "hover",
-        headingAngle: formData.value.heading_angle || {
-          mode: "towards the goal",
-          angle: "",
-          lon: "",
-          lat: "",
+        headingAngle: {
+          ...formData.value.heading_angle,
+          // 格式化航向角的经纬度
+          lon: formatLatLng(formData.value.heading_angle.lon) || "",
+          lat: formatLatLng(formData.value.heading_angle.lat) || "",
         },
         heightStrategy:
           formData.value.height_strategy || "Rise at a uniform rate",
@@ -1062,7 +1096,6 @@ const editWaypoint = async () => {
         priority: formData.value.priority || "high",
         sort: formData.value.sort || "Regular tasks",
       };
-
       // ========== 4. 暴力更新所有相关缓存（确保100%同步） ==========
       // ① 更新本地航线数据
       currentRoute.points[pointIndex] = { ...updatedWaypoint };
@@ -1159,11 +1192,22 @@ const confirmSaveRoute = async () => {
         return;
       }
 
-      const routePoints = saveRouteForm.value.points.map((point) => ({
-        lng: parseFloat(point.lng),
-        lat: parseFloat(point.lat),
-      }));
-
+      // const routePoints = saveRouteForm.value.points.map((point) => ({
+      //   lng: parseFloat(point.lng),
+      //   lat: parseFloat(point.lat),
+      // }));
+      // 格式化所有航点的经纬度为5位小数
+      const routePoints = saveRouteForm.value.points.map((point) => {
+        const formattedLng = formatLatLng(point.lng);
+        const formattedLat = formatLatLng(point.lat);
+        // 同步更新表单中的经纬度（确保保存的是5位小数）
+        point.lng = formattedLng;
+        point.lat = formattedLat;
+        return {
+          lng: parseFloat(formattedLng),
+          lat: parseFloat(formattedLat),
+        };
+      });
       const isCrossingNoFlyZone =
         props.noFlyZoneManagerRef.isRouteCrossingNoFlyZone(routePoints);
       if (isCrossingNoFlyZone) {
@@ -1247,7 +1291,11 @@ const parseNumber = (value) => {
 const updateDragTempPoints = (routeId, points) => {
   if (dragTempPoints.value[routeId] && points) {
     dragTempPoints.value[routeId] = JSON.parse(JSON.stringify(points));
-    console.log("更新 dragTempPoints:", routeId, points.map((p) => ({ lat: p.lat, lng: p.lng })));
+    console.log(
+      "更新 dragTempPoints:",
+      routeId,
+      points.map((p) => ({ lat: p.lat, lng: p.lng })),
+    );
   }
 };
 

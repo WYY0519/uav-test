@@ -114,7 +114,7 @@
             </el-switch>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
             <el-button-group>
               <el-tooltip content="编辑用户" placement="top">
@@ -531,7 +531,8 @@ const checkSuperAdminStatus = async () => {
     const res = await isSuperAdmin();
     console.log(res, "超级管理员状态======");
     if (res && res.data && res.data.isSuperAdmin !== undefined) {
-      isSuperAdminUser.value = res.data.isSuperAdmin === "true" || res.data.isSuperAdmin === true;
+      isSuperAdminUser.value =
+        res.data.isSuperAdmin === "true" || res.data.isSuperAdmin === true;
     }
     return res;
   } catch (error) {

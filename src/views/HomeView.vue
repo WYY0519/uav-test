@@ -243,7 +243,7 @@ const menuMap = {
   "/user/roles": { parent: "用户管理", text: "角色管理" },
   "/gis/view": { parent: "飞行任务", text: "地图" },
   "/gis/list": { parent: "飞行任务", text: "任务列表" },
-  "/gis/demo": { parent: "飞行任务", text: "航线" },
+  "/gis/demo": { parent: "飞行任务", text: "航线规划" },
   "/gis/uavMonitor": { parent: "飞行任务", text: "无人机监控" },
   "/gis/mission": { parent: "飞行任务", text: "任务管理" },
   "/gis/limitArea": { parent: "飞行任务", text: "禁飞区" },
@@ -256,7 +256,7 @@ const menuMap = {
   "/project/create": { parent: " 项目管理", text: "创建项目" },
   "/project/object": { parent: " 项目管理", text: "项目设备管理" },
   "/log/list": { parent: " 日志管理", text: "日志列表" },
-  "/route": { text: "航线列表" },
+  "/route": { text: "航线管理" },
   "/gis/weatherInquiry": { text: "气象查询" }, //后面再修改，飞行任务 -- 气象查询
   "/strategicManagement": { parent: " 策略管理", text: "策略管理" },
 };
@@ -430,9 +430,9 @@ const handleMenuClick = (path) => {
   console.log(activeMenu.value);
   isShow.value = path === "/home";
   // 当点击 /organization/list 时，默认跳转到其第一个嵌套子路由（project）
-  if (path === "/organization/list") {
-    router.push("/organization/list/project");
-  }
+  // if (path === "/organization/list") {
+  //   router.push("/organization/list/project");
+  // }
 };
 // 获取激活菜单的父路径，忽略嵌套子路由和查询参数
 const getActiveMenuPath = () => {

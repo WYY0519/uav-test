@@ -77,7 +77,7 @@
         <el-dialog
           v-model="saveRouteDialogVisible"
           :title="dialogTitle"
-          width="30%"
+          width="25%"
           type="warning"
           class="saveRouteDialog"
         >
@@ -89,6 +89,9 @@
           >
             <el-form-item label="路线名称:" prop="name">
               <el-input
+                maxlength="20"
+                show-word-limit
+                clearable
                 v-model="saveRouteForm.name"
                 placeholder="请输入路线名称"
               />
@@ -98,8 +101,9 @@
                 v-model="saveRouteForm.description"
                 :rows="2"
                 type="textarea"
-                maxlength="20"
+                maxlength="200"
                 show-word-limit
+                clearable
                 placeholder="请输入路线描述"
               />
             </el-form-item>
@@ -416,11 +420,11 @@ const hasTrack = computed(() => {
 const saveRouteRules = {
   name: [
     { required: true, message: "请输入路线名称", trigger: "blur" },
-    { min: 1, max: 15, message: "长度在 1 到 15 个字符", trigger: "blur" },
+    { min: 1, max: 20, message: "长度在 1 到 20 个字符", trigger: "blur" },
   ],
   description: [
     { required: true, message: "请输入路线描述", trigger: "blur" },
-    { min: 1, max: 30, message: "长度在 1 到 30 个字符", trigger: "blur" },
+    { min: 1, max: 200, message: "长度在 1 到 200 个字符", trigger: "blur" },
   ],
   points: [
     {
