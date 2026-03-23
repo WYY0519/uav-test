@@ -255,13 +255,13 @@ const actionMap = {
 
 const headingModeMap = {
   "towards the goal": "朝着目标不变",
-  "at an angle to the target point": "与目标点成一定角度",
-  "towards a certain point": "朝某一点不变",
+  "at an angle to the target point": "偏航",
+  // "towards a certain point": "朝某一点不变",
 };
 
 const heightStrategyMap = {
-  "Rise first": "先升高再向目标点",
-  "First to the target point": "先向目标点再升高",
+  // "Rise first": "先升高再向目标点",
+  // "First to the target point": "先向目标点再升高",
   "Rise at a uniform rate": "匀速升高",
 };
 
@@ -334,12 +334,12 @@ const jsonToKml = (data) => {
 
     // 航向模式
     "towards the goal": "朝着目标不变",
-    "at an angle to the target point": "与目标点成一定角度",
-    "towards a certain point": "朝某一点不变",
+    "at an angle to the target point": "偏航",
+    // "towards a certain point": "朝某一点不变",
 
     // 高度策略
-    "Rise first": "先升高再向目标点",
-    "First to the target point": "先向目标点再升高",
+    // "Rise first": "先升高再向目标点",
+    // "First to the target point": "先向目标点再升高",
     "Rise at a uniform rate": "匀速升高",
 
     // 任务优先级

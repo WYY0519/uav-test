@@ -122,17 +122,13 @@
                   </el-icon>
                 </el-button>
               </el-tooltip>
-              <!-- <el-tooltip content="1" placement="top">
-                <el-button
-                  type="success"
-                  link
-                  @click="showLogContent1(row.name)"
-                >
+              <el-tooltip content="航线回放" placement="top">
+                <el-button type="warning" link @click="routeReplay(row.name)">
                   <el-icon>
-                    <Download />
+                    <VideoPlay />
                   </el-icon>
                 </el-button>
-              </el-tooltip> -->
+              </el-tooltip>
               <!--  -->
               <!-- 新增单行删除按钮 -->
               <!-- <el-tooltip content="删除日志" placement="top">
@@ -214,6 +210,7 @@ import {
   Refresh,
   View,
   Download,
+  VideoPlay,
   Search,
   Delete,
 } from "@element-plus/icons-vue";
@@ -310,8 +307,8 @@ const refreshLogs = () => {
 };
 
 // 打开新弹窗（保留原有逻辑）
-const showLogContent1 = async (filename) => {
-  console.log("父组件: 调用showLogContent1，参数filename:", filename);
+const routeReplay = async (filename) => {
+  console.log("父组件: 调用routeReplay，参数filename:", filename);
 
   const file = logFiles.value.find((f) => f.name === filename);
   if (!file) {

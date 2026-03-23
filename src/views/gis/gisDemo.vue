@@ -576,7 +576,8 @@ const handleMapZoom = () => {
 
 // 航线列表组件事件处理
 const handleRouteView = (route) => {
-  viewRoute(route);
+  // 查看模式，传入 false 表示不可编辑
+  viewRoute(route, false);
 };
 
 const handleRouteRetract = () => {
@@ -585,6 +586,16 @@ const handleRouteRetract = () => {
 
 const handleRouteEdit = (route) => {
   console.log("编辑航线:", route);
+  // 传入 true 表示可编辑模式
+  viewRoute(route, true);
+  // const modeText = isEditable ? "编辑模式" : "查看模式";
+  // const editableText = isEditable ? "可以拖拽航点调整位置" : "航点不可拖拽";
+  // const dblClickText = "双击航线或航点可编辑所有航点";
+
+  // ElMessage.success(
+  //   `已显示路线: ${route.name}（缩放级别: ${safeZoomLevel}）\n${modeText} - ${editableText}\n${dblClickText}`,
+  // );
+  // ElMessage.success(`已显示路线: ${route.name}`);
 };
 
 const handleRouteDelete = (route) => {
@@ -618,7 +629,8 @@ const handleRouteSave = () => {
       );
 
       if (currentRoute) {
-        viewRoute(currentRoute);
+        // 保存后恢复到查看模式（不可编辑）
+        viewRoute(currentRoute, false);
       }
     }
   }
@@ -1077,7 +1089,8 @@ const confirmSaveRoute = async () => {
               );
 
               if (currentRoute) {
-                viewRoute(currentRoute);
+                // 保存后恢复到查看模式（不可编辑）
+                viewRoute(currentRoute, false);
               }
             }, 500);
           }
@@ -1097,12 +1110,12 @@ const debounceUpdatePolyline = debounce((polyline, newPath) => {
 // 新增：处理取消编辑事件
 const handleRouteCancelEdit = (route) => {
   console.log("取消编辑，恢复原始航线:", route);
-  // 重新渲染原始航线
-  viewRoute(route);
-  ElMessage.info("已取消编辑，恢复原始航线");
+  // 重新渲染原始航线（查看模式，不可编辑）
+  viewRoute(route, false);
+  //ElMessage.info("已取消编辑，恢复原始航线");
 };
-const viewRoute = (route) => {
-  console.log("viewRoute", route);
+const viewRoute = (route, isEditable = false) => {
+  console.log("viewRoute1111", route, "是否可编辑:", isEditable);
   if (!map) {
     ElMessage.error("地图未初始化，无法查看路线");
     return;
@@ -1121,15 +1134,25 @@ const viewRoute = (route) => {
     // 使用当前传入的 route.points（恢复后的原始数据）
     const path = route.points.map((p) => new T.LngLat(p.lng, p.lat));
     const polyline = new T.Polyline(path, {
-      color: "#2c64a7",
+      color: isEditable ? "#ff9800" : "#2c64a7", // 编辑模式显示橙色
       weight: 4,
       opacity: 0.8,
       lineStyle: "solid",
     });
     polyline._isRouteOverlay = true;
     polyline._isRoutePolyline = true;
+    polyline._routeId = route.id; // 保存航线ID
     map.addOverLay(polyline);
     currentRoutePolyline.value = polyline;
+
+    // 为航线添加双击事件
+    polyline.addEventListener("dblclick", () => {
+      console.log("双击航线，航线ID:", route.id);
+      // 触发航线编辑事件
+      if (routeListRef.value && routeListRef.value.openRouteEditDialog) {
+        routeListRef.value.openRouteEditDialog(route);
+      }
+    });
 
     // 重新添加所有航点标记（使用恢复后的坐标）
     route.points.forEach((point, index) => {
@@ -1139,92 +1162,104 @@ const viewRoute = (route) => {
         index,
         route.points.length,
         markerId,
+        isEditable, // 传递是否可编辑参数
       );
 
-      // 保留原有的拖拽事件监听
-      marker.addEventListener("dragstart", () => {
-        const iconElement = document.getElementById(markerId);
-        if (iconElement) {
-          iconElement.style.transform = "scale(1.2)";
-          iconElement.style.transition = "transform 0.2s";
-          iconElement.style.zIndex = "100";
+      // 添加双击事件：弹出航线编辑弹窗（查看和编辑模式都支持）
+      marker.addEventListener("dblclick", () => {
+        console.log("双击航点，弹出航线编辑弹窗");
+        // 触发航线编辑事件（编辑所有航点）
+        if (routeListRef.value && routeListRef.value.openRouteEditDialog) {
+          routeListRef.value.openRouteEditDialog(route);
         }
       });
 
-      marker.addEventListener("drag", () => {
-        const newLngLat = marker.getLngLat();
-        const pointIndex = marker.pointIndex;
-        route.points[pointIndex].lng = newLngLat.lng;
-        route.points[pointIndex].lat = newLngLat.lat;
-        const newPath = route.points.map((p) => new T.LngLat(p.lng, p.lat));
-        debounceUpdatePolyline(currentRoutePolyline.value, newPath);
-      });
+      // 拖拽事件监听（只在可编辑模式下）
+      if (isEditable) {
+        marker.addEventListener("dragstart", () => {
+          const iconElement = document.getElementById(markerId);
+          if (iconElement) {
+            iconElement.style.transform = "scale(1.2)";
+            iconElement.style.transition = "transform 0.2s";
+            iconElement.style.zIndex = "100";
+          }
+        });
 
-      marker.addEventListener("dragend", () => {
-        const iconElement = document.getElementById(markerId);
-        if (iconElement) {
-          iconElement.style.transform = "scale(1)";
-          iconElement.style.zIndex = "1";
-        }
-
-        const newLngLat = marker.getLngLat();
-        const pointIndex = marker.pointIndex;
-
-        // 校验新位置是否在禁飞区
-        const isPointInNoFlyZone =
-          noFlyZoneManagerRef.value?.isPointInNoFlyZone({
-            lng: newLngLat.lng,
-            lat: newLngLat.lat,
-          });
-        if (isPointInNoFlyZone) {
-          ElMessage.error("航点不能放置在禁飞区内，已恢复原位置");
-          // 恢复原位置
-          route.points[pointIndex].lng = marker.originalLng;
-          route.points[pointIndex].lat = marker.originalLat;
-          marker.setLngLat(
-            new T.LngLat(marker.originalLng, marker.originalLat),
-          );
+        marker.addEventListener("drag", () => {
+          const newLngLat = marker.getLngLat();
+          const pointIndex = marker.pointIndex;
+          route.points[pointIndex].lng = newLngLat.lng;
+          route.points[pointIndex].lat = newLngLat.lat;
           const newPath = route.points.map((p) => new T.LngLat(p.lng, p.lat));
           debounceUpdatePolyline(currentRoutePolyline.value, newPath);
-          return;
-        }
+        });
 
-        // 校验拖拽后的路线是否穿越禁飞区
-        const isCrossingNoFlyZone =
-          noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(route.points);
-        if (isCrossingNoFlyZone) {
-          ElMessage.error("拖拽后航线穿越禁飞区，已恢复原位置");
-          // 恢复原位置
-          route.points[pointIndex].lng = marker.originalLng;
-          route.points[pointIndex].lat = marker.originalLat;
-          marker.setLngLat(
-            new T.LngLat(marker.originalLng, marker.originalLat),
-          );
-          const newPath = route.points.map((p) => new T.LngLat(p.lng, p.lat));
-          debounceUpdatePolyline(currentRoutePolyline.value, newPath);
-          return;
-        }
+        marker.addEventListener("dragend", () => {
+          const iconElement = document.getElementById(markerId);
+          if (iconElement) {
+            iconElement.style.transform = "scale(1)";
+            iconElement.style.zIndex = "1";
+          }
 
-        // 校验是否穿越警告区（仅提示）
-        const isCrossingWarningZone =
-          noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(route.points);
-        if (isCrossingWarningZone) {
-          ElMessage.warning("注意：拖拽后航线经过警告区域，请注意飞行安全");
-        }
+          const newLngLat = marker.getLngLat();
+          const pointIndex = marker.pointIndex;
 
-        // 记录新位置
-        route.points[pointIndex].lng = newLngLat.lng;
-        route.points[pointIndex].lat = newLngLat.lat;
+          // 校验新位置是否在禁飞区
+          const isPointInNoFlyZone =
+            noFlyZoneManagerRef.value?.isPointInNoFlyZone({
+              lng: newLngLat.lng,
+              lat: newLngLat.lat,
+            });
+          if (isPointInNoFlyZone) {
+            ElMessage.error("航点不能放置在禁飞区内，已恢复原位置");
+            // 恢复原位置
+            route.points[pointIndex].lng = marker.originalLng;
+            route.points[pointIndex].lat = marker.originalLat;
+            marker.setLngLat(
+              new T.LngLat(marker.originalLng, marker.originalLat),
+            );
+            const newPath = route.points.map((p) => new T.LngLat(p.lng, p.lat));
+            debounceUpdatePolyline(currentRoutePolyline.value, newPath);
+            return;
+          }
 
-        // 【关键修复】同步更新 RouteList 中的 dragTempPoints
-        if (routeListRef.value && routeListRef.value.updateDragTempPoints) {
-          routeListRef.value.updateDragTempPoints(route.id, route.points);
-        }
+          // 校验拖拽后的路线是否穿越禁飞区
+          const isCrossingNoFlyZone =
+            noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(route.points);
+          if (isCrossingNoFlyZone) {
+            ElMessage.error("拖拽后航线穿越禁飞区，已恢复原位置");
+            // 恢复原位置
+            route.points[pointIndex].lng = marker.originalLng;
+            route.points[pointIndex].lat = marker.originalLat;
+            marker.setLngLat(
+              new T.LngLat(marker.originalLng, marker.originalLat),
+            );
+            const newPath = route.points.map((p) => new T.LngLat(p.lng, p.lat));
+            debounceUpdatePolyline(currentRoutePolyline.value, newPath);
+            return;
+          }
 
-        ElMessage.success(`航点 ${pointIndex + 1} 已更新：
+          // 校验是否穿越警告区（仅提示）
+          const isCrossingWarningZone =
+            noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(route.points);
+          if (isCrossingWarningZone) {
+            ElMessage.warning("注意：拖拽后航线经过警告区域，请注意飞行安全");
+          }
+
+          // 记录新位置
+          route.points[pointIndex].lng = newLngLat.lng;
+          route.points[pointIndex].lat = newLngLat.lat;
+
+          // 【关键修复】同步更新 RouteList 中的 dragTempPoints
+          if (routeListRef.value && routeListRef.value.updateDragTempPoints) {
+            routeListRef.value.updateDragTempPoints(route.id, route.points);
+          }
+
+          ElMessage.success(`航点 ${pointIndex + 1} 已更新：
     经度 ${newLngLat.lng.toFixed(6)},
     纬度 ${newLngLat.lat.toFixed(6)}`);
-      });
+        });
+      }
     });
 
     // 地图视野调整逻辑（保持不变）
@@ -1296,16 +1331,27 @@ const viewRoute = (route) => {
     map.panTo(centerPoint);
     map.setZoom(safeZoomLevel);
     map.checkResize();
+    //放到这个方法里面
+    const modeText = isEditable ? "编辑模式" : "查看模式";
+    const editableText = isEditable ? "可以拖拽航点调整位置" : "航点不可拖拽";
+    const dblClickText = "双击航线或航点可编辑所有航点";
 
-    ElMessage.success(
-      `已显示路线: ${route.name}（缩放级别: ${safeZoomLevel}）\n航点支持拖拽调整位置`,
-    );
+    // ElMessage.success(
+    //   `已显示路线: ${route.name}（缩放级别: ${safeZoomLevel}）\n${modeText} - ${editableText}\n${dblClickText}`,
+    // );
+    ElMessage.success(`已显示路线: ${route.name}`);
   } catch (error) {
     console.error("查看路线时发生错误:", error);
     ElMessage.error("查看路线失败，请重试");
   }
 };
-const addDraggablePointMarker = (point, index, totalPoints, markerId) => {
+const addDraggablePointMarker = (
+  point,
+  index,
+  totalPoints,
+  markerId,
+  isEditable = false,
+) => {
   const isStart = index === 0;
   const isEnd = index === totalPoints - 1;
   const markerStyle = isStart ? "start" : isEnd ? "end" : "middle";
@@ -1319,7 +1365,7 @@ const addDraggablePointMarker = (point, index, totalPoints, markerId) => {
       iconSize: new T.Point(40, 40),
       iconAnchor: new T.Point(20, 20),
     }),
-    draggable: true,
+    draggable: isEditable, // 根据参数决定是否可拖拽
   });
 
   // 记录原始位置和索引

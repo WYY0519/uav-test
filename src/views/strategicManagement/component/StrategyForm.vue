@@ -247,13 +247,13 @@ const headingActionOptions = ref([
 ]);
 const headingAngleOptions = ref([
   { label: "朝着目标不变", value: "towards the goal" },
-  { label: "与目标点成一定角度", value: "at an angle to the target point" },
-  { label: "朝某一点不变", value: "towards a certain point" },
+  { label: "偏航", value: "at an angle to the target point" },
+  // { label: "朝某一点不变", value: "towards a certain point" },
 ]);
 
 const heightStrategyOptions = ref([
-  { label: "先升高再向目标点", value: "Rise first" },
-  { label: "先向目标点再升高", value: "First to the target point" },
+  // { label: "先升高再向目标点", value: "Rise first" },
+  // { label: "先向目标点再升高", value: "First to the target point" },
   { label: "匀速升高", value: "Rise at a uniform rate" },
 ]);
 
@@ -371,7 +371,7 @@ watch(
       coordinateInput.value = { longitude: 0, latitude: 0 };
     }
   },
-  { immediate: true } // 立即执行一次，处理初始值
+  { immediate: true }, // 立即执行一次，处理初始值
 );
 // 监听输入变化并同步到父组件
 watch(
@@ -386,7 +386,7 @@ watch(
       latitude: coordinateInput.value.latitude,
     });
   },
-  { deep: true }
+  { deep: true },
 );
 watch(
   () => props.roleForm, // 添加可选链避免初始化报错
@@ -416,7 +416,7 @@ watch(
       return;
     }
   },
-  { immediate: true } // 立即执行一次，处理初始值
+  { immediate: true }, // 立即执行一次，处理初始值
 );
 </script>
 
