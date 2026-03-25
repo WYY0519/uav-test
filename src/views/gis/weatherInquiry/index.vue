@@ -3,6 +3,19 @@
     <!-- 地图底层容器：承载天地图实例 -->
     <div class="map-container" ref="mapContainer"></div>
 
+    <!-- 加载提示 -->
+    <Transition name="loading-fade">
+      <div v-if="isMapLoading" class="map-loading">
+        <div class="loading-content">
+          <div class="loading-spinner"></div>
+          <div class="loading-text">
+            <span class="loading-main">地图加载中</span>
+            <span class="loading-sub">正在加载瓦片数据...</span>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <!-- 搜索框容器：悬浮在地图左上角 -->
     <div class="search-container">
       <el-select
@@ -56,6 +69,9 @@ const clickPosition = ref({
   lng: "", // 经度
   lat: "", // 纬度
 });
+const isMapLoading = ref(false); // 地图加载状态
+let loadingTimer = null; // 加载定时器
+let tilesLoadedCount = 0; // 记录瓦片加载次数
 //搜索框输入事件
 const handleInput = (param) => {
   let inputValue;
@@ -163,11 +179,51 @@ const handleSelectChange = (value) => {
     drawSelectedMarker(lng, lat, `经纬度：${lng},${lat}`);
     // 移动地图
     if (map) {
-      map.centerAndZoom(new T.LngLat(lng, lat), 15);
+      isMapLoading.value = true;
+      tilesLoadedCount = 0;
+
+      // 使用 panTo 平滑移动地图中心点，避免白屏
+      map.panTo([lng, lat], 1000);
+
+      // 监听移动结束事件
+      const moveEndHandler = () => {
+        // 延迟设置缩放级别，让动画更流畅
+        setTimeout(() => {
+          map.setZoom(15, false, 500);
+        }, 100);
+        map.off("moveend", moveEndHandler);
+      };
+
+      map.on("moveend", moveEndHandler);
+
+      // 监听瓦片加载完成（可能触发多次）
+      const tilesLoadHandler = () => {
+        tilesLoadedCount++;
+        console.log(`瓦片加载完成 (第${tilesLoadedCount}次)`);
+
+        // 连续2次触发后认为加载完成（确保所有瓦片都加载完）
+        if (tilesLoadedCount >= 2) {
+          // isMapLoading.value = false;
+          map.off("tilesload", tilesLoadHandler);
+          if (loadingTimer) {
+            clearTimeout(loadingTimer);
+            loadingTimer = null;
+          }
+        }
+      };
+
+      map.on("tilesload", tilesLoadHandler);
+
+      // 设置最长等待时间（10秒），防止一直卡住
+      loadingTimer = setTimeout(() => {
+        console.log("超时隐藏加载提示");
+        isMapLoading.value = false;
+        loadingTimer = null;
+      }, 10000);
     }
     // 移动无人机标记
     if (droneMarker) {
-      droneMarker.setLngLat(new T.LngLat(lng, lat));
+      droneMarker.setPosition([lng, lat]);
     }
     // 更新对话框坐标并打开
     clickPosition.value.lng = lng.toFixed(6);
@@ -201,12 +257,52 @@ const handleSelectChange = (value) => {
 
   // 移动地图到选中位置（增加map非空判断，避免初始化异常）
   if (map) {
-    map.centerAndZoom(new T.LngLat(lng, lat), 15);
+    isMapLoading.value = true;
+    tilesLoadedCount = 0;
+
+    // 使用 panTo 平滑移动地图中心点，避免白屏
+    map.panTo([lng, lat], 1000);
+
+    // 监听移动结束事件
+    const moveEndHandler = () => {
+      // 延迟设置缩放级别，让动画更流畅
+      setTimeout(() => {
+        map.setZoom(15, false, 500);
+      }, 100);
+      map.off("moveend", moveEndHandler);
+    };
+
+    map.on("moveend", moveEndHandler);
+
+    // 监听瓦片加载完成（可能触发多次）
+    const tilesLoadHandler = () => {
+      tilesLoadedCount++;
+      console.log(`瓦片加载完成 (第${tilesLoadedCount}次)`);
+
+      // 连续2次触发后认为加载完成（确保所有瓦片都加载完）
+      if (tilesLoadedCount >= 2) {
+        // isMapLoading.value = false;
+        map.off("tilesload", tilesLoadHandler);
+        if (loadingTimer) {
+          clearTimeout(loadingTimer);
+          loadingTimer = null;
+        }
+      }
+    };
+
+    map.on("tilesload", tilesLoadHandler);
+
+    // 设置最长等待时间（10秒），防止一直卡住
+    loadingTimer = setTimeout(() => {
+      console.log("超时隐藏加载提示");
+      isMapLoading.value = false;
+      loadingTimer = null;
+    }, 10000);
   }
 
   // 移动无人机标记到选中位置（增加非空判断，避免标记未初始化报错）
   if (droneMarker) {
-    droneMarker.setLngLat(new T.LngLat(lng, lat));
+    droneMarker.setPosition([lng, lat]);
   }
 
   // 更新对话框坐标并打开
@@ -253,8 +349,6 @@ const handleMapClick = (e) => {
 const handleMapZoom = () => {
   // 地图实例存在时执行操作
   if (map) {
-    // 检查并调整地图尺寸（解决缩放后地图显示异常）
-    map.checkResize();
     // 获取并打印当前缩放级别
     const currentZoom = map.getZoom();
     console.log("地图当前缩放级别：", currentZoom);
@@ -264,72 +358,95 @@ const handleMapZoom = () => {
 //处理地图拖拽结束事件
 const handleMapMove = () => {
   if (map) {
-    map.checkResize();
+    // 高德地图不需要 checkResize
   }
 };
 
-// 初始化天地图
+// 初始化地图实例的实际函数
+const initMapInstance = () => {
+  try {
+    // 显示加载状态
+    isMapLoading.value = true;
+    tilesLoadedCount = 0;
+
+    // 创建地图实例（使用 WebGL 渲染实现丝滑跳转）
+    map = new AMap.Map(mapContainer.value, {
+      zoom: 15,
+      center: [DEFAULT_NJ_LNG, DEFAULT_NJ_LAT],
+      viewMode: "3D", // 启用 3D 视图
+      renderMode: "webgl", // 关键参数：使用 WebGL 渲染，性能大幅提升
+      showLabel: true,
+      pitch: 0,
+      rotateEnable: false,
+      pitchEnable: false,
+      layers: [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()],
+    });
+
+    console.log("使用 WebGL 渲染模式地图");
+
+    // 创建轨迹线实例（初始化空轨迹，暂不添加到地图）
+    trackPolyline = new AMap.Polyline({
+      path: null,
+      strokeColor: "#2C64A7",
+      strokeWeight: 4,
+      strokeOpacity: 0.8,
+    });
+    // 暂不添加到地图，等有数据后再添加
+    // map.add(trackPolyline);
+
+    // 绑定地图交互事件
+    map.on("click", handleMapClick);
+    map.on("zoomend", handleMapZoom);
+    map.on("moveend", handleMapMove);
+
+    // 监听瓦片加载完成（可能触发多次）
+    const tilesLoadHandler = () => {
+      tilesLoadedCount++;
+      console.log(`瓦片加载完成 (第${tilesLoadedCount}次)`);
+
+      // WebGL 版本加载更快，等待1次即可
+      if (tilesLoadedCount >= 1) {
+        isMapLoading.value = false;
+        map.off("tilesload", tilesLoadHandler);
+        if (loadingTimer) {
+          clearTimeout(loadingTimer);
+          loadingTimer = null;
+        }
+      }
+    };
+
+    map.on("tilesload", tilesLoadHandler);
+
+    // 设置最长等待时间（5秒），防止一直卡住
+    loadingTimer = setTimeout(() => {
+      console.log("超时隐藏加载提示");
+      isMapLoading.value = false;
+      loadingTimer = null;
+    }, 5000);
+
+    // 地图加载完成后提示
+    map.on("complete", () => {
+      console.log("地图加载完成");
+      ElMessage.success("地图加载成功");
+      isMapLoading.value = false;
+    });
+  } catch (error) {
+    console.error("地图初始化失败:", error);
+    ElMessage.error("地图初始化失败");
+    isMapLoading.value = false;
+  }
+};
+
+// 初始化高德地图
 const initMap = () => {
-  // 检查天地图全局对象是否存在
-  if (!window.T) {
-    ElMessage.error("天地图API未加载");
+  // 检查高德地图全局对象是否存在
+  if (!window.AMap) {
+    ElMessage.error("高德地图API未加载");
     return;
   }
 
-  try {
-    // 创建地图实例（绑定到DOM容器）
-    map = new T.Map(mapContainer.value);
-    // 地图加载完成事件：提示用户并调整尺寸
-    map.addEventListener("load", () => {
-      ElMessage.success("地图加载成功");
-      map.checkResize();
-    });
-    // 添加地图类型控件（切换普通/卫星地图）
-    map.addControl(new T.Control.MapType());
-    // 设置地图类型为混合地图（卫星+路网）
-    map.setMapType(TMAP_HYBRID_MAP);
-    // 添加比例尺控件
-    map.addControl(new T.Control.Scale());
-    // 设置地图默认中心和缩放级别
-    map.centerAndZoom(new T.LngLat(DEFAULT_NJ_LNG, DEFAULT_NJ_LAT), 15);
-
-    // 无人机标记初始化（当前注释，如需启用请取消注释）
-    // droneMarker = new T.Marker(new T.LngLat(DEFAULT_NJ_LNG, DEFAULT_NJ_LAT), {
-    //   icon: new T.Icon({
-    //     iconUrl: "/src/assets/mti-无人机.png",
-    //     iconSize: new T.Point(32, 32),
-    //     iconAnchor: new T.Point(16, 16),
-    //   }),
-    // });
-    // map.addOverLay(droneMarker);
-
-    // 创建轨迹线实例（初始化空轨迹）
-    trackPolyline = new T.Polyline([], {
-      color: "#2C64A7", // 轨迹线颜色
-      weight: 4, // 线宽
-      opacity: 0.8, // 透明度
-      lineStyle: "solid", // 线型（实线）
-    });
-    // 将轨迹线添加到地图
-    map.addOverLay(trackPolyline);
-
-    // 绑定地图交互事件
-    map.addEventListener("click", handleMapClick); // 点击事件
-    map.addEventListener("zoomend", handleMapZoom); // 缩放结束事件
-    map.addEventListener("moveend", handleMapMove); // 拖拽结束事件
-
-    // 延迟调整地图尺寸（解决初始化时地图显示不全问题）
-    setTimeout(() => {
-      if (map) {
-        map.checkResize();
-        map.centerAndZoom(new T.LngLat(DEFAULT_NJ_LNG, DEFAULT_NJ_LAT), 15);
-      }
-    }, 200);
-  } catch (error) {
-    // 捕获地图初始化异常并提示用户
-    console.error("地图初始化失败:", error);
-    ElMessage.error("地图初始化失败");
-  }
+  // 直接初始化地图
+  initMapInstance();
 };
 
 // 组件挂载完成后执行
@@ -345,6 +462,11 @@ onMounted(() => {
 
 // 组件卸载前执行
 onBeforeUnmount(() => {
+  // 清理定时器
+  if (loadingTimer) {
+    clearTimeout(loadingTimer);
+    loadingTimer = null;
+  }
   // 恢复页面容器样式（移除no-padding类，恢复padding）
   const pageContent = document.querySelector(".page-content");
   if (pageContent) {
@@ -457,7 +579,7 @@ onBeforeUnmount(() => {
   color: #909399;
   margin-left: 6px;
 }
-/* 标签样式（如“中雨”）：红色背景，圆角 */
+/* 标签样式（如"中雨"）：红色背景，圆角 */
 .tag {
   background: #fde2e2;
   color: #f56c6c;
@@ -465,5 +587,76 @@ onBeforeUnmount(() => {
   border-radius: 4px;
   font-size: 12px;
   display: inline-block;
+}
+
+/* 地图加载提示样式 */
+.map-loading {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+}
+
+.loading-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px 28px;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e0e6ed;
+  border-top-color: #409eff;
+  border-radius: 50%;
+  animation: loading-spin 0.8s linear infinite;
+}
+
+.loading-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.loading-main {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.loading-sub {
+  font-size: 12px;
+  color: #909399;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 过渡动画 */
+.loading-fade-enter-active,
+.loading-fade-leave-active {
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+
+.loading-fade-enter-from {
+  opacity: 0;
+  transform: translate(-50%, -45%);
+}
+
+.loading-fade-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -55%);
 }
 </style>

@@ -12,47 +12,11 @@
       <div class="section">
         <h4 class="section-title">点击位置</h4>
         <div class="info-group">
-          {{ locationInfo.formatted_address }}
-          <!-- <p class="info-item">
-            <span class="label">经度（lng）：</span>
-            <span class="value">{{ position.lng }}</span>
-          </p>
-          <p class="info-item">
-            <span class="label">纬度（lat）：</span>
-            <span class="value">{{ position.lat }}</span>
-          </p> -->
+          <!-- 加兜底，避免接口失败时显示空白 -->
+          {{ locationInfo.formatted_address || "暂无位置信息" }}
         </div>
       </div>
 
-      <!-- <div class="section">
-        <h4 class="section-title">天气预报</h4>
-        <div class="info-group grid-3">
-          <p class="info-item">
-            <span class="label">天气状态：</span>
-            <span class="value">中雨</span>
-          </p>
-          <p class="info-item">
-            <span class="label">预测飞行风速：</span>
-            <span class="value">7.1 m/s</span>
-          </p>
-          <p class="info-item">
-            <span class="label">短时雨量：</span>
-            <span class="value tag">中雨</span>
-          </p>
-          <p class="info-item">
-            <span class="label">温度：</span>
-            <span class="value">29 ℃</span>
-          </p>
-          <p class="info-item">
-            <span class="label">相对湿度：</span>
-            <span class="value">87%</span>
-          </p>
-          <p class="info-item">
-            <span class="label">电离层活跃度：</span>
-            <span class="value">平静</span>
-          </p>
-        </div>
-      </div> -->
       <!-- 天气预报模块 -->
       <div class="info-group grid-3">
         <p
@@ -65,7 +29,6 @@
           <span :class="['value', item.isTag ? 'tag' : '']">
             {{ getWeatherValue(item.key) }}
           </span>
-          <!-- <el-icon v-show="item.label === '天气状况'"><Sunny /></el-icon> -->
         </p>
       </div>
     </div>
@@ -73,25 +36,30 @@
 </template>
 
 <script setup>
-import { watch, ref } from "vue";
-import { wgs84togcj02 } from "@/utils/coordTransform";
+import { watch, ref, onMounted } from "vue";
+import { ElMessage } from "element-plus";
+// 无需导入 wgs84togcj02，直接用父组件传递的 gcj 坐标
+// import { wgs84togcj02 } from "@/utils/coordTransform";
 import { Sunny } from "@element-plus/icons-vue";
-const latitudelongitude = ref();
+
+// 响应式数据
+const latitudelongitude = ref({ lng: "", lat: "", gcjLng: "", gcjLat: "" });
 const cityCode = ref("");
 const gdKey = ref("2731752e51881bb9d549b1793728d0f5");
-const locationInfo = ref({});
+const locationInfo = ref({ formatted_address: "" }); // 初始化兜底
 const weatherInfomation = ref({});
+
+// 天气字段枚举
 const weatherFieldEnum = ref([
-  { key: "city", label: "城市/区域", isTag: false }, // 古城区
-  { key: "weather", label: "天气状况", isTag: true }, // 晴（用tag样式）
-  { key: "temperature", label: "温度", isTag: false }, // 10℃
-  { key: "humidity", label: "相对湿度", isTag: false }, // 33%
-  { key: "winddirection", label: "风向", isTag: false }, // 西
-  { key: "windpower", label: "风力", isTag: false }, // 5级
-  // 可选扩展：如需展示更多字段，直接在枚举里加即可
-  // { key: "adcode", label: "行政区划代码", isTag: false },
+  { key: "city", label: "城市/区域", isTag: false },
+  { key: "weather", label: "天气状况", isTag: true },
+  { key: "temperature", label: "温度", isTag: false },
+  { key: "humidity", label: "相对湿度", isTag: false },
+  { key: "winddirection", label: "风向", isTag: false },
+  { key: "windpower", label: "风力", isTag: false },
   { key: "reporttime", label: "发布时间", isTag: false },
 ]);
+
 // 1. 接收父组件传递的 Prop
 const props = defineProps({
   visible: {
@@ -100,69 +68,115 @@ const props = defineProps({
   },
   position: {
     type: Object,
-    default: () => ({ lng: "", lat: "" }),
+    default: () => ({
+      lng: "", // WGS84 经度
+      lat: "", // WGS84 纬度
+      gcjLng: "", // GCJ02 经度（高德原生）
+      gcjLat: "", // GCJ02 纬度（高德原生）
+    }),
   },
 });
 
-// 2. 定义向父组件发送的事件（更新 visible 值）
+// 2. 定义向父组件发送的事件
 const emit = defineEmits(["update:visible"]);
 
-// 3. 处理对话框关闭事件，向父组件发送更新信号
+// 3. 处理对话框关闭事件
 const handleClose = (newVisible) => {
-  // 关键：子组件不修改 Prop，只通知父组件修改
   emit("update:visible", newVisible);
+  // 关闭时清空数据，避免下次打开残留
+  if (!newVisible) {
+    locationInfo.value = { formatted_address: "" };
+    weatherInfomation.value = {};
+    cityCode.value = "";
+  }
 };
+
+// 4. 获取天气值（加完善兜底）
 const getWeatherValue = (key) => {
   const value = weatherInfomation.value[key] || "暂无数据";
-  // 为不同字段补充单位
   switch (key) {
     case "temperature":
-      return `${value} ℃`;
+      return `${value || "暂无数据"} ℃`;
     case "humidity":
-      return `${value}%`;
+      return `${value || "暂无数据"}%`;
     case "windpower":
-      return `${value} 级`;
+      return `${value || "暂无数据"} 级`;
     default:
-      return value;
+      return value || "暂无数据";
   }
 };
-//地理/逆地理编码
+
+// 5. 逆地理编码（获取地址和城市编码）
 const geocoding = async () => {
-  let lng = Number(latitudelongitude.value.lng);
-  let lat = Number(latitudelongitude.value.lat);
-  const [gcjLng, gcjLat] = wgs84togcj02(lng, lat);
-  const url = `https://restapi.amap.com/v3/geocode/regeo?output=json&location=${gcjLng.toFixed(
-    6
-  )},${gcjLat.toFixed(6)}&key=${gdKey.value}&radius=1&extensions=base`;
-  // 发起接口请求
-  const response = await fetch(url);
-  const res = await response.json();
-  if (res.status === "1") {
-    locationInfo.value = res.regeocode;
-    cityCode.value = res.regeocode.addressComponent.adcode;
-    queryWeatherInfo();
+  // 优先使用父组件传递的 GCJ02 坐标（高德原生，无需转换）
+  const gcjLng = latitudelongitude.value.gcjLng || latitudelongitude.value.lng;
+  const gcjLat = latitudelongitude.value.gcjLat || latitudelongitude.value.lat;
+
+  // 空值校验
+  if (!gcjLng || !gcjLat || isNaN(Number(gcjLng)) || isNaN(Number(gcjLat))) {
+    ElMessage.warning("坐标无效，无法获取位置信息");
+    locationInfo.value.formatted_address = "坐标无效";
+    return;
   }
-  console.log(res, "地理编码");
+
+  try {
+    const url = `https://restapi.amap.com/v3/geocode/regeo?output=json&location=${gcjLng},${gcjLat}&key=${gdKey.value}&radius=1&extensions=base`;
+    const response = await fetch(url);
+    const res = await response.json();
+
+    if (res.status === "1") {
+      locationInfo.value = res.regeocode;
+      cityCode.value = res.regeocode.addressComponent.adcode;
+      // 地址获取成功后，调用天气接口
+      await queryWeatherInfo();
+    } else {
+      ElMessage.error(`逆地理编码失败：${res.info || "未知错误"}`);
+      locationInfo.value.formatted_address = "获取位置失败";
+    }
+  } catch (error) {
+    console.error("逆地理编码接口报错：", error);
+    ElMessage.error("获取位置信息失败，请检查网络");
+    locationInfo.value.formatted_address = "获取位置失败";
+  }
 };
-//获取天气
+
+// 6. 获取天气信息
 const queryWeatherInfo = async () => {
-  const url = `https://restapi.amap.com/v3/weather/weatherInfo?key=${gdKey.value}&city=${cityCode.value}&output=JSON`;
-  const response = await fetch(url);
-  const res = await response.json();
-  if (res.status === "1") {
-    weatherInfomation.value = res.lives[0];
+  if (!cityCode.value) {
+    ElMessage.warning("城市编码为空，无法查询天气");
+    return;
   }
-  console.log(cityCode.value, res, "获取天气");
+
+  try {
+    const url = `https://restapi.amap.com/v3/weather/weatherInfo?key=${gdKey.value}&city=${cityCode.value}&output=JSON`;
+    const response = await fetch(url);
+    const res = await response.json();
+
+    if (res.status === "1" && res.lives && res.lives.length > 0) {
+      weatherInfomation.value = res.lives[0];
+    } else {
+      ElMessage.error(`天气查询失败：${res.info || "暂无该城市天气数据"}`);
+    }
+  } catch (error) {
+    console.error("天气接口报错：", error);
+    ElMessage.error("获取天气信息失败，请检查网络");
+  }
 };
-//监听经纬度
+
+// 7. 监听弹窗显示状态和坐标变化（核心修复）
 watch(
-  props.position,
-  (newVal) => {
-    latitudelongitude.value = props.position;
-    console.log(newVal, "newVal");
-    geocoding();
+  () => [props.visible, props.position],
+  ([newVisible, newPosition]) => {
+    // 只有弹窗打开且坐标有效时，才执行查询
+    if (newVisible && newPosition) {
+      latitudelongitude.value = { ...newPosition };
+      // 延迟执行，避免DOM未加载完成
+      setTimeout(() => {
+        geocoding();
+      }, 100);
+    }
   },
-  { immediate: true }
+  { deep: true }, // 深度监听对象变化
 );
 </script>
 
@@ -196,11 +210,13 @@ watch(
 .grid-3 {
   grid-template-columns: repeat(3, 1fr);
   display: grid;
+  gap: 8px 0;
 }
 
 .info-item {
   font-size: 14px;
   line-height: 24px;
+  margin: 0;
 }
 .label {
   color: #606266;
@@ -221,9 +237,5 @@ watch(
 .reporttime {
   color: #1f2d3d;
   font-weight: 500;
-  /* 可选：如果想调整发布时间的宽度范围，用max-width/min-width */
-  /* max-width: 400px; */
-  /* 可选：让文字靠左对齐，和其他项一致 */
-  display: inline-block;
 }
 </style>
