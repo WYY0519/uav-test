@@ -6,9 +6,9 @@
       <div class="map-container">
         <div ref="mapContainer" class="map-wrapper">
           <!-- 加载中遮罩 -->
-          <div v-if="loading" class="loading-mask">
+          <!-- <div v-if="loading" class="loading-mask">
             <el-spin size="large">加载中...</el-spin>
-          </div>
+          </div> -->
         </div>
         <!-- 左侧控制面板，浮动在地图上层 -->
         <div class="floating-panel left-panel" v-show="!isPanelCollapsed">
@@ -136,7 +136,7 @@ import NoFlyZoneManager from "./components/gisDome/NoFlyZoneManager.vue";
 
 // 状态变量
 const mapContainer = ref(null);
-const loading = ref(true);
+// const loading = ref(true);
 
 // 地图相关
 let map = null;
@@ -165,49 +165,37 @@ const togglePanel = () => {
 
 // 地图初始化
 const initMap = () => {
-  if (!window.T) {
-    ElMessage.error("天地图API未加载，请检查网络连接");
-    loading.value = false;
+  if (!window.AMap) {
+    ElMessage.error("高德地图API未加载，请检查网络连接");
+    // loading.value = false;
     return;
   }
 
   try {
-    map = new T.Map(mapContainer.value);
-    const TIANDITU_KEY = "0c09d0cbd8da28e0f79cfc1627c23fd4";
+    // 使用 WebGL 渲染模式，提升性能
+    map = new AMap.Map(mapContainer.value, {
+      zoom: 15,
+      center: [113.65644, 34.78723],
+      viewMode: "3D",
+      renderMode: "webgl",
+      layers: [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()],
+    });
 
-    map.addEventListener("load", () => {
-      loading.value = false;
-      map.checkResize();
+    map.on("complete", () => {
+      // loading.value = false;
       ElMessage.success("地图加载成功");
-      map.addEventListener("zoomend", handleMapZoom);
     });
 
-    map.addEventListener("error", (e) => {
-      console.error("地图加载错误:", e);
-      loading.value = false;
-      ElMessage.error("地图加载失败，请刷新页面重试");
-    });
+    map.on("zoomend", handleMapZoom);
 
-    const defaultLng = 113.65644;
-    const defaultLat = 34.78723;
-    map.centerAndZoom(new T.LngLat(defaultLng, defaultLat), 15);
-
-    const layer = new T.TileLayer("img_w", {
-      zIndex: 1,
-      token: TIANDITU_KEY,
-    });
-    map.addLayer(layer);
-
-    map.addControl(new T.Control.MapType());
-    map.addControl(new T.Control.Scale());
-    map.setMapType(TMAP_HYBRID_MAP);
-
+    // 尝试获取当前位置
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lng = position.coords.longitude;
           const lat = position.coords.latitude;
-          map.centerAndZoom(new T.LngLat(lng, lat), 15);
+          map.setCenter([lng, lat]);
+          map.setZoom(15);
         },
         (err) => {
           console.warn("定位失败:", err);
@@ -217,17 +205,13 @@ const initMap = () => {
     }
   } catch (error) {
     console.error("地图初始化失败:", error);
-    loading.value = false;
+    // loading.value = false;
     ElMessage.error("地图初始化失败，请检查配置");
   }
 };
 
 const handleMapZoom = () => {
-  if (map && typeof map.checkResize === "function") {
-    setTimeout(() => {
-      map.checkResize();
-    }, 300);
-  }
+  // 高德地图不需要 checkResize
 };
 
 // ========== 核心修复1：定义updateZoneDataOnEdit（原updateZoneData重命名+提前定义） ==========
@@ -308,7 +292,7 @@ const viewNoFlyZone = (zoneData) => {
 
     if (shape) {
       // 添加到地图
-      map.addOverLay(shape);
+      map.add(shape);
 
       // 保存引用，便于后续操作
       currentZoneShape.value = shape;
@@ -389,7 +373,7 @@ const completeEdit = (zoneId) => {
   // 2. 清除编辑相关覆盖物（圆心/半径点/多边形顶点）
   if (currentZoneShape.value && currentZoneShape.value.markers) {
     currentZoneShape.value.markers.forEach((marker) => {
-      map.removeOverLay(marker);
+      map.remove(marker);
     });
   }
   clearAllOverlays();
@@ -408,13 +392,11 @@ const completeEdit = (zoneId) => {
 const jumpToCircleZone = (center, radius) => {
   if (!center || !radius) return;
 
-  const centerLngLat = new T.LngLat(center.lng, center.lat);
-
   // 计算合适的缩放级别
   const zoomLevel = calculateZoomLevelByRadius(radius);
 
   // 平滑移动和缩放
-  map.panTo(centerLngLat);
+  map.panTo([center.lng, center.lat]);
 
   // 延迟设置缩放，确保移动完成
   setTimeout(() => {
@@ -442,31 +424,28 @@ const calculateZoomLevelByRadius = (radius) => {
 };
 
 // 跳转到多边形禁飞区
+// 跳转到多边形禁飞区
 const jumpToPolygonZone = (coordinates) => {
   if (!coordinates || coordinates.length === 0) return;
 
   // 计算多边形的边界
-  const bounds = new T.LngLatBounds();
-
-  coordinates.forEach((point) => {
-    bounds.extend(new T.LngLat(point.lng, point.lat));
-  });
+  const lngs = coordinates.map((p) => p.lng);
+  const lats = coordinates.map((p) => p.lat);
+  const southWest = [Math.min(...lngs), Math.min(...lats)];
+  const northEast = [Math.max(...lngs), Math.max(...lats)];
+  const bounds = new AMap.Bounds(southWest, northEast);
 
   // 计算多边形中心
-  const southWest = bounds.getSouthWest();
-  const northEast = bounds.getNorthEast();
-  const centerLng = (southWest.lng + northEast.lng) / 2;
-  const centerLat = (southWest.lat + northEast.lat) / 2;
+  const centerLng = (southWest[0] + northEast[0]) / 2;
+  const centerLat = (southWest[1] + northEast[1]) / 2;
 
   // 先移动到中心
-  map.panTo(new T.LngLat(centerLng, centerLat));
+  map.panTo([centerLng, centerLat]);
 
   // 延迟设置合适视图范围
   setTimeout(() => {
-    // 增加padding，让禁飞区不贴边显示
-    map.setViewport(bounds, {
-      padding: [50, 50], // 左右和上下各增加50像素的边距
-    });
+    // 使用 setBounds 替代 setFitView，避免 getBounds 错误
+    map.setBounds(bounds, false, [50, 50, 50, 50]);
   }, 400);
 };
 
@@ -480,16 +459,16 @@ const parseZoneDataForDisplay = (zoneData) => {
     id: zoneData.id,
     name: zoneData.name || "未命名禁飞区",
     type: zoneData.shape || "polygon",
-    coordinates: [], // 最终给地图的格式：[{lng: 经度, lat: 纬度}]
+    coordinates: [],
     borderColor: zoneData.borderColor || "#e74c3c",
     borderWeight: zoneData.borderWeight || 2,
     fillColor: zoneData.fillColor || "#e74c3c",
     fillOpacity: zoneData.fillOpacity || 0.3,
     area: zoneData.area || 0,
-    radius: 0, // 圆形半径兜底初始化
+    radius: 0,
   };
 
-  // 【新增】如果 coordinates 是字符串，先解析为数组
+  // 如果 coordinates 是字符串，先解析为数组
   let coordinatesToParse = zoneData.coordinates;
   if (typeof zoneData.coordinates === "string") {
     try {
@@ -502,202 +481,154 @@ const parseZoneDataForDisplay = (zoneData) => {
     }
   }
 
-  // 兼容多种格式：[[[lng,lat],[lng,lat]...]] 或 [[[lat,lng],[lat,lng]...]]
+  // 解析点集的辅助函数：将任意格式的点转换为 {lng, lat}
+  const parsePoint = (point) => {
+    if (!point) return null;
+    // 如果是对象且包含 lng/lat
+    if (
+      typeof point === "object" &&
+      point.lng !== undefined &&
+      point.lat !== undefined
+    ) {
+      const lng = Number(point.lng);
+      const lat = Number(point.lat);
+      if (
+        !isNaN(lng) &&
+        !isNaN(lat) &&
+        lat >= -90 &&
+        lat <= 90 &&
+        lng >= -180 &&
+        lng <= 180
+      ) {
+        return { lng, lat };
+      }
+      return null;
+    }
+    // 如果是数组 [val0, val1]
+    if (Array.isArray(point) && point.length >= 2) {
+      const val0 = Number(point[0]);
+      const val1 = Number(point[1]);
+      if (isNaN(val0) || isNaN(val1)) return null;
+
+      let lat, lng;
+      // 判断哪个是纬度（纬度范围 -90~90）
+      if (Math.abs(val0) <= 90) {
+        // val0 可能是纬度
+        if (Math.abs(val1) <= 180) {
+          // val1 在经度范围内
+          lat = val0;
+          lng = val1;
+        } else {
+          // val1 超出经度范围，交换尝试
+          lat = val1;
+          lng = val0;
+        }
+      } else if (Math.abs(val1) <= 90) {
+        // val1 可能是纬度
+        lat = val1;
+        lng = val0;
+      } else {
+        // 都超出范围，默认按 [lng, lat] 处理
+        lng = val0;
+        lat = val1;
+      }
+
+      // 最终校验
+      if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        return { lng, lat };
+      }
+      console.warn("坐标值超出有效范围:", { lat, lng });
+      return null;
+    }
+    return null;
+  };
+
+  // 根据形状提取有效点
+  let validPoints = [];
+
+  // 处理三层数组：[[[lat,lng], [lat,lng], ...]]
   if (
     coordinatesToParse &&
     Array.isArray(coordinatesToParse) &&
     coordinatesToParse.length > 0 &&
-    Array.isArray(coordinatesToParse[0]) &&
-    coordinatesToParse[0].length > 0
+    Array.isArray(coordinatesToParse[0])
   ) {
-    console.log("检测到数组格式，开始解析...");
-    const secondLayer = coordinatesToParse[0]; // 第二层：[[lng,lat], [lng,lat], ...]
-    console.log("第二层数据:", JSON.stringify(secondLayer));
-    const validPoints = [];
-
-    // 遍历第二层，解析每个点
-    secondLayer.forEach((point, index) => {
-      if (Array.isArray(point) && point.length >= 2) {
-        const val0 = Number(point[0]);
-        const val1 = Number(point[1]);
-
-        // 判断是 [lat,lng] 还是 [lng,lat] 格式
-        // 根据数值范围判断：lat 在 -90~90 之间，lng 在 -180~180 之间
-        let lat, lng;
-        if (Math.abs(val0) <= 90 && Math.abs(val1) <= 90) {
-          // 两个都在 -90~90 之间，可能是 [lat, lng]
-          lat = val0;
-          lng = val1;
-          console.log(
-            `解析点${index}: [lat,lng]格式 [${val0}, ${val1}] -> lat=${lat}, lng=${lng}`,
-          );
-        } else if (Math.abs(val0) <= 180 && Math.abs(val1) <= 90) {
-          // 第一个在 -180~180，第二个在 -90~90，是 [lng, lat]
-          lng = val0;
-          lat = val1;
-          console.log(
-            `解析点${index}: [lng,lat]格式 [${val0}, ${val1}] -> lat=${lat}, lng=${lng}`,
-          );
-        } else {
-          // 无法确定，默认按 [lng, lat] 处理
-          lng = val0;
-          lat = val1;
-          console.log(
-            `解析点${index}: 无法确定格式，按[lng,lat]处理 [${val0}, ${val1}] -> lat=${lat}, lng=${lng}`,
-          );
-        }
-
-        // 验证经纬度有效性
-        if (
-          !isNaN(lat) &&
-          !isNaN(lng) &&
-          lat >= -90 &&
-          lat <= 90 &&
-          lng >= -180 &&
-          lng <= 180
-        ) {
-          validPoints.push({ lng: lng, lat: lat }); // 转地图需要的{lng, lat}格式
-        } else {
-          console.warn(`点${index}坐标无效: lat=${lat}, lng=${lng}`);
+    // 检查第二层是否为点数组（即每个元素是数组或对象）
+    const firstChild = coordinatesToParse[0];
+    if (Array.isArray(firstChild) && firstChild.length > 0) {
+      // 可能是 [[lat,lng], [lat,lng], ...] 或 [[[lat,lng], ...]]
+      if (Array.isArray(firstChild[0])) {
+        // 三层结构：[[[lat,lng], ...]]
+        for (const ring of coordinatesToParse) {
+          for (const point of ring) {
+            const parsed = parsePoint(point);
+            if (parsed) validPoints.push(parsed);
+          }
         }
       } else {
-        console.warn(`点${index}格式错误:`, point);
+        // 两层结构：[[lat,lng], [lat,lng], ...]
+        for (const point of coordinatesToParse) {
+          const parsed = parsePoint(point);
+          if (parsed) validPoints.push(parsed);
+        }
       }
-    });
-
-    // 根据形状过滤有效点数
-    if (zoneData.shape === "circle") {
-      // 圆形：取第一个有效点作为圆心
-      result.coordinates =
-        validPoints.length > 0
-          ? [validPoints[0]]
-          : [{ lng: 113.65644, lat: 34.78723 }];
-      console.log("圆形数组解析成功:", result.coordinates);
-    } else {
-      // 多边形：保留所有有效点（至少3个才有效）
-      result.coordinates = validPoints.length >= 3 ? validPoints : [];
-      console.log(
-        `多边形数组解析: 原始${secondLayer.length}个点，有效${validPoints.length}个点`,
-        result.coordinates,
-      );
+    } else if (typeof firstChild === "object" && firstChild.lng !== undefined) {
+      // 对象数组 [{lng, lat}, ...]
+      for (const point of coordinatesToParse) {
+        const parsed = parsePoint(point);
+        if (parsed) validPoints.push(parsed);
+      }
     }
   }
-  // 兼容【旧格式】：{lng: 经度, lat: 纬度}对象数组（字符串格式）
+  // 处理对象数组（已解析的坐标数组）
   else if (
-    typeof zoneData.coordinates === "string" &&
-    zoneData.coordinates.includes('"lng"') &&
-    zoneData.coordinates.includes('"lat"')
-  ) {
-    console.log("检测到对象数组格式的字符串坐标，正在解析...");
-    try {
-      // 解析字符串中的对象数组
-      const objectArrayStr = `[${zoneData.coordinates}]`;
-      const objectArray = JSON.parse(objectArrayStr);
-      console.log("解析后的对象数组:", objectArray);
-
-      if (Array.isArray(objectArray) && objectArray.length > 0) {
-        result.coordinates = objectArray
-          .filter(
-            (point) =>
-              point &&
-              typeof point === "object" &&
-              !isNaN(Number(point.lng)) &&
-              !isNaN(Number(point.lat)),
-          )
-          .map((point) => ({
-            lng: Number(point.lng),
-            lat: Number(point.lat),
-          }));
-
-        console.log(
-          `对象数组解析完成: 原始${objectArray.length}个点，有效${result.coordinates.length}个点`,
-          result.coordinates,
-        );
-      }
-    } catch (e) {
-      console.error("解析对象数组坐标失败:", e);
-    }
-  }
-  // 兼容【旧格式】：{lng: 经度, lat: 纬度}对象数组（已解析为数组）
-  else if (
-    coordinatesToParse &&
     Array.isArray(coordinatesToParse) &&
     coordinatesToParse.length > 0 &&
-    typeof coordinatesToParse[0] === "object" &&
-    coordinatesToParse[0].lng &&
-    coordinatesToParse[0].lat
+    typeof coordinatesToParse[0] === "object"
   ) {
-    console.log("检测到旧格式坐标对象数组（已解析）");
-    result.coordinates = coordinatesToParse
-      .filter((point) => !isNaN(Number(point.lng)) && !isNaN(Number(point.lat)))
-      .map((point) => ({
-        lng: Number(point.lng),
-        lat: Number(point.lat),
-      }));
-    console.log("对象数组解析完成:", result.coordinates);
-  }
-  // 兜底：从rawData解析
-  else if (zoneData.rawData && zoneData.rawData.coordinates) {
-    console.log("尝试从 rawData 解析坐标...");
-    try {
-      let rawCoords = zoneData.rawData.coordinates;
-      // 如果 rawData.coordinates 也是字符串，先解析
-      if (typeof rawCoords === "string") {
-        rawCoords = JSON.parse(rawCoords);
-      }
-
-      if (Array.isArray(rawCoords[0]) && Array.isArray(rawCoords[0][0])) {
-        const validPoints = [];
-        rawCoords[0].forEach((point) => {
-          if (Array.isArray(point) && point.length >= 2) {
-            const lat = Number(point[0]);
-            const lng = Number(point[1]);
-            if (!isNaN(lat) && !isNaN(lng)) validPoints.push({ lng, lat });
-          }
-        });
-        result.coordinates =
-          zoneData.shape === "circle"
-            ? validPoints.length > 0
-              ? [validPoints[0]]
-              : [{ lng: 113.65644, lat: 34.78723 }]
-            : validPoints.length >= 3
-              ? validPoints
-              : [];
-      }
-    } catch (e) {
-      console.error("从rawData解析坐标失败:", e);
+    for (const point of coordinatesToParse) {
+      const parsed = parsePoint(point);
+      if (parsed) validPoints.push(parsed);
     }
   }
 
-  // 最终兜底：解析失败/点数不足时，使用警告提示
-  if (result.coordinates.length === 0) {
-    console.error(
-      `禁飞区${zoneData.id}坐标解析失败/点数不足，无法显示`,
-      zoneData.coordinates,
-    );
-    ElMessage.error(
-      `【${zoneData.name || "未命名禁飞区"}】多边形坐标数据无效或点数不足，无法显示`,
-    );
-    return null; // 返回null，由调用方处理错误
-  }
-
-  // 圆形专属：半径兜底（不变）
+  // 根据形状确定坐标
   if (result.type === "circle") {
+    // 圆形取第一个有效点作为圆心
+    result.coordinates = validPoints.length > 0 ? [validPoints[0]] : [];
+    if (result.coordinates.length === 0) {
+      console.error("圆形禁飞区解析失败：无有效圆心坐标");
+      return null;
+    }
+    // 半径处理
     if (zoneData.radius && !isNaN(zoneData.radius) && zoneData.radius > 0) {
       result.radius = Number(zoneData.radius);
     } else if (result.area > 0) {
-      const areaSquareM = result.area * 1000000;
-      result.radius = Math.sqrt(areaSquareM / Math.PI);
+      result.radius = Math.sqrt((result.area * 1000000) / Math.PI);
     } else {
-      result.radius = 100;
+      result.radius = 100; // 默认100米
     }
     console.log(
-      "圆形禁飞区解析完成：中心",
+      "圆形禁飞区解析完成：圆心",
       result.coordinates[0],
       "半径",
       result.radius,
       "米",
     );
+  } else {
+    // 多边形：至少需要3个有效点
+    if (validPoints.length >= 3) {
+      result.coordinates = validPoints;
+    } else {
+      console.error(
+        `多边形禁飞区 ${zoneData.id} 解析失败，有效点数不足3个:`,
+        validPoints.length,
+      );
+      ElMessage.error(
+        `【${result.name}】多边形坐标点数不足（${validPoints.length}个），至少需要3个有效点`,
+      );
+      return null;
+    }
   }
 
   return result;
@@ -714,12 +645,13 @@ const createZoneShape = (zoneData) => {
       zoneData.radius > 0 &&
       zoneData.coordinates[0]
     ) {
-      // 圆形逻辑不变，保留原代码
+      // 圆形逻辑
       const center = zoneData.coordinates[0];
-      const centerLngLat = new T.LngLat(center.lng, center.lat);
-      const circle = new T.Circle(centerLngLat, zoneData.radius, {
-        color: zoneData.borderColor,
-        weight: zoneData.borderWeight,
+      const circle = new AMap.Circle({
+        center: [center.lng, center.lat],
+        radius: zoneData.radius,
+        strokeColor: zoneData.borderColor,
+        strokeWeight: zoneData.borderWeight,
         fillColor: zoneData.fillColor,
         fillOpacity: zoneData.fillOpacity,
       });
@@ -729,12 +661,11 @@ const createZoneShape = (zoneData) => {
       return circle;
     } else if (zoneData.coordinates && zoneData.coordinates.length >= 3) {
       // 多边形：新增点数≥3校验（核心！）
-      const points = zoneData.coordinates.map(
-        (point) => new T.LngLat(point.lng, point.lat),
-      );
-      const polygon = new T.Polygon([points], {
-        color: zoneData.borderColor,
-        weight: zoneData.borderWeight,
+      const path = zoneData.coordinates.map((point) => [point.lng, point.lat]);
+      const polygon = new AMap.Polygon({
+        path: path,
+        strokeColor: zoneData.borderColor,
+        strokeWeight: zoneData.borderWeight,
         fillColor: zoneData.fillColor,
         fillOpacity: zoneData.fillOpacity,
       });
@@ -800,208 +731,250 @@ const calculatePointOnCircle = (center, radius, angle) => {
     ((radius * Math.cos(angle)) / (earthRadius * Math.cos(latRad))) *
     (180 / Math.PI);
 
-  return new T.LngLat(center.lng + deltaLng, center.lat + deltaLat);
+  return [center.lng + deltaLng, center.lat + deltaLat];
 };
 // 创建可编辑的圆形
-// 首先，更新 createEditableCircle 函数
+// 创建可编辑的圆形
 const createEditableCircle = (zoneData) => {
-  const center = zoneData.coordinates[0];
-  const centerLngLat = new T.LngLat(center.lng, center.lat);
-  const initialRadius = zoneData.radius; // 保存初始半径
+  const center = zoneData.coordinates[0]; // { lng, lat }
+  const initialRadius = zoneData.radius; // 当前半径（米）
 
-  // 创建圆形
-  const circle = new T.Circle(centerLngLat, initialRadius, {
-    color: "#ff9800", // 编辑模式下使用橙色
-    weight: zoneData.borderWeight + 1,
+  console.log(`[编辑圆形] 初始化 - 圆心:`, center, `初始半径:`, initialRadius);
+
+  // 🔴 核心修复：用局部变量存储拖拽状态，替代this
+  const dragState = {
+    dragStartPos: null,
+    radiusMarkerStartPos: null,
+    centerPos: null,
+    isDragging: false, // 新增：标记是否正在拖拽
+  };
+
+  // 🔴 修复：使用ref确保变量响应式更新
+  const currentRadius = ref(initialRadius);
+
+  // 1. 创建圆形（编辑样式）
+  const circle = new AMap.Circle({
+    center: new AMap.LngLat(center.lng, center.lat),
+    radius: currentRadius.value,
+    strokeColor: "#ff9800",
+    strokeWeight: zoneData.borderWeight + 1,
     fillColor: zoneData.fillColor,
     fillOpacity: zoneData.fillOpacity,
   });
-
   circle._isNoFlyZone = true;
   circle._zoneId = zoneData.id;
   circle._zoneData = zoneData;
   circle._isEditable = true;
 
-  // 添加圆心标记点（可拖拽）
-  const centerMarker = new T.Marker(centerLngLat, {
+  // 2. 创建圆心Marker（可拖拽）
+  const centerMarker = new AMap.Marker({
+    position: new AMap.LngLat(center.lng, center.lat),
     icon: createEditIcon("#ff9800"),
     draggable: true,
-    raiseOnDrag: true,
+    anchor: "center",
+    zIndex: 10000,
   });
 
-  // 添加半径控制点（可拖拽）- 使用初始半径
-  const radiusPointLngLat = calculateRadiusPoint(centerLngLat, initialRadius);
-  const radiusMarker = new T.Marker(radiusPointLngLat, {
+  // 3. 计算并创建半径控制点（始终在圆边缘）
+  const calculateRadiusPointOnCircle = (center, radius, angle = 0) => {
+    const earthRadius = 6371000; // 地球半径（米）
+    const latRad = (center.lat * Math.PI) / 180;
+    const lngRad = (center.lng * Math.PI) / 180;
+    const angularDist = radius / earthRadius;
+
+    // 计算圆上点经纬度（angle=0 为正东方向）
+    const newLatRad = Math.asin(
+      Math.sin(latRad) * Math.cos(angularDist) +
+        Math.cos(latRad) * Math.sin(angularDist) * Math.cos(angle),
+    );
+    const newLngRad =
+      lngRad +
+      Math.atan2(
+        Math.sin(angle) * Math.sin(angularDist) * Math.cos(latRad),
+        Math.cos(angularDist) - Math.sin(latRad) * Math.sin(newLatRad),
+      );
+
+    const result = {
+      lng: (newLngRad * 180) / Math.PI,
+      lat: (newLatRad * 180) / Math.PI,
+    };
+
+    console.log(`[计算半径点] 半径:${radius} → 坐标:`, result);
+    return result;
+  };
+
+  // 初始半径点（正东方向，在圆边缘）
+  const initialRadiusPoint = calculateRadiusPointOnCircle(
+    center,
+    initialRadius,
+  );
+  const radiusMarker = new AMap.Marker({
+    position: new AMap.LngLat(initialRadiusPoint.lng, initialRadiusPoint.lat),
     icon: createEditIcon("#ff9800"),
     draggable: true,
-    raiseOnDrag: true,
+    anchor: "center",
+    zIndex: 10000,
   });
 
-  // 保存初始半径，确保拖动圆心时半径不变
-  let currentRadius = initialRadius;
-
-  // 圆心标记点拖拽事件 - 只移动位置，不改变半径
-  centerMarker.addEventListener("dragstart", function (e) {
-    if (!e || !e.lnglat) return;
-
-    // 保存拖拽开始时的位置
-    this._dragStartPos = e.lnglat;
-    this._radiusMarkerStartPos = radiusMarker.getLngLat();
-
-    console.log(`圆心拖拽开始: 半径=${currentRadius}米`);
+  // --- 圆心拖拽逻辑 ---
+  centerMarker.on("dragstart", (e) => {
+    console.log(`[圆心拖拽开始] 起始位置:`, e.lnglat);
+    dragState.dragStartPos = e.lnglat;
+    dragState.radiusMarkerStartPos = radiusMarker.getPosition();
   });
 
-  centerMarker.addEventListener("drag", function (e) {
-    if (!e || !e.lnglat) return;
+  centerMarker.on("drag", (e) => {
+    const newCenter = e.lnglat;
+    // 更新圆心
+    circle.setCenter(newCenter);
+    centerMarker.setPosition(newCenter);
 
-    const currentPos = e.lnglat;
-
-    // 计算偏移量
-    const offsetLng =
-      currentPos.lng - (this._dragStartPos?.lng || currentPos.lng);
-    const offsetLat =
-      currentPos.lat - (this._dragStartPos?.lat || currentPos.lat);
-
-    // 更新圆心位置
-    try {
-      circle.setCenter(currentPos);
-    } catch (err) {
-      console.error("更新圆心位置失败:", err);
-    }
-
-    // 更新半径控制点位置 - 跟随圆心一起移动，保持相同的偏移量
-    if (this._radiusMarkerStartPos) {
-      try {
-        const newRadiusPos = new T.LngLat(
-          this._radiusMarkerStartPos.lng + offsetLng,
-          this._radiusMarkerStartPos.lat + offsetLat,
-        );
-        radiusMarker.setLngLat(newRadiusPos);
-      } catch (err) {
-        console.error("更新半径控制点位置失败:", err);
-      }
+    // 同步更新半径点位置（保持相对偏移）
+    if (dragState.dragStartPos && dragState.radiusMarkerStartPos) {
+      const offsetLng = newCenter.lng - dragState.dragStartPos.lng;
+      const offsetLat = newCenter.lat - dragState.dragStartPos.lat;
+      const newRadiusPos = [
+        dragState.radiusMarkerStartPos.lng + offsetLng,
+        dragState.radiusMarkerStartPos.lat + offsetLat,
+      ];
+      radiusMarker.setPosition(newRadiusPos);
+      console.log(
+        `[圆心拖拽中] 新圆心:`,
+        newCenter,
+        `半径点偏移:`,
+        offsetLng,
+        offsetLat,
+      );
     }
   });
 
-  centerMarker.addEventListener("dragend", function (e) {
-    if (!e || !e.lnglat) return;
-    const newCenterPos = e.lnglat;
+  centerMarker.on("dragend", (e) => {
+    const newCenter = e.lnglat;
+    // 最终更新圆心
+    circle.setCenter(newCenter);
+    centerMarker.setPosition(newCenter);
 
-    try {
-      circle.setCenter(newCenterPos);
-      centerMarker.setLngLat(newCenterPos);
-      // 重新计算半径控制点
-      const newRadiusPoint = calculateRadiusPoint(newCenterPos, currentRadius);
-      radiusMarker.setLngLat(newRadiusPoint);
+    // 重新计算半径点（确保在圆边缘）
+    const newRadiusPoint = calculateRadiusPointOnCircle(
+      { lng: newCenter.lng, lat: newCenter.lat },
+      currentRadius.value,
+    );
+    radiusMarker.setPosition([newRadiusPoint.lng, newRadiusPoint.lat]);
 
-      // 调用正确的函数名（updateZoneDataOnEdit）
-      updateZoneDataOnEdit(zoneData.id, {
-        coordinates: [[[newCenterPos.getLat(), newCenterPos.getLng()]]],
-        radius: currentRadius,
-        area: (Math.PI * currentRadius * currentRadius) / 1000000,
-      });
+    console.log(
+      `[圆心拖拽结束] 最终圆心:`,
+      newCenter,
+      `重置半径点:`,
+      newRadiusPoint,
+    );
+
+    // 更新数据
+    updateZoneDataOnEdit(zoneData.id, {
+      coordinates: [[[newCenter.lat, newCenter.lng]]],
+      radius: currentRadius.value,
+      area: (Math.PI * currentRadius.value * currentRadius.value) / 1000000,
+    });
+
+    // 清空状态
+    dragState.dragStartPos = null;
+    dragState.radiusMarkerStartPos = null;
+  });
+
+  // --- 半径点拖拽逻辑 ---
+  radiusMarker.on("dragstart", () => {
+    console.log(`[半径拖拽开始] 当前半径:`, currentRadius.value);
+    dragState.centerPos = centerMarker.getPosition();
+    dragState.isDragging = true;
+  });
+
+  radiusMarker.on("drag", (e) => {
+    if (!dragState.isDragging) return;
+
+    const newRadiusPoint = e.lnglat;
+    const centerPos = dragState.centerPos || centerMarker.getPosition();
+
+    // 🔴 核心修复1：实时计算并更新半径，移除不必要的限制
+    const newRadius = AMap.GeometryUtil.distance(centerPos, newRadiusPoint);
+    console.log(
+      `[半径拖拽中] 新半径:`,
+      newRadius,
+      `当前半径:`,
+      currentRadius.value,
+    );
+
+    // 仅限制最小值，不阻止缩小操作
+    if (newRadius >= 10) {
+      currentRadius.value = newRadius;
+      // 🔴 核心修复2：立即更新圆形半径
+      circle.setRadius(currentRadius.value);
+      console.log(`[半径拖拽中] 更新半径为:`, currentRadius.value);
+    } else {
+      console.log(`[半径拖拽中] 半径过小(${newRadius}米)，暂不更新`);
+    }
+  });
+
+  radiusMarker.on("dragend", (e) => {
+    dragState.isDragging = false;
+    const newRadiusPoint = e.lnglat;
+    const centerPos = centerMarker.getPosition();
+    const finalRadius = AMap.GeometryUtil.distance(centerPos, newRadiusPoint);
+
+    console.log(`[半径拖拽结束] 最终计算半径:`, finalRadius);
+
+    if (finalRadius >= 10) {
+      // 🔴 确保最终半径更新
+      currentRadius.value = finalRadius;
+      circle.setRadius(currentRadius.value);
+
+      // 确保半径点仍在圆边缘（修正拖拽偏差）
+      const correctedRadiusPoint = calculateRadiusPointOnCircle(
+        { lng: centerPos.lng, lat: centerPos.lat },
+        currentRadius.value,
+      );
+      radiusMarker.setPosition([
+        correctedRadiusPoint.lng,
+        correctedRadiusPoint.lat,
+      ]);
 
       console.log(
-        `圆心已移动: 三维坐标=[[[${newCenterPos.getLat()},${newCenterPos.getLng()}]]]`,
+        `[半径拖拽结束] 最终半径:`,
+        currentRadius.value,
+        `修正半径点:`,
+        correctedRadiusPoint,
       );
-    } catch (err) {
-      console.error("圆心拖拽结束处理失败:", err);
-    }
-    delete this._dragStartPos;
-    delete this._radiusMarkerStartPos;
-  });
 
-  // 半径控制点拖拽事件 - 只改变半径，不改变圆心位置
-  radiusMarker.addEventListener("dragstart", function (e) {
-    // 保存拖拽开始时的圆心位置
-    this._centerPos = centerMarker.getLngLat();
-    this._initialRadius = currentRadius; // 使用当前的半径
-  });
-
-  radiusMarker.addEventListener("drag", function (e) {
-    if (!e || !e.lnglat) return;
-
-    const radiusPoint = e.lnglat;
-    const centerPoint = this._centerPos || centerMarker.getLngLat();
-
-    // 确保坐标有效
-    if (!centerPoint || !radiusPoint) return;
-
-    try {
-      // 计算新半径
-      const newRadius = calculateDistance(centerPoint, radiusPoint);
-
-      // 确保半径有效
-      if (newRadius > 0) {
-        // 更新当前半径
-        currentRadius = newRadius;
-
-        // 更新圆形半径 - 实时更新边界
-        circle.setRadius(newRadius);
-
-        // 计算新面积
-        const newArea = (Math.PI * newRadius * newRadius) / 1000000;
-
-        // 在拖拽过程中实时更新数据（避免频繁更新）
-        if (!this._lastUpdateTime || Date.now() - this._lastUpdateTime > 100) {
-          this._lastUpdateTime = Date.now();
-
-          // 调用正确的函数名
-          updateZoneDataOnEdit(zoneData.id, {
-            radius: newRadius,
-            area: newArea,
-          });
-        }
-      }
-    } catch (err) {
-      console.error("半径拖拽过程中更新失败:", err);
-    }
-  });
-
-  radiusMarker.addEventListener("dragend", function (e) {
-    if (!e || !e.lnglat) return;
-
-    const radiusPoint = e.lnglat;
-    const centerPoint = centerMarker.getLngLat();
-
-    try {
-      // 计算最终半径
-      const finalRadius = calculateDistance(centerPoint, radiusPoint);
-
-      if (finalRadius > 0) {
-        // 更新当前半径
-        currentRadius = finalRadius;
-
-        // 更新圆形半径
-        circle.setRadius(finalRadius);
-
-        // 计算最终面积
-        const finalArea = (Math.PI * finalRadius * finalRadius) / 1000000;
-
-        // 调用正确的函数名
-        updateZoneDataOnEdit(zoneData.id, {
-          radius: finalRadius,
-          area: finalArea,
-        });
-
-        console.log(
-          `圆形半径已更新: ${finalRadius.toFixed(2)}米, 面积: ${finalArea.toFixed(4)}平方公里`,
-        );
-      }
-    } catch (err) {
-      console.error("半径拖拽结束处理失败:", err);
+      // 更新数据
+      updateZoneDataOnEdit(zoneData.id, {
+        radius: currentRadius.value,
+        area: (Math.PI * currentRadius.value * currentRadius.value) / 1000000,
+      });
+    } else {
+      // 半径过小，恢复原位置
+      const originalRadiusPoint = calculateRadiusPointOnCircle(
+        { lng: centerPos.lng, lat: centerPos.lat },
+        currentRadius.value,
+      );
+      radiusMarker.setPosition([
+        originalRadiusPoint.lng,
+        originalRadiusPoint.lat,
+      ]);
+      console.log(
+        `[半径拖拽结束] 半径过小(${finalRadius}米)，恢复原半径:`,
+        currentRadius.value,
+      );
+      ElMessage.warning(
+        `半径不能小于10米，已恢复原半径${currentRadius.value.toFixed(2)}米`,
+      );
     }
 
-    // 清理临时数据
-    delete this._centerPos;
-    delete this._initialRadius;
-    delete this._lastUpdateTime;
+    // 清空状态
+    dragState.centerPos = null;
   });
 
-  // 添加到地图
-  map.addOverLay(circle);
-  map.addOverLay(centerMarker);
-  map.addOverLay(radiusMarker);
+  // 5. 添加到地图
+  map.add(circle);
+  map.add(centerMarker);
+  map.add(radiusMarker);
 
   // 保存引用
   currentZoneShape.value = {
@@ -1009,15 +982,14 @@ const createEditableCircle = (zoneData) => {
     markers: [centerMarker, radiusMarker],
     type: "circle",
     zoneId: zoneData.id,
-    currentRadius: currentRadius, // 保存当前半径
+    currentRadius: currentRadius, // 保存ref引用而非原始值
   };
 
-  // 添加初始调试信息
   console.log(
-    `圆形编辑模式已启动: 圆心(${centerLngLat.lng}, ${centerLngLat.lat}), 半径${currentRadius}米`,
-  );
-  console.log(
-    `半径控制点位置: (${radiusPointLngLat.lng}, ${radiusPointLngLat.lat})`,
+    `[编辑圆形] 创建完成 - 圆心Marker:`,
+    centerMarker,
+    `半径Marker:`,
+    radiusMarker,
   );
 
   return circle;
@@ -1035,19 +1007,19 @@ const highlightEditableCircle = (circle) => {
 
     try {
       // 临时改变边框颜色和宽度
-      const originalColor = circle.getOptions().color || "#ff9800";
-      const originalWeight = circle.getOptions().weight || 3;
+      const originalColor = circle.getOptions().strokeColor || "#ff9800";
+      const originalWeight = circle.getOptions().strokeWeight || 3;
 
       // 脉动效果
-      circle.setStyle({
-        color: "#ff0000",
-        weight: originalWeight + 2,
+      circle.setOptions({
+        strokeColor: "#ff0000",
+        strokeWeight: originalWeight + 2,
       });
 
       setTimeout(() => {
-        circle.setStyle({
-          color: originalColor,
-          weight: originalWeight,
+        circle.setOptions({
+          strokeColor: originalColor,
+          strokeWeight: originalWeight,
         });
       }, 300);
 
@@ -1073,13 +1045,8 @@ const clearAllOverlays = () => {
     clearInterval(currentZoneShape.value.pulseInterval);
   }
 
-  const overlays = map.getOverlays();
-  console.log("清除覆盖物，总数:", overlays.length);
-
   // 清除所有覆盖物
-  overlays.forEach((overlay) => {
-    map.removeOverLay(overlay);
-  });
+  map.clearMap();
 
   // 清除引用
   currentZoneShape.value = null;
@@ -1105,14 +1072,13 @@ const createEditablePolygon = (zoneData) => {
     return null;
   }
 
-  const points = zoneData.coordinates.map(
-    (point) => new T.LngLat(point.lng, point.lat),
-  );
+  const path = zoneData.coordinates.map((point) => [point.lng, point.lat]);
 
   // 创建多边形（原逻辑不变）
-  let polygon = new T.Polygon([points], {
-    color: "#ff9800", // 编辑模式下使用橙色
-    weight: zoneData.borderWeight + 1,
+  let polygon = new AMap.Polygon({
+    path: path,
+    strokeColor: "#ff9800", // 编辑模式下使用橙色
+    strokeWeight: zoneData.borderWeight + 1,
     fillColor: zoneData.fillColor,
     fillOpacity: zoneData.fillOpacity,
   });
@@ -1122,20 +1088,21 @@ const createEditablePolygon = (zoneData) => {
   polygon._zoneData = zoneData;
   polygon._isEditable = true;
 
-  // 添加顶点标记点（可拖拽，原逻辑不变）
-  const vertexMarkers = points.map((point, index) => {
-    const marker = new T.Marker(point, {
+  // 添加顶点标记点（可拖拽，修复anchor居中对齐）
+  const vertexMarkers = zoneData.coordinates.map((point, index) => {
+    const marker = new AMap.Marker({
+      position: [point.lng, point.lat],
       icon: createEditIcon("#ff9800"),
       draggable: true,
-      raiseOnDrag: true,
+      anchor: "center", // 修复：确保标记居中对齐顶点
     });
-    marker.addEventListener("dragend", (e) => {
+    marker.on("dragend", (e) => {
       const newPoint = e.lnglat;
-      marker.setLngLat(newPoint);
-      const newPoints = [...points];
-      newPoints[index] = newPoint;
+      marker.setPosition([newPoint.lng, newPoint.lat]);
+      const newPoints = [...zoneData.coordinates];
+      newPoints[index] = { lng: newPoint.lng, lat: newPoint.lat };
       updatePolygonPath(polygon, newPoints, zoneData);
-      points[index] = newPoint;
+      zoneData.coordinates[index] = { lng: newPoint.lng, lat: newPoint.lat };
       const newArea = calculatePolygonArea(newPoints);
       // 转换为三层数组格式 [[[lat, lng], [lat, lng], ...]]
       const newCoordinates = [newPoints.map((p) => [p.lat, p.lng])];
@@ -1144,12 +1111,12 @@ const createEditablePolygon = (zoneData) => {
         area: newArea,
       });
     });
-    map.addOverLay(marker);
+    map.add(marker);
     return marker;
   });
 
   // 添加到地图
-  map.addOverLay(polygon);
+  map.add(polygon);
 
   // 保存引用
   currentZoneShape.value = {
@@ -1157,30 +1124,20 @@ const createEditablePolygon = (zoneData) => {
     markers: vertexMarkers,
     type: "polygon",
     zoneId: zoneData.id,
-    points: points,
+    points: zoneData.coordinates,
   };
 
-  console.log(`可编辑多边形创建成功：${points.length}个顶点，已添加拖拽标记`);
+  console.log(
+    `可编辑多边形创建成功：${zoneData.coordinates.length}个顶点，已添加拖拽标记`,
+  );
   return polygon;
 };
 // 更新多边形路径的兼容性函数
 const updatePolygonPath = (polygon, points, zoneData) => {
   try {
-    // 尝试使用 setLngLats 方法
-    if (typeof polygon.setLngLats === "function") {
-      polygon.setLngLats([points]);
-      return;
-    }
-
     // 尝试使用 setPath 方法
     if (typeof polygon.setPath === "function") {
-      polygon.setPath([points]);
-      return;
-    }
-
-    // 尝试使用 setPoints 方法
-    if (typeof polygon.setPoints === "function") {
-      polygon.setPoints(points);
+      polygon.setPath(points.map((p) => [p.lng, p.lat]));
       return;
     }
 
@@ -1190,16 +1147,17 @@ const updatePolygonPath = (polygon, points, zoneData) => {
     // 从地图移除旧的多边形
     if (polygon && map) {
       try {
-        map.removeOverLay(polygon);
+        map.remove(polygon);
       } catch (e) {
         console.error("移除多边形失败:", e);
       }
     }
 
     // 创建新的多边形
-    const newPolygon = new T.Polygon([points], {
-      color: "#ff9800",
-      weight: zoneData.borderWeight + 1,
+    const newPolygon = new AMap.Polygon({
+      path: points.map((p) => [p.lng, p.lat]),
+      strokeColor: "#ff9800",
+      strokeWeight: zoneData.borderWeight + 1,
       fillColor: zoneData.fillColor,
       fillOpacity: zoneData.fillOpacity,
     });
@@ -1211,7 +1169,7 @@ const updatePolygonPath = (polygon, points, zoneData) => {
     newPolygon._isEditable = true;
 
     // 添加到地图
-    map.addOverLay(newPolygon);
+    map.add(newPolygon);
 
     // 更新引用
     if (currentZoneShape.value && currentZoneShape.value.shape === polygon) {
@@ -1230,10 +1188,10 @@ const createEditIcon = (color = "#ff9800") => {
       <circle cx="8" cy="8" r="3" fill="#fff"/>
     </svg>
   `;
-  return new T.Icon({
-    iconUrl: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg),
-    iconSize: new T.Point(16, 16),
-    iconAnchor: new T.Point(8, 8),
+  return new AMap.Icon({
+    size: new AMap.Size(16, 16),
+    image: "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg),
+    imageSize: new AMap.Size(16, 16),
   });
 };
 
@@ -1243,14 +1201,14 @@ const calculateRadiusPoint = (center, radius) => {
     if (!center || radius === undefined || radius === null) {
       console.warn("计算半径点: 缺少中心点或半径");
       // 返回一个默认的点（正东方向，经度增加）
-      return new T.LngLat(center.lng + 0.001, center.lat);
+      return [center.lng + 0.001, center.lat];
     }
 
     // 如果半径很小，使用简单的偏移
     if (radius < 100) {
       // 小半径：每100米大约0.001度（近似值）
       const offset = radius / 100000; // 简化计算
-      return new T.LngLat(center.lng + offset, center.lat);
+      return [center.lng + offset, center.lat];
     }
 
     // 使用更精确的球面几何计算
@@ -1274,24 +1232,17 @@ const calculateRadiusPoint = (center, radius) => {
     const newLat = (newLatRad * 180) / Math.PI;
     const newLng = (newLngRad * 180) / Math.PI;
 
-    const radiusPoint = new T.LngLat(newLng, newLat);
-
     // 验证结果
-    if (
-      !radiusPoint.lng ||
-      !radiusPoint.lat ||
-      isNaN(radiusPoint.lng) ||
-      isNaN(radiusPoint.lat)
-    ) {
+    if (isNaN(newLng) || isNaN(newLat)) {
       console.warn("计算出的半径点无效，使用默认值");
-      return new T.LngLat(center.lng + 0.001, center.lat);
+      return [center.lng + 0.001, center.lat];
     }
 
-    return radiusPoint;
+    return [newLng, newLat];
   } catch (error) {
     console.error("计算半径点失败:", error);
     // 返回一个默认的偏移点
-    return new T.LngLat(center.lng + 0.001, center.lat);
+    return [center.lng + 0.001, center.lat];
   }
 };
 
@@ -1315,6 +1266,7 @@ const calculateDistance = (point1, point2) => {
           return 0;
         }
       }
+      if (Array.isArray(point)) return point[0]; // [lng, lat] 格式
       if (typeof point.x === "number") return point.x; // 备用属性名
       return 0;
     };
@@ -1329,6 +1281,7 @@ const calculateDistance = (point1, point2) => {
           return 0;
         }
       }
+      if (Array.isArray(point)) return point[1]; // [lng, lat] 格式
       if (typeof point.y === "number") return point.y; // 备用属性名
       return 0;
     };
@@ -1466,36 +1419,24 @@ onBeforeUnmount(() => {
   }
 
   if (map) {
-    map.removeEventListener("zoomend", handleMapZoom);
+    map.off("zoomend", handleMapZoom);
   }
 
   try {
     if (map) {
-      const overlays = map.getOverlays();
-      overlays.forEach((overlay) => {
-        map.removeOverLay(overlay);
-      });
-    }
-
-    if (map) {
-      map.removeEventListener("load");
-      map.removeEventListener("error");
+      map.clearMap();
     }
 
     if (map) {
       map = null;
     }
 
-    loading.value = false;
+    // loading.value = false;
   } catch (error) {
     console.error("清理资源失败:", error);
   }
 
-  if (map) {
-    map.removeEventListener("load", () => {});
-    map.removeEventListener("error", () => {});
-    map = null;
-  }
+  map = null;
 });
 </script>
 
@@ -1831,7 +1772,7 @@ onBeforeUnmount(() => {
   gap: 4px;
 }
 
-.loading-mask {
+/* .loading-mask {
   position: absolute;
   top: 0;
   left: 0;
@@ -1842,7 +1783,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   align-items: center;
   z-index: 2000;
-}
+} */
 
 .button-container {
   display: flex;
