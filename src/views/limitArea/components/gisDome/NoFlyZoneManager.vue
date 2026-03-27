@@ -85,11 +85,7 @@
     </template>
   </el-dialog>
 
-  <NoFlyZoneTooltip
-    :visible="showTooltip"
-    :position="tooltipPosition"
-    :data="tooltipData"
-  />
+
 </template>
 
 <script setup>
@@ -103,7 +99,6 @@ import {
 } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { noflyzoneList, noflyzoneAdd } from "@/api/noflyzone.js";
-import NoFlyZoneTooltip from "./components/NoFlyZoneTooltip.vue";
 import { Close } from "@element-plus/icons-vue";
 
 const props = defineProps({
@@ -122,10 +117,7 @@ const tempShape = ref(null);
 const drawPoints = ref([]);
 const tempMarkers = ref([]);
 const isEditing = ref(false);
-const showTooltip = ref(false);
-const tooltipData = ref({});
 const dialogVisible = ref(false);
-const tooltipPosition = ref({ x: 0, y: 0 });
 const formRef = ref(null);
 const formData = ref({ name: "", description: "" });
 const tempDrawData = ref(null);
@@ -205,18 +197,35 @@ watch(
   () => props.visible,
   (newVal) => {
     toolbarVisible.value = newVal;
+    // 当显示禁飞区工具栏时，重新加载禁飞区数据
+    if (newVal && props.map) {
+      initNoFlyZones();
+    }
   },
 );
 
 onMounted(() => {});
 onBeforeUnmount(() => cleanup());
 
-const initNoFlyZones = () => {
+const initNoFlyZones = async () => {
   if (!props.map) return;
   try {
     clearNoFlyZoneOverlays();
+    
+    // 调用接口获取禁飞区列表
+    const res = await noflyzoneList();
+    if (res.code === 200 && res.data && res.data.length > 0) {
+      console.log("加载禁飞区数据:", res.data);
+      res.data.forEach(zone => {
+        addZoneToMap(zone);
+      });
+      ElMessage.success(`加载了 ${res.data.length} 个禁飞区`);
+    } else {
+      console.log("没有禁飞区数据");
+    }
   } catch (error) {
     console.error("初始化禁飞区图层失败:", error);
+    ElMessage.error("加载禁飞区失败");
   }
 };
 
@@ -292,7 +301,6 @@ const addZoneToMap = (zone) => {
     regionType: isWarningZone ? "jg" : "jf",
   };
 
-  bindTooltipEvents(shape, zoneData);
   shape._zoneId = zone.zoneId;
   props.map.add(shape);
   noFlyZoneOverlays.value.push(shape);
@@ -667,15 +675,6 @@ const calculatePolygonArea = (coords) =>
   Math.abs(AMap.GeometryUtil.ringArea(coords.map((p) => [p.lng, p.lat]))) /
   1000000;
 const calculateCircleArea = (r) => (Math.PI * r * r) / 1000000;
-
-const bindTooltipEvents = (shape, data) => {
-  shape.on("click", (e) => {
-    tooltipPosition.value = { x: e.pixel.x, y: e.pixel.y };
-    tooltipData.value = data;
-    showTooltip.value = true;
-  });
-  shape.on("mouseout", () => (showTooltip.value = false));
-};
 
 const cleanup = () => {
   clearNoFlyZoneOverlays();
