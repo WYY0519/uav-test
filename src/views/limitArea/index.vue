@@ -139,8 +139,8 @@ import {
 import { ElMessage } from "element-plus";
 import { Fold, Expand } from "@element-plus/icons-vue";
 import noFlyZone from "../../assets/禁飞区.png";
-import RouteList from "./components/gisDome/RouteList.vue";
-import NoFlyZoneManager from "./components/gisDome/NoFlyZoneManager.vue";
+import RouteList from "./components/RouteList.vue";
+import NoFlyZoneManager from "./components/NoFlyZoneManager.vue";
 
 // 状态变量
 const mapContainer = ref(null);
