@@ -4,12 +4,7 @@
     <div class="main-content">
       <!-- 地图容器 -->
       <div class="map-container">
-        <div ref="mapContainer" class="map-wrapper">
-          <!-- 加载中遮罩 -->
-          <!-- <div v-if="loading" class="loading-mask">
-            <el-spin size="large">加载中...</el-spin>
-          </div> -->
-        </div>
+        <div ref="mapContainer" class="map-wrapper"></div>
         <!-- 左侧控制面板，浮动在地图上层 -->
         <div class="floating-panel left-panel" v-show="!isPanelCollapsed">
           <el-card
@@ -107,6 +102,19 @@
       >
         <div style="font-size: 14px">{{ tooltipTile }}</div>
       </div>
+      <!-- 3种地图图层下拉选择 -->
+      <div style="position: absolute; top: 20px; right: 20px; z-index: 9999">
+        <el-select
+          v-model="mapLayerType"
+          @change="onMapLayerChange"
+          style="width: 130px"
+          size="default"
+        >
+          <el-option label="标准地图" value="normal" />
+          <el-option label="卫星地图" value="satellite" />
+          <el-option label="卫星混合" value="satelliteMix" />
+        </el-select>
+      </div>
       <!-- 引入禁飞区管理组件 -->
       <NoFlyZoneManager
         ref="noFlyZoneManagerRef"
@@ -140,7 +148,6 @@ const mapContainer = ref(null);
 
 // 地图相关
 let map = null;
-let noFlyZonesLayer = null;
 
 // 面板控制
 const isPanelCollapsed = ref(false);
@@ -156,7 +163,8 @@ const activeRouteId = ref(null);
 const currentZoneShape = ref(null);
 const editingZoneId = ref(null);
 const isZoneEditing = ref(false);
-
+// 🔥 新增：地图图层切换
+const mapLayerType = ref("satelliteMix"); // 默认卫星混合
 // 面板控制
 const togglePanel = () => {
   isPanelCollapsed.value = !isPanelCollapsed.value;
@@ -214,6 +222,31 @@ const handleMapZoom = () => {
   // 高德地图不需要 checkResize
 };
 
+// 地图图层切换
+const onMapLayerChange = (val) => {
+  if (!map) return;
+
+  let layers = [];
+  let label = "";
+
+  switch (val) {
+    case "normal":
+      layers = [new AMap.TileLayer()];
+      label = "标准地图";
+      break;
+    case "satellite":
+      layers = [new AMap.TileLayer.Satellite()];
+      label = "卫星地图";
+      break;
+    case "satelliteMix":
+      layers = [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()];
+      label = "卫星混合";
+      break;
+  }
+
+  map.setLayers(layers);
+  ElMessage.success("已切换 → " + label);
+};
 // ========== 核心修复1：定义updateZoneDataOnEdit（原updateZoneData重命名+提前定义） ==========
 // 更新编辑时的区域数据（提前定义，确保所有调用处可访问，修复未定义报错）
 const updateZoneDataOnEdit = (id, updates) => {
@@ -995,47 +1028,6 @@ const createEditableCircle = (zoneData) => {
   return circle;
 };
 
-// 添加一个高亮可编辑圆形的方法
-const highlightEditableCircle = (circle) => {
-  // 添加脉动动画效果
-  let pulseCount = 0;
-  const pulseInterval = setInterval(() => {
-    if (pulseCount >= 3) {
-      clearInterval(pulseInterval);
-      return;
-    }
-
-    try {
-      // 临时改变边框颜色和宽度
-      const originalColor = circle.getOptions().strokeColor || "#ff9800";
-      const originalWeight = circle.getOptions().strokeWeight || 3;
-
-      // 脉动效果
-      circle.setOptions({
-        strokeColor: "#ff0000",
-        strokeWeight: originalWeight + 2,
-      });
-
-      setTimeout(() => {
-        circle.setOptions({
-          strokeColor: originalColor,
-          strokeWeight: originalWeight,
-        });
-      }, 300);
-
-      pulseCount++;
-    } catch (err) {
-      console.error("脉动动画失败:", err);
-      clearInterval(pulseInterval);
-    }
-  }, 600);
-
-  // 保存动画ID以便清理
-  if (currentZoneShape.value) {
-    currentZoneShape.value.pulseInterval = pulseInterval;
-  }
-};
-
 // 清除所有覆盖物
 const clearAllOverlays = () => {
   if (!map) return;
@@ -1195,142 +1187,6 @@ const createEditIcon = (color = "#ff9800") => {
   });
 };
 
-// 计算半径控制点位置（默认在正东方向）
-const calculateRadiusPoint = (center, radius) => {
-  try {
-    if (!center || radius === undefined || radius === null) {
-      console.warn("计算半径点: 缺少中心点或半径");
-      // 返回一个默认的点（正东方向，经度增加）
-      return [center.lng + 0.001, center.lat];
-    }
-
-    // 如果半径很小，使用简单的偏移
-    if (radius < 100) {
-      // 小半径：每100米大约0.001度（近似值）
-      const offset = radius / 100000; // 简化计算
-      return [center.lng + offset, center.lat];
-    }
-
-    // 使用更精确的球面几何计算
-    const earthRadius = 6371000; // 地球半径，单位米
-
-    // 将半径转换为弧度
-    const angularDistance = radius / earthRadius;
-
-    // 中心点的弧度
-    const latRad = (center.lat * Math.PI) / 180;
-    const lngRad = (center.lng * Math.PI) / 180;
-
-    // 计算新点的纬度（在正东方向，纬度不变）
-    const newLatRad = latRad;
-
-    // 计算新点的经度
-    // 在正东方向，纬度不变，经度增加
-    const newLngRad = lngRad + angularDistance / Math.cos(latRad);
-
-    // 转换回角度
-    const newLat = (newLatRad * 180) / Math.PI;
-    const newLng = (newLngRad * 180) / Math.PI;
-
-    // 验证结果
-    if (isNaN(newLng) || isNaN(newLat)) {
-      console.warn("计算出的半径点无效，使用默认值");
-      return [center.lng + 0.001, center.lat];
-    }
-
-    return [newLng, newLat];
-  } catch (error) {
-    console.error("计算半径点失败:", error);
-    // 返回一个默认的偏移点
-    return [center.lng + 0.001, center.lat];
-  }
-};
-
-// 计算两点之间的距离（米）
-const calculateDistance = (point1, point2) => {
-  try {
-    // 确保输入存在
-    if (!point1 || !point2) {
-      console.warn("计算距离时传入无效的点");
-      return 0;
-    }
-
-    // 安全地获取经纬度
-    const getLng = (point) => {
-      if (!point) return 0;
-      if (typeof point.lng === "number") return point.lng;
-      if (typeof point.getLng === "function") {
-        try {
-          return point.getLng();
-        } catch {
-          return 0;
-        }
-      }
-      if (Array.isArray(point)) return point[0]; // [lng, lat] 格式
-      if (typeof point.x === "number") return point.x; // 备用属性名
-      return 0;
-    };
-
-    const getLat = (point) => {
-      if (!point) return 0;
-      if (typeof point.lat === "number") return point.lat;
-      if (typeof point.getLat === "function") {
-        try {
-          return point.getLat();
-        } catch {
-          return 0;
-        }
-      }
-      if (Array.isArray(point)) return point[1]; // [lng, lat] 格式
-      if (typeof point.y === "number") return point.y; // 备用属性名
-      return 0;
-    };
-
-    const lng1 = getLng(point1);
-    const lat1 = getLat(point1);
-    const lng2 = getLng(point2);
-    const lat2 = getLat(point2);
-
-    // 检查坐标是否有效
-    if (lng1 === 0 && lat1 === 0) {
-      console.warn("point1 坐标无效:", point1);
-      return 0;
-    }
-    if (lng2 === 0 && lat2 === 0) {
-      console.warn("point2 坐标无效:", point2);
-      return 0;
-    }
-
-    // 使用 Haversine 公式计算球面距离
-    const R = 6371000; // 地球半径，单位米
-
-    // 将经纬度转换为弧度
-    const φ1 = (lat1 * Math.PI) / 180;
-    const φ2 = (lat2 * Math.PI) / 180;
-    const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-    const Δλ = ((lng2 - lng1) * Math.PI) / 180;
-
-    // Haversine 公式
-    const a =
-      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    const distance = R * c;
-
-    // 确保距离有效
-    if (isNaN(distance) || !isFinite(distance)) {
-      console.warn("计算出的距离无效:", { lng1, lat1, lng2, lat2 });
-      return 0;
-    }
-
-    return distance;
-  } catch (error) {
-    console.error("计算距离时出错:", error);
-    return 0;
-  }
-};
-
 // 计算多边形面积（平方公里）
 const calculatePolygonArea = (points) => {
   if (points.length < 3) return 0;
@@ -1369,16 +1225,6 @@ const retractRoute = () => {
 // 鼠标悬浮提示
 const showImgTooltip = ref(false);
 const tooltipTile = ref("");
-const handleImgMouseEnter = (value) => {
-  if (value === "regionalManagement") {
-    tooltipTile.value = "区域管理";
-  }
-  showImgTooltip.value = true;
-};
-
-const handleImgMouseLeave = () => {
-  showImgTooltip.value = false;
-};
 
 // 禁飞区功能
 const regionalManagementDialog = () => {
