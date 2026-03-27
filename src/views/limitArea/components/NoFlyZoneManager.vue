@@ -84,8 +84,6 @@
       <el-button type="primary" @click="submitForm">确认</el-button>
     </template>
   </el-dialog>
-
-
 </template>
 
 <script setup>
@@ -211,12 +209,12 @@ const initNoFlyZones = async () => {
   if (!props.map) return;
   try {
     clearNoFlyZoneOverlays();
-    
+
     // 调用接口获取禁飞区列表
     const res = await noflyzoneList();
     if (res.code === 200 && res.data && res.data.length > 0) {
       console.log("加载禁飞区数据:", res.data);
-      res.data.forEach(zone => {
+      res.data.forEach((zone) => {
         addZoneToMap(zone);
       });
       ElMessage.success(`加载了 ${res.data.length} 个禁飞区`);
@@ -431,13 +429,13 @@ const startDrawNoFlyCircle = () => {
     ElMessage.warning("地图未初始化");
     return;
   }
+  // 🔥 加这一行：鼠标变成十字准星
+  // props.map.setDefaultCursor("crosshair");
+
   isDrawing.value = true;
   currentDrawType.value = "circle";
 
-  // 锁定地图，拖动不漂移
-  props.map.setStatus({ dragEnable: false, keyboardEnable: false });
-
-  ElMessage.info("点击确定圆心，拖动调整半径");
+  ElMessage.info("点击确定圆心");
   props.map.off("click", handleCircleDrawClick);
   props.map.on("click", handleCircleDrawClick);
 };
@@ -448,6 +446,7 @@ const handleCircleDrawClick = (e) => {
 
   const point = [e.lnglat.getLng(), e.lnglat.getLat()];
   if (drawPoints.value.length === 0) {
+    // 第一步：点击确定圆心
     drawPoints.value.push(point);
 
     const centerMarker = new AMap.Marker({
@@ -465,58 +464,59 @@ const handleCircleDrawClick = (e) => {
     props.map.add(centerMarker);
     tempMarkers.value.push(centerMarker);
 
+    // 绑定 mousemove 实时预览
     props.map.on("mousemove", handleCircleDragMove);
-    props.map.on("mouseup", handleCircleDragEnd);
+    ElMessage.info("移动鼠标调整半径，点击确定");
+  } else if (drawPoints.value.length === 1) {
+    // 第二步：点击确定半径
+    const center = drawPoints.value[0];
+    const finalRadius = AMap.GeometryUtil.distance(
+      new AMap.LngLat(...center),
+      e.lnglat,
+    );
+
+    if (tempShape.value) {
+      tempShape.value.setRadius(finalRadius);
+    }
+    drawPoints.value[1] = [e.lnglat.getLng(), e.lnglat.getLat()];
+    ElMessage.success(`半径：${finalRadius.toFixed(0)}米，点击"确认绘制"完成`);
+
+    // 停止 mousemove 监听，防止继续调整
+    props.map.off("mousemove", handleCircleDragMove);
   }
 };
 
 const handleCircleDragMove = (e) => {
-  if (!isDrawing.value || drawPoints.value.length === 0 || !props.map) return;
+  if (!isDrawing.value || drawPoints.value.length !== 1 || !props.map) return;
 
-  // 不删圆、不重建圆，直接改半径（高德最稳定方式）
+  // 实时预览圆的半径
   const center = drawPoints.value[0];
-  const r = Math.max(
-    AMap.GeometryUtil.distance(new AMap.LngLat(...center), e.lnglat),
-    10,
+  const newRadius = AMap.GeometryUtil.distance(
+    new AMap.LngLat(...center),
+    e.lnglat,
   );
 
-  // 还没创建圆就先创建
-  if (!tempShape.value) {
-    tempShape.value = new AMap.Circle({
-      center: new AMap.LngLat(...center),
-      radius: r,
-      strokeColor: currentColor.value.borderColor,
-      strokeWeight: 2,
-      fillColor: currentColor.value.fillColor,
-      fillOpacity: 0.3,
-      zIndex: 10,
-    });
-    tempShape.value._isTempDrawingShape = true;
-    props.map.add(tempShape.value);
-  } else {
-    // 只改半径，不重建 → 高德不会吞事件
-    tempShape.value.setRadius(r);
+  console.log("鼠标移动，半径:", newRadius.toFixed(1), "米");
+
+  // 每次都删除旧圆，创建新圆（确保可以缩小）
+  if (tempShape.value) {
+    props.map.remove(tempShape.value);
   }
-};
 
-const handleCircleDragEnd = (e) => {
-  // 解锁地图
-  if (props.map)
-    props.map.setStatus({ dragEnable: true, keyboardEnable: true });
-
-  if (!props.map || !tempShape.value || !isDrawing.value) return;
-  props.map.off("mousemove", handleCircleDragMove);
-  props.map.off("mouseup", handleCircleDragEnd);
-  if (drawPoints.value.length < 1) return;
-
-  const center = drawPoints.value[0];
-  const finalRadius = Math.max(
-    AMap.GeometryUtil.distance(new AMap.LngLat(...center), e.lnglat),
-    10,
-  );
-  tempShape.value.setRadius(finalRadius);
-  drawPoints.value[1] = [e.lnglat.getLng(), e.lnglat.getLat()];
-  ElMessage.success(`半径：${finalRadius.toFixed(0)}米`);
+  tempShape.value = new AMap.Circle({
+    center: new AMap.LngLat(...center),
+    radius: newRadius,
+    strokeColor: currentColor.value.borderColor,
+    strokeWeight: 2,
+    fillColor: currentColor.value.fillColor,
+    fillOpacity: 0.3,
+    zIndex: 10,
+    // 🔥 修复关键：让圆不拦截鼠标事件！
+    bubble: true,
+    clickable: false,
+  });
+  tempShape.value._isTempDrawingShape = true;
+  props.map.add(tempShape.value);
 };
 
 const resetDrawState = () => {
@@ -581,7 +581,6 @@ const resetDrawState = () => {
     props.map.off("mousemove", handlePolygonMouseMove);
     props.map.off("click", handleCircleDrawClick);
     props.map.off("mousemove", handleCircleDragMove);
-    props.map.off("mouseup", handleCircleDragEnd);
   }
 };
 

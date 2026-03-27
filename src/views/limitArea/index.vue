@@ -138,7 +138,6 @@ import {
 } from "vue";
 import { ElMessage } from "element-plus";
 import { Fold, Expand } from "@element-plus/icons-vue";
-import noFlyZone from "../../assets/禁飞区.png";
 import RouteList from "./components/RouteList.vue";
 import NoFlyZoneManager from "./components/NoFlyZoneManager.vue";
 
@@ -1617,19 +1616,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
 }
-
-/* .loading-mask {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 2000;
-} */
 
 .button-container {
   display: flex;
