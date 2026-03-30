@@ -621,10 +621,10 @@ const refreshNoFlyZones = async () => {
 
     // 从地图中移除所有禁飞区覆盖物
     if (props.map) {
-      const overlays = props.map.getOverlays();
+      const overlays = props.map.getAllOverlays();
       overlays.forEach((overlay) => {
         if (overlay._isNoFlyZone) {
-          props.map.removeOverLay(overlay);
+          props.map.remove(overlay);
         }
       });
     }
@@ -713,8 +713,8 @@ const initNoFlyZones = () => {
       noFlyZonesLayer.value.clearLayers();
     }
 
-    noFlyZonesLayer.value = new T.LayerGroup();
-    props.map.addLayer(noFlyZonesLayer.value);
+    noFlyZonesLayer.value = new AMap.LayerGroup();
+    props.map.add(noFlyZonesLayer.value);
   } catch (error) {
     console.error("初始化禁飞区图层失败:", error);
     ElMessage.error("禁飞区图层初始化失败");
@@ -754,11 +754,71 @@ const noFlyZonesList = async () => {
       emit("zones-loaded", noFlyZones.value);
       // 新增：标记数据加载完成
       zonesLoaded.value = true;
+
+      // 自动调整地图视野以包含所有禁飞区（暂时禁用，先让地图正常加载）
+      // if (noFlyZones.value.length > 0) {
+      //   fitMapToZones();
+      // }
+      console.log('禁飞区加载完成，总数:', noFlyZones.value.length);
+
+      // 调试：打印第一个禁飞区的坐标信息
+      if (noFlyZones.value.length > 0) {
+        const firstZone = noFlyZones.value[0];
+        console.log('第一个禁飞区信息:', firstZone);
+
+        // 尝试将地图移动到第一个禁飞区的位置
+        if (firstZone.coordinates && firstZone.coordinates.length > 0) {
+          const targetCoord = firstZone.type === 'circle'
+            ? [firstZone.coordinates[0].lng, firstZone.coordinates[0].lat]
+            : [firstZone.coordinates[0].lng, firstZone.coordinates[0].lat];
+
+          console.log('将地图移动到第一个禁飞区:', targetCoord);
+          props.map.setCenter(targetCoord);
+          props.map.setZoom(14);
+        }
+      }
     }
   } catch (error) {
     console.error("禁飞区列表请求失败:", error);
     ElMessage.error("加载禁飞区失败");
     zonesLoaded.value = false;
+  }
+};
+
+// 调整地图视野以包含所有禁飞区
+const fitMapToZones = () => {
+  if (!props.map || noFlyZones.value.length === 0) return;
+
+  const bounds = new AMap.Bounds();
+  let pointCount = 0;
+
+  noFlyZones.value.forEach(zone => {
+    if (zone.coordinates && zone.coordinates.length > 0) {
+      if (zone.type === 'circle') {
+        // 圆形：添加中心点
+        const center = zone.coordinates[0];
+        if (center && center.lng !== undefined && center.lat !== undefined) {
+          bounds.extend([center.lng, center.lat]);
+          pointCount++;
+        }
+      } else {
+        // 多边形：添加所有顶点
+        zone.coordinates.forEach(coord => {
+          if (coord && coord.lng !== undefined && coord.lat !== undefined) {
+            bounds.extend([coord.lng, coord.lat]);
+            pointCount++;
+          }
+        });
+      }
+    }
+  });
+
+  // 设置地图视野
+  if (pointCount > 0) {
+    props.map.setBounds(bounds);
+    console.log('地图视野已调整以包含所有禁飞区，包含', pointCount, '个坐标点');
+  } else {
+    console.warn('没有有效的禁飞区坐标点，无法调整视野');
   }
 };
 
@@ -782,22 +842,55 @@ const addZoneToMap = (zone) => {
     }
 
     let parsedCoords;
+    let parsedStringFormat = false;
     
     // 尝试解析坐标数据
     try {
       parsedCoords = JSON.parse(zone.coordinates);
     } catch (parseError) {
-      console.error("JSON 解析失败:", zone.coordinates, parseError);
-      // 如果解析失败，尝试直接使用（假设已经是数组）
-      if (Array.isArray(zone.coordinates)) {
-        parsedCoords = zone.coordinates;
+      // JSON 解析失败，尝试字符串格式
+      console.log('JSON解析失败，尝试字符串格式:', zone.coordinates);
+      parsedStringFormat = true;
+
+      // 处理字符串格式坐标
+      if (zone.shape === "circle") {
+        // 字符串格式: "lng,lat,radius"
+        const parts = zone.coordinates.split(',');
+        if (parts.length >= 2) {
+          const lng = parseFloat(parts[0]);
+          const lat = parseFloat(parts[1]);
+          const radiusFromCoords = parts.length >= 3 ? parseFloat(parts[2]) : 0;
+
+          coordinates = [lng, lat];
+          zoneCoordinates = [{ lng, lat }];
+
+          // 如果坐标中包含半径，使用它；否则从面积计算
+          if (radiusFromCoords > 0) {
+            radius = radiusFromCoords;
+          } else {
+            const areaSquareKm = zone.area || 0;
+            if (areaSquareKm > 0) {
+              const areaSquareM = areaSquareKm * 1000000;
+              radius = Math.sqrt(areaSquareM / Math.PI);
+            }
+          }
+          console.log('字符串格式圆形解析成功:', { lng, lat, radius });
+        }
       } else {
-        console.error("无法解析坐标数据:", zone);
-        return;
+        // 字符串格式: "lng,lat;lng,lat;..."
+        const points = zone.coordinates.split(';');
+        const pointArray = points.map(pointStr => {
+          const [lng, lat] = pointStr.split(',').map(Number);
+          return [lng, lat];
+        });
+
+        coordinates = pointArray;
+        zoneCoordinates = pointArray.map(([lng, lat]) => ({ lng, lat }));
+        console.log('字符串格式多边形解析成功:', { pointCount: pointArray.length, coordinates });
       }
     }
 
-    if (zone.shape === "circle") {
+    if (!parsedStringFormat && zone.shape === "circle") {
       // 圆形处理
       const centerLat = parsedCoords[0]?.[0]?.[0];
       const centerLng = parsedCoords[0]?.[0]?.[1];
@@ -807,7 +900,7 @@ const addZoneToMap = (zone) => {
         return;
       }
       
-      coordinates = new T.LngLat(centerLng, centerLat);
+      coordinates = [centerLng, centerLat];
       zoneCoordinates = [{ lng: centerLng, lat: centerLat }];
       
       const areaSquareKm = zone.area || 0;
@@ -815,7 +908,7 @@ const addZoneToMap = (zone) => {
         const areaSquareM = areaSquareKm * 1000000;
         radius = Math.sqrt(areaSquareM / Math.PI);
       }
-    } else {
+    } else if (!parsedStringFormat && zone.shape !== "circle") {
       // 多边形处理
       const points = parsedCoords[0];
       if (!Array.isArray(points) || points.length === 0) {
@@ -827,7 +920,7 @@ const addZoneToMap = (zone) => {
         const lng = point[1];
         const lat = point[0];
         zoneCoordinates.push({ lng, lat });
-        return new T.LngLat(lng, lat);
+        return [lng, lat];
       });
     }
   } catch (e) {
@@ -841,22 +934,31 @@ const addZoneToMap = (zone) => {
     zone.borderColor || (isWarningZone ? "#ffa500" : "#e74c3c");
   const fillColor = zone.fillColor || (isWarningZone ? "#ffa500" : "#e74c3c");
 
+  console.log('准备创建禁飞区形状:', { shape: zone.shape, coordinates, radius, zoneName: zone.name });
+
   // 创建形状
   let shape;
+  const zIndex = 100; // 设置较高的层级，确保禁飞区显示在地图上层
   if (zone.shape === "circle" && radius > 0) {
-    shape = new T.Circle(coordinates, radius, {
-      color: borderColor,
-      weight: zone.borderWeight || 2,
+    shape = new AMap.Circle(coordinates, radius, {
+      strokeColor: borderColor,
+      strokeWeight: zone.borderWeight || 3,
+      strokeOpacity: 1,
       fillColor: fillColor,
-      fillOpacity: zone.fillOpacity || 0.3,
+      fillOpacity: zone.fillOpacity || 0.4,
+      zIndex: zIndex,
     });
+    console.log('创建圆形禁飞区成功:', { center: coordinates, radius, zIndex });
   } else {
-    shape = new T.Polygon([coordinates], {
-      color: borderColor,
-      weight: zone.borderWeight || 2,
+    shape = new AMap.Polygon(coordinates, {
+      strokeColor: borderColor,
+      strokeWeight: zone.borderWeight || 3,
+      strokeOpacity: 1,
       fillColor: fillColor,
-      fillOpacity: zone.fillOpacity || 0.3,
+      fillOpacity: zone.fillOpacity || 0.4,
+      zIndex: zIndex,
     });
+    console.log('创建多边形禁飞区成功:', { path: coordinates, zIndex });
   }
 
   // 【关键修改】补充 updateTime、limitAddress、companyId 三个字段
@@ -884,9 +986,16 @@ const addZoneToMap = (zone) => {
   shape._originalData = zoneData;
   shape._isNoFlyZone = true; // 添加标记，便于识别
 
-  noFlyZonesLayer.value.addLayer(shape);
-  props.map.addOverLay(shape);
+  console.log('添加禁飞区到地图:', zone.name);
+  // 高德地图的 LayerGroup 不支持 addLayer 方法，直接添加到地图
+  // noFlyZonesLayer.value.addLayer(shape);  // 这个方法不存在
+  props.map.add(shape);
   noFlyZones.value.push(zoneData);
+  console.log('禁飞区总数:', noFlyZones.value.length);
+
+  // 验证是否添加成功
+  const allOverlays = props.map.getAllOverlays();
+  console.log('地图当前覆盖物总数:', allOverlays.length);
 };
 // 新增鼠标移动事件处理函数，实时绘制预览线段
 const handlePolygonMouseMove = (e) => {
@@ -927,13 +1036,13 @@ const handlePolygonMouseMove = (e) => {
   // 创建新的临时线段（从最后一个顶点到鼠标当前位置）
   // 使用当前区域颜色
   const currentColorValue = currentColor.value;
-  tempLine.value = new T.Polyline([lastPoint, currentMousePoint], {
-    color: isHoveringFirstPoint.value
+  tempLine.value = new AMap.Polyline([lastPoint, currentMousePoint], {
+    strokeColor: isHoveringFirstPoint.value
       ? "#2ecc71"
       : currentColorValue.borderColor,
-    weight: 2,
-    dashArray: "5,5",
-    opacity: 0.8,
+    strokeWeight: 2,
+    strokeStyle: "dashed",
+    strokeOpacity: 0.8,
   });
   noFlyZonesLayer.value.addLayer(tempLine.value);
   // 如果悬停在第一个顶点上，显示闭合提示
@@ -976,9 +1085,9 @@ const startDrawNoFlyPolygon = () => {
   currentDrawType.value = "polygon";
   isPolygonClosed.value = false; // 初始化闭合状态为false
   ElMessage.info("点击地图添加多边形顶点，点击第一个顶点完成闭合");
-  props.map.addEventListener("click", handlePolygonDrawClick);
+  props.map.on("click", handlePolygonDrawClick);
   // 添加鼠标移动事件监听，用于实时绘制预览线段
-  props.map.addEventListener("mousemove", handlePolygonMouseMove);
+  props.map.on("mousemove", handlePolygonMouseMove);
 };
 
 // 修改 handlePolygonDrawClick 函数，处理闭合逻辑
@@ -1018,9 +1127,9 @@ const handlePolygonDrawClick = (e) => {
     // 确保多边形顶点闭合
     const closedPoints = [...drawPoints.value, firstPoint];
     const currentColorValue = currentColor.value;
-    tempShape.value = new T.Polygon([closedPoints], {
-      color: currentColorValue.borderColor,
-      weight: 2,
+    tempShape.value = new AMap.Polygon(closedPoints, {
+      strokeColor: currentColorValue.borderColor,
+      strokeWeight: 2,
       fillColor: currentColorValue.fillColor,
       fillOpacity: 0.3,
     });
@@ -1032,7 +1141,7 @@ const handlePolygonDrawClick = (e) => {
     isHoveringFirstPoint.value = false;
 
     // 移除鼠标移动监听，避免闭合后仍显示虚线
-    props.map.removeEventListener("mousemove", handlePolygonMouseMove);
+    props.map.off("mousemove", handlePolygonMouseMove);
     return;
   }
 
@@ -1044,15 +1153,18 @@ const handlePolygonDrawClick = (e) => {
   const isFirstPoint = drawPoints.value.length === 1;
   const currentColorValue = currentColor.value;
   const iconColor = isFirstPoint ? "#3498db" : currentColorValue.borderColor;
-  const markerIcon = new T.Icon({
-    iconUrl: `data:image/svg+xml;base64,${btoa(
+  const markerIcon = new AMap.Icon({
+    image: `data:image/svg+xml;base64,${btoa(
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="${iconColor}" d="M8 2C4.69 1.99 2 4.69 2 8c0 3.31 2.69 6 6 6s6-2.69 6-6c0-3.31-2.69-6-6-6z"/></svg>`,
     )}`,
-    iconSize: new T.Point(12, 12),
-    iconAnchor: new T.Point(6, 6),
+    size: new AMap.Size(12, 12),
+    imageOffset: new AMap.Pixel(-6, -6),
   });
 
-  const marker = new T.Marker(point, { icon: markerIcon });
+  const marker = new AMap.Marker({
+    position: point,
+    icon: markerIcon
+  });
   noFlyZonesLayer.value.addLayer(marker);
   tempMarkers.value.push({ marker, isFirstPoint }); // 记录是否为第一个顶点
 
@@ -1062,9 +1174,9 @@ const handlePolygonDrawClick = (e) => {
   }
   if (drawPoints.value.length >= 2) {
     const currentColorValue = currentColor.value;
-    tempShape.value = new T.Polygon([drawPoints.value], {
-      color: currentColorValue.borderColor,
-      weight: 2,
+    tempShape.value = new AMap.Polygon(drawPoints.value, {
+      strokeColor: currentColorValue.borderColor,
+      strokeWeight: 2,
       fillColor: currentColorValue.fillColor,
       fillOpacity: 0.3,
     });
@@ -1084,7 +1196,7 @@ const startDrawNoFlyCircle = () => {
   isDrawing.value = true;
   currentDrawType.value = "circle";
   ElMessage.info("点击地图确定圆心，拖动鼠标绘制半径，松开鼠标完成");
-  props.map.addEventListener("click", handleCircleDrawClick);
+  props.map.on("click", handleCircleDrawClick);
 };
 
 const handleCircleDrawClick = (e) => {
@@ -1094,20 +1206,21 @@ const handleCircleDrawClick = (e) => {
   if (drawPoints.value.length === 0) {
     drawPoints.value.push(point);
     const currentRegionColors = currentColor.value; // 使用 currentColor 计算属性
-    const centerMarker = new T.Marker(point, {
-      icon: new T.Icon({
-        iconUrl: `data:image/svg+xml;base64,${btoa(
+    const centerMarker = new AMap.Marker({
+      position: point,
+      icon: new AMap.Icon({
+        image: `data:image/svg+xml;base64,${btoa(
           `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="${currentRegionColors.fillColor}" d="M8 2C4.69 1.99 2 4.69 2 8c0 3.31 2.69 6 6 6s6-2.69 6-6c0-3.31-2.69-6-6-6z"/></svg>`,
         )}`,
-        iconSize: new T.Point(10, 10),
-        iconAnchor: new T.Point(5, 5),
+        size: new AMap.Size(10, 10),
+        imageOffset: new AMap.Pixel(-5, -5),
       }),
     });
     noFlyZonesLayer.value.addLayer(centerMarker);
     tempMarkers.value.push(centerMarker);
     isDraggingRadius.value = true;
-    props.map.addEventListener("mousemove", handleCircleDragMove);
-    props.map.addEventListener("mouseup", handleCircleDragEnd);
+    props.map.on("mousemove", handleCircleDragMove);
+    props.map.on("mouseup", handleCircleDragEnd);
     ElMessage.info("拖动鼠标调整半径，松开鼠标完成绘制");
   }
 };
@@ -1124,9 +1237,9 @@ const handleCircleDragMove = (e) => {
   // 获取当前颜色配置
   const currentRegionColors = currentColor.value;
 
-  tempShape.value = new T.Circle(center, radius, {
-    color: currentRegionColors.borderColor,
-    weight: 2,
+  tempShape.value = new AMap.Circle(center, radius, {
+    strokeColor: currentRegionColors.borderColor,
+    strokeWeight: 2,
     fillColor: currentRegionColors.fillColor,
     fillOpacity: 0.3,
   });
@@ -1136,8 +1249,8 @@ const handleCircleDragMove = (e) => {
 const handleCircleDragEnd = () => {
   if (!isDraggingRadius.value || !dragEndPoint.value) return;
 
-  props.map.removeEventListener("mousemove", handleCircleDragMove);
-  props.map.removeEventListener("mouseup", handleCircleDragEnd);
+  props.map.off("mousemove", handleCircleDragMove);
+  props.map.off("mouseup", handleCircleDragEnd);
   isDraggingRadius.value = false;
 
   const center = drawPoints.value[0];
@@ -1284,11 +1397,11 @@ const resetDrawState = () => {
   drawPoints.value = [];
 
   // 移除所有事件监听
-  props.map.removeEventListener("click", handlePolygonDrawClick);
-  props.map.removeEventListener("click", handleCircleDrawClick);
-  props.map.removeEventListener("mousemove", handleCircleDragMove);
-  props.map.removeEventListener("mouseup", handleCircleDragEnd);
-  props.map.removeEventListener("mousemove", handlePolygonMouseMove);
+  props.map.off("click", handlePolygonDrawClick);
+  props.map.off("click", handleCircleDrawClick);
+  props.map.off("mousemove", handleCircleDragMove);
+  props.map.off("mouseup", handleCircleDragEnd);
+  props.map.off("mousemove", handlePolygonMouseMove);
 };
 
 const cancelDraw = () => {
@@ -1304,17 +1417,17 @@ const clearAllMarkers = () => {
     if (noFlyZonesLayer.value) {
       noFlyZonesLayer.value.removeLayer(marker);
     }
-    props.map.removeOverLay(marker);
+    props.map.remove(marker);
   });
   tempMarkers.value = [];
 
   // 清除所有地图上的标记点
-  const allOverlays = props.map.getOverlays();
+  const allOverlays = props.map.getAllOverlays();
   allOverlays.forEach((overlay) => {
-    if (overlay instanceof T.Marker) {
+    if (overlay instanceof AMap.Marker) {
       // 排除可能需要保留的其他标记
       if (!overlay._isPermanent) {
-        props.map.removeOverLay(overlay);
+        props.map.remove(overlay);
       }
     }
   });
@@ -1347,12 +1460,12 @@ const enterEditMode = async () => {
 
   // 只获取当前选中类型的禁飞区形状
   const allShapes = props.map
-    .getOverlays()
+    .getAllOverlays()
     .filter((overlay) => overlay._id)
     .filter((shape) => {
       // 只处理多边形和圆形
       const isValidShape =
-        shape instanceof T.Polygon || shape instanceof T.Circle;
+        shape instanceof AMap.Polygon || shape instanceof AMap.Circle;
       if (!isValidShape) return false;
 
       // 只处理当前选中类型的区域
@@ -1382,13 +1495,13 @@ const enterEditMode = async () => {
       if (noFlyZonesLayer.value) {
         noFlyZonesLayer.value.removeLayer(shape);
       }
-      props.map.removeOverLay(shape);
+      props.map.remove(shape);
 
       // 记录原始坐标
-      if (shape instanceof T.Polygon) {
-        const points = shape.getLngLats()[0] || [];
+      if (shape instanceof AMap.Polygon) {
+        const points = shape.getPath() || [];
         shape._originalPoints = points.map((p) => ({ lng: p.lng, lat: p.lat }));
-      } else if (shape instanceof T.Circle) {
+      } else if (shape instanceof AMap.Circle) {
         shape._originalCenter = shape.getCenter();
         shape._originalRadius = shape.getRadius();
       }
@@ -1401,10 +1514,10 @@ const enterEditMode = async () => {
 
 // 根据禁飞区ID移除相关标记点
 const removeRelatedMarkers = (id) => {
-  const allOverlays = props.map.getOverlays();
+  const allOverlays = props.map.getAllOverlays();
   allOverlays.forEach((overlay) => {
-    if (overlay instanceof T.Marker && overlay._id === id) {
-      props.map.removeOverLay(overlay);
+    if (overlay instanceof AMap.Marker && overlay._id === id) {
+      props.map.remove(overlay);
       if (noFlyZonesLayer.value) {
         noFlyZonesLayer.value.removeLayer(overlay);
       }
@@ -1421,18 +1534,18 @@ const createEditShape = (originalShape) => {
   let editShape = null;
   let points = [];
 
-  if (originalShape instanceof T.Polygon) {
+  if (originalShape instanceof AMap.Polygon) {
     // 使用保存的原始点
     points = originalShape._originalPoints || [];
-    const latLngs = points.map((p) => new T.LngLat(p.lng, p.lat));
+    const latLngs = points.map((p) => [p.lng, p.lat]);
 
     // 使用原始形状的颜色
-    editShape = new T.Polygon([latLngs], {
-      color: zoneData.borderColor || "#e74c3c",
-      weight: 3,
+    editShape = new AMap.Polygon(latLngs, {
+      strokeColor: zoneData.borderColor || "#e74c3c",
+      strokeWeight: 3,
       fillColor: zoneData.fillColor || "#e74c3c",
       fillOpacity: 0.4,
-      dashArray: "5,5",
+      strokeStyle: "dashed",
     });
 
     // 添加顶点标记 - 传递正确的颜色参数
@@ -1453,17 +1566,17 @@ const createEditShape = (originalShape) => {
         id: originalShape._id,
       });
     });
-  } else if (originalShape instanceof T.Circle) {
+  } else if (originalShape instanceof AMap.Circle) {
     const center = originalShape._originalCenter || originalShape.getCenter();
     const radius = originalShape._originalRadius || originalShape.getRadius();
 
     // 使用原始形状的颜色
-    editShape = new T.Circle(center, radius, {
-      color: zoneData.borderColor || "#e74c3c",
-      weight: 3,
+    editShape = new AMap.Circle(center, radius, {
+      strokeColor: zoneData.borderColor || "#e74c3c",
+      strokeWeight: 3,
       fillColor: zoneData.fillColor || "#e74c3c",
       fillOpacity: 0.4,
-      dashArray: "5,5",
+      strokeStyle: "dashed",
     });
     // 添加圆形控制标记
     const centerMarker = addCircleCenterMarker(
@@ -1504,10 +1617,10 @@ const createEditShape = (originalShape) => {
     editShape._isModified = false;
 
     // 先移除可能存在的同名编辑形状
-    const existingOverlays = props.map.getOverlays();
+    const existingOverlays = props.map.getAllOverlays();
     existingOverlays.forEach((overlay) => {
       if (overlay._isEditShape && overlay._id === editShape._id) {
-        props.map.removeOverLay(overlay);
+        props.map.remove(overlay);
         if (noFlyZonesLayer.value) {
           noFlyZonesLayer.value.removeLayer(overlay);
         }
@@ -1518,7 +1631,7 @@ const createEditShape = (originalShape) => {
     if (noFlyZonesLayer.value) {
       noFlyZonesLayer.value.addLayer(editShape);
     }
-    props.map.addOverLay(editShape);
+    props.map.add(editShape);
 
     // 保存对编辑形状的引用
     originalShape._editShape = editShape;
@@ -1537,11 +1650,12 @@ const addCircleCenterMarker = (center, editShape, originalShape) => {
   // 创建SVG图标，颜色动态设置
   const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="${markerColor}" d="M8 2C4.69 1.99 2 4.69 2 8c0 3.31 2.69 6 6 6s6-2.69 6-6c0-3.31-2.69-6-6-6z"/></svg>`;
 
-  const marker = new T.Marker(center, {
-    icon: new T.Icon({
-      iconUrl: `data:image/svg+xml;base64,${btoa(svgString)}`,
-      iconSize: new T.Point(16, 16),
-      iconAnchor: new T.Point(8, 8),
+  const marker = new AMap.Marker({
+    position: center,
+    icon: new AMap.Icon({
+      image: `data:image/svg+xml;base64,${btoa(svgString)}`,
+      size: new AMap.Size(16, 16),
+      imageOffset: new AMap.Pixel(-8, -8),
     }),
     draggable: true,
   });
@@ -1550,7 +1664,7 @@ const addCircleCenterMarker = (center, editShape, originalShape) => {
   marker._isEditMarker = true;
   marker._id = originalShape._id;
   marker._editShape = editShape; // 直接绑定编辑形状
-  marker.addEventListener("dragstart", () => {
+  marker.on("dragstart", () => {
     marker._isDragging = true;
 
     // 【彻底清理】找到当前禁飞区的所有半径标记
@@ -1561,7 +1675,7 @@ const addCircleCenterMarker = (center, editShape, originalShape) => {
     radiusMarkerItems.forEach((item) => {
       // 从地图移除标记
       if (props.map) {
-        props.map.removeOverLay(item.marker);
+        props.map.remove(item.marker);
       }
       // 从图层组移除标记（如果存在）
       if (noFlyZonesLayer.value) {
@@ -1572,11 +1686,11 @@ const addCircleCenterMarker = (center, editShape, originalShape) => {
     });
 
     // 从编辑标记数组中删除所有半径标记
-    editMarkers.value = editMarkers.value.filter(
+    editMarkers.value =     editMarkers.value.filter(
       (item) => !(item.id === marker._id && item.type === "circle_radius"),
     );
   });
-  marker.addEventListener("drag", (e) => {
+  marker.on("dragging", (e) => {
     if (!marker._isDragging) return;
 
     const newCenter = e.lnglat;
@@ -1584,18 +1698,18 @@ const addCircleCenterMarker = (center, editShape, originalShape) => {
 
     // 仅更新圆形中心位置，不处理任何标记
     marker._editShape.setCenter(newCenter);
-    marker.setLngLat(newCenter);
+    marker.setPosition(newCenter);
 
     marker._editShape._isModified = true;
   });
-  marker.addEventListener("dragend", (e) => {
+  marker.on("dragend", (e) => {
     marker._isDragging = false;
     const newCenter = e.lnglat;
     const currentRadius = marker._editShape.getRadius();
 
     // 更新圆形最终位置
     marker._editShape.setCenter(newCenter);
-    marker.setLngLat(newCenter);
+    marker.setPosition(newCenter);
 
     // 【重新创建】在新位置添加半径标记（确保无重复）
     const newRadiusPoint = getRadiusPoint(newCenter, currentRadius);
@@ -1629,7 +1743,7 @@ const addCircleCenterMarker = (center, editShape, originalShape) => {
       )}`,
     );
   });
-  props.map.addOverLay(marker);
+  props.map.add(marker);
   return marker;
 };
 
@@ -1648,14 +1762,15 @@ const addCircleRadiusMarker = (center, radius, editShape, originalShape) => {
   // 创建SVG图标，颜色动态设置
   const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="${markerColor}" d="M8 2C4.69 1.99 2 8.69 2 8c0 3.31 2.69 6 6 6s6-2.69 6-6c0-3.31-2.69-6-6-6z"/></svg>`;
 
-  const marker = new T.Marker(radiusPoint, {
-    icon: new T.Icon({
-      iconUrl: `data:image/svg+xml;base64,${btoa(svgString)}`,
-      iconSize: new T.Point(14, 14),
-      iconAnchor: new T.Point(7, 7),
+  const marker = new AMap.Marker({
+    position: radiusPoint,
+    icon: new AMap.Icon({
+      image: `data:image/svg+xml;base64,${btoa(svgString)}`,
+      size: new AMap.Size(14, 14),
+      imageOffset: new AMap.Pixel(-7, -7),
     }),
     draggable: true,
-    zIndexOffset: 1000, // 固定高层级
+    zIndex: 1000, // 固定高层级
   });
 
   // 给半径标记也绑定禁飞区ID（与圆心标记一致）
@@ -1663,11 +1778,11 @@ const addCircleRadiusMarker = (center, radius, editShape, originalShape) => {
   marker._id = originalShape._id;
   marker._editShape = editShape;
 
-  marker.addEventListener("dragstart", () => {
+  marker.on("dragstart", () => {
     marker._isDragging = true;
   });
 
-  marker.addEventListener("drag", (e) => {
+  marker.on("dragging", (e) => {
     if (marker._isDragging) {
       const newRadiusPoint = e.lnglat;
       const center = editShape.getCenter();
@@ -1676,13 +1791,13 @@ const addCircleRadiusMarker = (center, radius, editShape, originalShape) => {
       // 实时更新半径（保持最小半径限制）
       if (newRadius >= 10) {
         editShape.setRadius(newRadius);
-        marker.setLngLat(newRadiusPoint);
+        marker.setPosition(newRadiusPoint);
         editShape._isModified = true;
       }
     }
   });
 
-  marker.addEventListener("dragend", (e) => {
+  marker.on("dragend", (e) => {
     marker._isDragging = false;
     const newRadiusPoint = e.lnglat;
     const center = editShape.getCenter();
@@ -1692,12 +1807,12 @@ const addCircleRadiusMarker = (center, radius, editShape, originalShape) => {
       ElMessage.warning("圆形半径不能小于10米");
       // 恢复原来的半径点位置
       const originalRadiusPoint = getRadiusPoint(center, editShape.getRadius());
-      marker.setLngLat(originalRadiusPoint);
+      marker.setPosition(originalRadiusPoint);
       return;
     }
 
     editShape.setRadius(newRadius);
-    marker.setLngLat(newRadiusPoint);
+    marker.setPosition(newRadiusPoint);
     editShape._isModified = true;
 
     ElMessage.success(
@@ -1705,7 +1820,7 @@ const addCircleRadiusMarker = (center, radius, editShape, originalShape) => {
     );
   });
 
-  props.map.addOverLay(marker);
+  props.map.add(marker);
   return marker;
 };
 
@@ -1724,11 +1839,12 @@ const addPolygonVertexMarker = (point, index, editShape, originalShape) => {
   // 创建SVG图标，颜色动态设置
   const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="${markerColor}" d="M8 2C4.69 1.99 2 4.69 2 8c0 3.31 2.69 6 6 6s6-2.69 6-6c0-3.31-2.69-6-6-6z"/></svg>`;
 
-  const marker = new T.Marker(new T.LngLat(point.lng, point.lat), {
-    icon: new T.Icon({
-      iconUrl: `data:image/svg+xml;base64,${btoa(svgString)}`,
-      iconSize: new T.Point(14, 14),
-      iconAnchor: new T.Point(7, 7),
+  const marker = new AMap.Marker({
+    position: [point.lng, point.lat],
+    icon: new AMap.Icon({
+      image: `data:image/svg+xml;base64,${btoa(svgString)}`,
+      size: new AMap.Size(14, 14),
+      imageOffset: new AMap.Pixel(-7, -7),
     }),
     draggable: true,
   });
@@ -1737,18 +1853,18 @@ const addPolygonVertexMarker = (point, index, editShape, originalShape) => {
   marker._isEditMarker = true;
   marker._id = originalShape._id;
 
-  marker.addEventListener("drag", (e) => {
+  marker.on("dragging", (e) => {
     const newPoint = e.lnglat;
-    const currentPoints = editShape.getLngLats()[0] || [];
+    const currentPoints = editShape.getPath() || [];
     currentPoints[index] = newPoint;
-    editShape.setLngLats([currentPoints]);
-    marker.setLngLat(newPoint);
+    editShape.setPath(currentPoints);
+    marker.setPosition(newPoint);
 
     // 标记为已修改
     editShape._isModified = true;
   });
 
-  props.map.addOverLay(marker);
+  props.map.add(marker);
   return marker;
 };
 
@@ -1792,13 +1908,13 @@ const finishEditMode = async () => {
       let radius = 0;
       let area = 0;
 
-      if (item.editShape instanceof T.Polygon) {
-        const points = item.editShape.getLngLats()[0] || [];
+      if (item.editShape instanceof AMap.Polygon) {
+        const points = item.editShape.getPath() || [];
         const latLngPoints = points.map((p) => [p.lat, p.lng]);
         apiCoordinates = JSON.stringify([latLngPoints]);
         const coordinates = points.map((p) => ({ lng: p.lng, lat: p.lat }));
         area = calculatePolygonArea(coordinates);
-      } else if (item.editShape instanceof T.Circle) {
+      } else if (item.editShape instanceof AMap.Circle) {
         const center = item.editShape.getCenter();
         radius = item.editShape.getRadius();
         apiCoordinates = JSON.stringify([[[center.lat, center.lng]]]);
@@ -1885,10 +2001,10 @@ const cleanupEditMode = () => {
   // 移除所有编辑标记
   editMarkers.value.forEach((item) => {
     if (item.marker) {
-      props.map.removeOverLay(item.marker);
+      props.map.remove(item.marker);
     }
     if (item.editShape) {
-      props.map.removeOverLay(item.editShape);
+      props.map.remove(item.editShape);
       if (noFlyZonesLayer.value) {
         noFlyZonesLayer.value.removeLayer(item.editShape);
       }
@@ -1897,17 +2013,17 @@ const cleanupEditMode = () => {
   editMarkers.value = [];
 
   // 移除所有编辑形状
-  const allOverlays = props.map.getOverlays();
+  const allOverlays = props.map.getAllOverlays();
   allOverlays.forEach((overlay) => {
     if (overlay._isEditShape) {
       if (noFlyZonesLayer.value) {
         noFlyZonesLayer.value.removeLayer(overlay);
       }
-      props.map.removeOverLay(overlay);
+      props.map.remove(overlay);
     }
     // 移除所有编辑标记点
-    if (overlay instanceof T.Marker && overlay._isEditMarker) {
-      props.map.removeOverLay(overlay);
+    if (overlay instanceof AMap.Marker && overlay._isEditMarker) {
+      props.map.remove(overlay);
     }
   });
 };
@@ -1928,17 +2044,17 @@ const restoreOriginalShapes = () => {
       if (noFlyZonesLayer.value) {
         noFlyZonesLayer.value.removeLayer(shape._editShape);
       }
-      props.map.removeOverLay(shape._editShape);
+      props.map.remove(shape._editShape);
       delete shape._editShape;
     }
 
     // 重新添加原始形状
-    if (shape instanceof T.Polygon || shape instanceof T.Circle) {
+    if (shape instanceof AMap.Polygon || shape instanceof AMap.Circle) {
       // 先移除可能存在的同名形状
-      const existingOverlays = props.map.getOverlays();
+      const existingOverlays = props.map.getAllOverlays();
       existingOverlays.forEach((overlay) => {
         if (overlay._id === shape._id && overlay !== shape) {
-          props.map.removeOverLay(overlay);
+          props.map.remove(overlay);
           if (noFlyZonesLayer.value) {
             noFlyZonesLayer.value.removeLayer(overlay);
           }
@@ -1948,7 +2064,7 @@ const restoreOriginalShapes = () => {
       if (noFlyZonesLayer.value) {
         noFlyZonesLayer.value.addLayer(shape);
       }
-      props.map.addOverLay(shape);
+      props.map.add(shape);
     }
   });
 };
@@ -1958,14 +2074,14 @@ const clearEditMarkers = () => {
   // 移除编辑标记
   editMarkers.value.forEach((item) => {
     if (item.marker) {
-      props.map.removeOverLay(item.marker);
+      props.map.remove(item.marker);
       if (noFlyZonesLayer.value) {
         noFlyZonesLayer.value.removeLayer(item.marker);
       }
     }
     // 也移除编辑形状
     if (item.editShape) {
-      props.map.removeOverLay(item.editShape);
+      props.map.remove(item.editShape);
       if (noFlyZonesLayer.value) {
         noFlyZonesLayer.value.removeLayer(item.editShape);
       }
@@ -1974,20 +2090,20 @@ const clearEditMarkers = () => {
   editMarkers.value = [];
 
   // 额外清理地图上所有的编辑标记
-  const allOverlays = props.map.getOverlays();
+  const allOverlays = props.map.getAllOverlays();
   allOverlays.forEach((overlay) => {
     if (
-      overlay instanceof T.Marker &&
+      overlay instanceof AMap.Marker &&
       (overlay._isEditMarker || !overlay._id)
     ) {
-      props.map.removeOverLay(overlay);
+      props.map.remove(overlay);
     }
   });
 };
 
 // 恢复所有区域的正常样式和显示状态
 const restoreAllZonesStyle = () => {
-  const allOverlays = props.map.getOverlays().filter((overlay) => overlay._id);
+  const allOverlays = props.map.getAllOverlays().filter((overlay) => overlay._id);
 
   allOverlays.forEach((overlay) => {
     const zoneData =
@@ -1996,18 +2112,18 @@ const restoreAllZonesStyle = () => {
     // 恢复显示
     overlay.show();
     if (zoneData) {
-      overlay.setStyle({
-        weight: zoneData.borderWeight || 2,
-        opacity: 1,
+      overlay.setOptions({
+        strokeWeight: zoneData.borderWeight || 2,
+        strokeOpacity: 1,
         fillOpacity: zoneData.fillOpacity || 0.3,
-        zIndexOffset: 0, // 恢复默认层级
+        zIndex: 0, // 恢复默认层级
       });
     }
   });
 };
 // 高亮显示当前可删除的区域（重叠场景优化：隐藏非目标类型区域）
 const highlightDeletableZones = () => {
-  const allOverlays = props.map.getOverlays().filter((overlay) => overlay._id);
+  const allOverlays = props.map.getAllOverlays().filter((overlay) => overlay._id);
 
   allOverlays.forEach((overlay) => {
     const zoneData =
@@ -2015,11 +2131,11 @@ const highlightDeletableZones = () => {
 
     if (zoneData && zoneData.regionType === selectedRegion.value) {
       // 高亮当前类型的区域：提升视觉优先级
-      overlay.setStyle({
-        weight: 4,
-        opacity: 1,
+      overlay.setOptions({
+        strokeWeight: 4,
+        strokeOpacity: 1,
         fillOpacity: 0.5,
-        zIndexOffset: 100, // 提升层级，避免被遮挡
+        zIndex: 100, // 提升层级，避免被遮挡
       });
       // 显示目标类型区域
       overlay.show();
@@ -2050,7 +2166,7 @@ const toggleEditMode = () => {
   isDeleteModeActive.value = !isDeleteModeActive.value;
 
   // 获取所有禁飞区覆盖物
-  const allOverlays = props.map.getOverlays().filter((overlay) => overlay._id);
+  const allOverlays = props.map.getAllOverlays().filter((overlay) => overlay._id);
 
   if (isDeleteModeActive.value) {
     // 高亮显示可删除的区域（隐藏非目标类型）
@@ -2063,16 +2179,16 @@ const toggleEditMode = () => {
 
       if (zoneData && zoneData.regionType === selectedRegion.value) {
         // 绑定删除点击事件
-        overlay.addEventListener("click", handleNoFlyZoneClick);
+        overlay.on("click", handleNoFlyZoneClick);
         overlay._deleteEventBound = true;
         // 设置非目标区域点击穿透（针对TMap的覆盖物，添加样式标记）
-        overlay.setStyle({
-          pointerEvents: "auto", // 允许点击
+        overlay.setOptions({
+          cursor: "pointer", // 允许点击
         });
       } else {
         // 非目标类型区域禁止点击
-        overlay.setStyle({
-          pointerEvents: "none", // 点击穿透，不响应事件
+        overlay.setOptions({
+          cursor: "default", // 点击穿透，不响应事件
         });
       }
     });
@@ -2087,12 +2203,12 @@ const toggleEditMode = () => {
     // 移除删除事件并恢复点击状态
     allOverlays.forEach((overlay) => {
       if (overlay._deleteEventBound) {
-        overlay.removeEventListener("click", handleNoFlyZoneClick);
+        overlay.off("click", handleNoFlyZoneClick);
         overlay._deleteEventBound = false;
       }
       // 恢复默认点击状态
-      overlay.setStyle({
-        pointerEvents: "auto",
+      overlay.setOptions({
+        cursor: "pointer",
       });
     });
     ElMessage.info("已退出删除模式");
@@ -2144,20 +2260,20 @@ const handleNoFlyZoneClick = function () {
 
           // 从地图的覆盖物中移除
           if (props.map) {
-            props.map.removeOverLay(overlay);
+            props.map.remove(overlay);
           }
 
           // 从数据数组中移除
           noFlyZones.value = noFlyZones.value.filter((z) => z.id !== id);
 
           // 如果是圆形，还需要移除编辑标记
-          if (overlay instanceof T.Circle) {
+          if (overlay instanceof AMap.Circle) {
             removeCircleEditMarkers(overlay);
           }
 
           // 移除事件监听器
           if (overlay._deleteEventBound) {
-            overlay.removeEventListener("click", handleNoFlyZoneClick);
+            overlay.off("click", handleNoFlyZoneClick);
             overlay._deleteEventBound = false;
           }
 
@@ -2249,7 +2365,7 @@ const clearAllNoFlyZones = () => {
             noFlyZonesLayer.value.removeLayer(overlay);
           }
           if (props.map) {
-            props.map.removeOverLay(overlay);
+            props.map.remove(overlay);
           }
 
           // 更新数据数组
@@ -2261,7 +2377,7 @@ const clearAllNoFlyZones = () => {
         // 清除所有编辑标记
         editMarkers.value.forEach((item) => {
           if (item.marker) {
-            props.map.removeOverLay(item.marker);
+            props.map.remove(item.marker);
           }
         });
         editMarkers.value = [];
@@ -2331,10 +2447,10 @@ const getRadiusPoint = (center, radius) => {
   const lngOffset =
     (radius / (earthRadius * Math.cos(latRad))) * (180 / Math.PI);
   // 返回圆心「正东方向」的半径点（保证在圆形边缘）
-  return new T.LngLat(center.lng + lngOffset, center.lat);
+  return [center.lng + lngOffset, center.lat];
 };
 const bindTooltipEvents = (shape, zoneData) => {
-  shape.addEventListener("click", (e) => {
+  shape.on("click", (e) => {
     if (!zoneData) return;
 
     // 更新位置
@@ -2363,7 +2479,7 @@ const bindTooltipEvents = (shape, zoneData) => {
     showTooltip.value = true;
   });
 
-  shape.addEventListener("mouseout", () => {
+  shape.on("mouseout", () => {
     showTooltip.value = false;
   });
 };
