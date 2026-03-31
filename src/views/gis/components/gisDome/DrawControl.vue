@@ -55,63 +55,60 @@
 import { ref, defineProps, defineEmits, inject } from "vue";
 import { ElMessage } from "element-plus";
 import { EditPen, Select, Close, Download } from "@element-plus/icons-vue";
-// 定义 props
+
 const props = defineProps({
-  isDrawing: {
-    type: Boolean,
-    default: false,
-  },
-  isViewing: {
-    type: Boolean,
-    default: false,
-  },
-  drawnPoints: {
-    type: Array,
-    default: () => [],
-  },
-  saveRouteBot: {
-    type: Boolean,
-    default: false,
-  },
-  savingRoute: {
-    type: Boolean,
-    default: false,
-  },
+  isDrawing: { type: Boolean, default: false },
+  isViewing: { type: Boolean, default: false },
+  drawnPoints: { type: Array, default: () => [] },
+  saveRouteBot: { type: Boolean, default: false },
+  savingRoute: { type: Boolean, default: false },
 });
 
-// 注入禁飞区方法
-const noFlyZoneMethods = inject("noFlyZoneMethods");
-
+const noFlyZoneMethods = inject("noFlyZoneMethods", null);
 const emit = defineEmits([
   "draw-start",
   "draw-complete",
   "draw-cancel",
   "route-save",
 ]);
-// 处理绘制开始
+
 const handleDraw = () => {
   if (props.isDrawing || props.isViewing) return;
   emit("draw-start");
 };
 
-// 完成绘制时检查禁飞区
+// 🔥 修复：完成绘制时安全调用禁飞区方法
 const handleComplete = () => {
-  if (
-    noFlyZoneMethods &&
-    noFlyZoneMethods.isRouteCrossingNoFlyZone(props.drawnPoints)
-  ) {
-    ElMessage.error("路线穿越禁飞区域，无法完成绘制！");
+  if (!noFlyZoneMethods) {
+    emit("draw-complete", props.drawnPoints);
     return;
   }
+
+  // 禁飞区拦截
+  if (
+    noFlyZoneMethods.isRouteCrossingNoFlyZone &&
+    noFlyZoneMethods.isRouteCrossingNoFlyZone(props.drawnPoints)
+  ) {
+    ElMessage.error("航线/航点进入禁飞区，无法保存！");
+    return;
+  }
+
+  // 禁高区提示
+  if (
+    noFlyZoneMethods.isRouteCrossingWarningZone &&
+    noFlyZoneMethods.isRouteCrossingWarningZone(props.drawnPoints)
+  ) {
+    ElMessage.warning("航线/航点经过禁高区，请注意飞行安全");
+  }
+
   emit("draw-complete", props.drawnPoints);
 };
-// 处理绘制取消
+
 const handleCancel = () => {
   if (!props.isDrawing) return;
   emit("draw-cancel");
 };
 
-// 处理保存路线
 const handleSaveRoute = () => {
   if (!props.saveRouteBot) {
     ElMessage.warning("没有可保存的路线");
@@ -126,15 +123,11 @@ const handleSaveRoute = () => {
   padding: 16px 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
-
-/* 按钮容器使用弹性布局 */
 .button-group-container {
   display: flex;
   width: 100%;
   gap: 4px;
 }
-
-/* 按钮自适应样式 */
 .button-group-container :deep(.el-button) {
   flex: 1;
   min-width: 60px;
@@ -144,17 +137,13 @@ const handleSaveRoute = () => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-/* 图标与文字间距优化 */
 .button-group-container :deep(.el-button .el-icon) {
   margin-right: 2px;
   font-size: clamp(12px, 1.5vw, 14px);
 }
-
 .control-group:last-child {
   border-bottom: none;
 }
-
 .control-btn.emergency {
   margin-top: 12px;
   grid-column: span 2;
@@ -163,32 +152,24 @@ const handleSaveRoute = () => {
   width: 100%;
   color: #fff;
 }
-
-/* 响应式适配 */
 @media (max-width: 800px) {
   .button-group-container {
     gap: 0;
   }
-
   .button-group-container :deep(.el-button span:not(.el-icon)) {
     font-size: 0;
   }
-
   .button-group-container :deep(.el-button span:not(.el-icon))::after {
     font-size: 12px;
   }
-
-  /* 为每个按钮设置简化文字 */
   .button-group-container
     :deep(.el-button:nth-child(1) span:not(.el-icon))::after {
     content: "绘";
   }
-
   .button-group-container
     :deep(.el-button:nth-child(2) span:not(.el-icon))::after {
     content: "完";
   }
-
   .button-group-container
     :deep(.el-button:nth-child(3) span:not(.el-icon))::after {
     content: "取";

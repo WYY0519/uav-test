@@ -228,7 +228,19 @@
           </el-icon>
         </div>
       </div>
-
+      <!-- 3种地图图层下拉选择 -->
+      <div style="position: absolute; top: 20px; right: 20px; z-index: 9999">
+        <el-select
+          v-model="mapLayerType"
+          @change="onMapLayerChange"
+          style="width: 130px"
+          size="default"
+        >
+          <el-option label="标准地图" value="normal" />
+          <el-option label="卫星地图" value="satellite" />
+          <el-option label="卫星混合" value="satelliteMix" />
+        </el-select>
+      </div>
       <!-- 测距 -->
       <div
         style="
@@ -333,13 +345,22 @@
         @zone-updated="handleZoneUpdated"
         @zone-deleted="handleZoneDeleted"
         @zones-cleared="handleZonesCleared"
+        @zone-click="handleNoFlyZoneClick"
       />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, inject } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  watch,
+  inject,
+  provide,
+} from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Fold, Expand } from "@element-plus/icons-vue";
 import ranging from "../../assets/尺子.png";
@@ -371,6 +392,14 @@ const isDrawing = ref(false);
 const drawnPoints = ref([]);
 let drawingLine = null;
 let drawingClickHandler = null;
+
+// 编辑相关状态
+const isEditingRoute = ref(false);
+
+// 🔥 提供绘制状态给子组件（必须在子组件挂载之前）
+provide("isDrawingRoute", isDrawing);
+// 🔥 提供编辑状态给子组件
+provide("isEditingRoute", isEditingRoute);
 const isViewing = ref(false);
 const saveRouteBot = ref(false);
 const savingRoute = ref(false);
@@ -379,6 +408,8 @@ const savingRoute = ref(false);
 const queryLocation = ref("");
 const geocoder = ref(null);
 const options = ref([]);
+// 🔥 新增：地图图层切换
+const mapLayerType = ref("satelliteMix"); // 默认卫星混合
 
 // 保存路线相关
 const saveRouteDialogVisible = ref(false);
@@ -443,40 +474,41 @@ const togglePanel = () => {
   ElMessage.success(isPanelCollapsed.value ? "面板已收起" : "面板已展开");
 };
 
-// 测距功能
+
 const mapRanging = () => {
-  if (!map) {
-    ElMessage.warning("地图未初始化");
+  if (!map.value) {
+    ElMessage.warning("地图初始化中，请稍候...");
     return;
   }
 
-  // 使用高德地图的鼠标绘制工具
-  AMap.plugin("AMap.MouseTool", function () {
-    polylineTool = new AMap.MouseTool(map);
+  if (polylineTool) {
+    polylineTool.close();
+  }
+
+  AMap.plugin(["AMap.MouseTool"], function () {
+    polylineTool = new AMap.MouseTool(map.value);
+
     polylineTool.polyline({
       strokeColor: "#ff4444",
       strokeWeight: 3,
     });
 
     polylineTool.on("draw", (event) => {
-      calculateTotalDistance(event.obj.getPath());
+      const path = event.obj.getPath();
+      calculateTotalDistance(path);
+      polylineTool.close();
     });
 
-    polylineTool.open();
-    ElMessage.info("请在地图上点击添加点，双击结束测距");
+    ElMessage.info("请在地图上点击加点，双击结束测距");
   });
 };
 
 const calculateTotalDistance = (path) => {
-  if (path.length < 2) {
-    return;
-  }
-  let distance = 0;
-  for (let i = 0; i < path.length - 1; i++) {
-    distance += map.getDistance(path[i], path[i + 1]);
-  }
-  ElMessage.info(`总距离: ${distance.toFixed(2)}米`);
+  if (!path || path.length < 2) return;
+  const total = AMap.GeometryUtil.distanceOfLine(path);
+  ElMessage.success(`测距完成：${total.toFixed(2)} 米`);
 };
+
 // 地图初始化
 const initMap = () => {
   if (!window.AMap) {
@@ -489,8 +521,12 @@ const initMap = () => {
     map = new AMap.Map(mapContainer.value, {
       zoom: 15,
       center: [113.65644, 34.78723],
-      viewMode: "2D",
+      viewMode: "2D", // 2D视图
+      renderMode: "2d", // 2D渲染（关键，减少白屏）
       mapStyle: "amap://styles/normal",
+      rotateEnable: false, // 禁止旋转
+      pitchEnable: false, // 禁止俯仰
+      pitch: 0, // 俯仰角0
     });
 
     map.on("complete", () => {
@@ -570,16 +606,20 @@ const handleMapZoom = () => {
 
 // 航线列表组件事件处理
 const handleRouteView = (route) => {
+  clearRouteOverlaysOnly(); // 🔥 强制清除旧航线
   // 查看模式，传入 false 表示不可编辑
   viewRoute(route, false);
 };
 
 const handleRouteRetract = () => {
   retractRoute();
+  // 🔥 清除编辑状态
+  isEditingRoute.value = false;
 };
 
 const handleRouteEdit = (route) => {
   console.log("编辑航线:", route);
+  clearRouteOverlaysOnly(); // 🔥 强制清除旧航线
   // 传入 true 表示可编辑模式
   viewRoute(route, true);
   // const modeText = isEditable ? "编辑模式" : "查看模式";
@@ -656,73 +696,113 @@ const drawBotton = () => {
   };
   map.on("click", drawingClickHandler);
 };
-// 在 handleDrawingClick 中添加实时验证
+// 绘制点击事件（允许绘制，只提示）
 const handleDrawingClick = (e) => {
-  console.log(e, "handleDrawingClick", drawnPoints.value);
-  if (!isDrawing.value) return;
+  console.log("🔥🔥🔥 handleDrawingClick 被调用", e);
+  if (!isDrawing.value) {
+    console.log("不在绘制模式，返回");
+    return;
+  }
 
-  const point = {
-    lng: e.lnglat.lng,
-    lat: e.lnglat.lat,
-    isManual: true,
-  };
+  let lng, lat;
+  if (e.lnglat) {
+    lng = e.lnglat.lng || e.lnglat.getLng();
+    lat = e.lnglat.lat || e.lnglat.getLat();
+  } else if (e.pixel) {
+    lng = e.lng || e.target?.lng;
+    lat = e.lat || e.target?.lat;
+  }
 
-  // 新增：检查禁飞区数据是否加载完成
+  console.log("获取到坐标:", { lng, lat });
+
+  if (!lng || !lat || isNaN(lng) || isNaN(lat)) {
+    ElMessage.warning("无法获取有效坐标");
+    return;
+  }
+
+  const point = { lng, lat, isManual: true };
+
   if (noFlyZoneManagerRef.value && !noFlyZoneManagerRef.value.isZonesLoaded()) {
     ElMessage.warning("禁飞区数据未加载完成，无法添加航点");
     return;
   }
 
-  // 1. 检查点击的点是否在禁飞区内（完全禁止）
-  const isPointInNoFlyZone =
-    noFlyZoneManagerRef.value?.isPointInNoFlyZone(point);
+  // ==============================================
+  // 🔥 禁飞区：拦截，不允许添加
+  // ==============================================
+  // 校验搜索的点是否在禁飞区
+  console.log("检查航点是否在禁飞区:", { lng, lat });
+  console.log("noFlyZoneManagerRef:", noFlyZoneManagerRef.value);
+  console.log(
+    "isPointInNoFlyZone方法:",
+    noFlyZoneManagerRef.value?.isPointInNoFlyZone,
+  );
+
+  // 获取所有禁飞区数据用于调试
+  const allZones = noFlyZoneManagerRef.value?.getNoFlyZones?.() || [];
+  console.log(
+    "所有禁飞区:",
+    allZones.map((z) => ({
+      id: z.id,
+      name: z.name,
+      type: z.type,
+      regionType: z.regionType,
+    })),
+  );
+
+  const isPointInNoFlyZone = noFlyZoneManagerRef.value?.isPointInNoFlyZone?.({
+    lng,
+    lat,
+  });
+  console.log("禁飞区检查结果:", isPointInNoFlyZone);
   if (isPointInNoFlyZone) {
-    ElMessage.warning("禁飞区内无法添加航点，请选择其他位置");
+    ElMessage.error("❌ 禁止：航点位于禁飞区内，无法添加！");
     return;
   }
 
-  // 2. 临时点数量 >=2 时，检查路线穿越禁飞区
-  const tempPoints = [...drawnPoints.value, point];
-  console.log(tempPoints, "tempPoints");
+  // ==============================================
+  // 🔥 禁高区：只提示，允许添加
+  // ==============================================
+  console.log("检查航点是否在禁高区:", { lng, lat });
+  const isPointInWarningZone =
+    noFlyZoneManagerRef.value?.isPointInWarningZone?.(point);
+  console.log("禁高区检查结果:", isPointInWarningZone);
+  if (isPointInWarningZone) {
+    ElMessage.warning("⚠️ 提示：航点位于禁高/警告区域");
+  }
 
+  // 检查路线
+  const tempPoints = [...drawnPoints.value, point];
   if (tempPoints.length >= 2) {
+    // 禁飞区拦截
     const isCrossingNoFlyZone =
       noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(tempPoints);
     if (isCrossingNoFlyZone) {
-      ElMessage.warning("添加此点会导致路线穿越禁飞区，无法在此区域规划航线");
+      ElMessage.error("❌ 禁止：航线穿越禁飞区，无法添加！");
       return;
     }
 
-    // 检查警告区（仅提示）
+    // 禁高区提示
     const isCrossingWarningZone =
       noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(tempPoints);
     if (isCrossingWarningZone) {
-      ElMessage.warning("注意：当前航线经过警告区域，请注意飞行安全");
+      ElMessage.warning("⚠️ 提示：当前航线经过禁高/警告区域");
     }
   }
 
+  // ✅ 允许添加
   drawnPoints.value.push(point);
   if (drawingLine) {
     drawingLine.setPath(drawnPoints.value.map((p) => [p.lng, p.lat]));
   }
+
   clearRouteMarkersOnly();
   drawnPoints.value.forEach((p, idx) => {
     addPointMarker(p, idx, drawnPoints.value.length);
   });
-  ElMessage.info(`已添加 ${drawnPoints.value.length} 个航点`);
 };
-
+// 绘制时的航点标记（起点绿、终点红、中间灰）
 const addPointMarker = (point, index, totalPoints) => {
-  const MARKER_STYLES = {
-    START: { className: "start", color: "#7db164", label: "S" },
-    END: { className: "end", color: "#f56c6c", label: "E" },
-    MIDDLE: {
-      className: "middle",
-      color: "#909399",
-      img: "../../../assets/mti-无人机",
-    },
-  };
-
   let isEnd = false;
   if (totalPoints !== undefined) {
     isEnd = index === totalPoints - 1;
@@ -730,29 +810,32 @@ const addPointMarker = (point, index, totalPoints) => {
     isEnd = index === drawnPoints.value.length - 1;
   }
 
-  const markerStyle =
-    index === 0
-      ? MARKER_STYLES.START
-      : isEnd
-        ? MARKER_STYLES.END
-        : MARKER_STYLES.MIDDLE;
-  const markerLabel =
-    markerStyle === MARKER_STYLES.START
-      ? "S"
-      : markerStyle === MARKER_STYLES.END
-        ? "E"
-        : (index + 1).toString();
+  let bgColor = "#909399"; // 中间点默认灰色
+  let markerLabel = (index + 1).toString();
 
-  const markerHtml = `<div class="marker ${markerStyle.className}">${markerLabel}</div>`;
+  if (index === 0) {
+    bgColor = "#7db164"; // 起点绿色
+    markerLabel = "S";
+  } else if (isEnd) {
+    bgColor = "#f56c6c"; // 终点红色
+    markerLabel = "E";
+  }
+
+  // 内联颜色，不依赖外部CSS，避免被覆盖
+  const markerHtml = `
+    <div class="marker" style="background-color:${bgColor}">
+      ${markerLabel}
+    </div>
+  `;
 
   const marker = new AMap.Marker({
     position: [point.lng, point.lat],
     content: markerHtml,
-    offset: new AMap.Pixel(-13, -13), // 修正偏移量，使标记中心对齐坐标点
+    offset: new AMap.Pixel(-13, -13),
   });
   marker.isRouteMarker = true;
   marker._isRoutePoint = true;
-  marker._isDrawingMarker = true; // 标记为绘制模式下的临时标记
+  marker._isDrawingMarker = true;
   map.add(marker);
 
   if (!document.getElementById("route-markers-style")) {
@@ -769,51 +852,40 @@ const addPointMarker = (point, index, totalPoints) => {
         color: white;
         font-weight: bold;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        font-size: 16px
+        font-size: 16px;
       }
-      .start { background-color: #7db164;}
-      .end { background-color: #f56c6c; }
-      .middle { background-color: #909399; }
     `;
     document.head.appendChild(style);
   }
 };
 // 修改 gisDome.vue 中的 handleDrawComplete 函数
 const handleDrawComplete = (points) => {
-  // 1. 检查航线是否穿越禁飞区（完全禁止）
+  // 1. 检查区域
   const isCrossingNoFlyZone =
     noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(points);
-
+  const isCrossingWarningZone =
+    noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(points);
   if (isCrossingNoFlyZone) {
-    ElMessage.error("航线穿越禁飞区域，无法完成绘制！");
+    ElMessage.error("❌ 禁止：航线穿越禁飞区，无法完成绘制！");
     return;
   }
 
-  // 2. 检查是否穿越警告区（只做提示）
-  const isCrossingWarningZone =
-    noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(points);
-
-  // 【修改2：只有当确实穿越警告区时，才弹出确认框；否则直接完成绘制】
-  if (isCrossingWarningZone) {
-    // 弹出确认对话框，让用户选择是否继续
-    ElMessageBox.confirm(
-      "警告：航线穿越警告区域，可能存在安全隐患。是否继续完成绘制？",
-      "安全警告",
-      {
-        confirmButtonText: "继续绘制",
-        cancelButtonText: "重新规划",
-        type: "warning",
-        confirmButtonClass: "el-button--warning",
-      },
-    )
+  let warningMsg = "";
+  if (isCrossingWarningZone)
+    warningMsg += "⚠️ 提示：当前航线经过禁高/警告区域\n";
+  if (warningMsg) {
+    ElMessageBox.confirm(warningMsg + "\n是否确认完成绘制？", "安全提示", {
+      confirmButtonText: "确认绘制",
+      cancelButtonText: "取消",
+      type: "warning",
+    })
       .then(() => {
         completeBotton();
       })
       .catch(() => {
-        ElMessage.info("已取消，请重新规划路线");
+        ElMessage.info("已取消绘制");
       });
   } else {
-    // 没有穿越警告区，直接完成绘制
     completeBotton();
   }
 };
@@ -961,15 +1033,30 @@ const completeBotton = () => {
 
   console.log("设置地图边界:", bounds);
 
-  // 计算中心点并缩放
-  const centerLng = (path[0][0] + path[path.length - 1][0]) / 2;
-  const centerLat = (path[0][1] + path[path.length - 1][1]) / 2;
-  console.log("航线中心点:", [centerLng, centerLat]);
-
-  // 设置地图中心和缩放级别
-  map.setCenter([centerLng, centerLat]);
-  map.setZoom(15); // 设置合适的缩放级别
-  console.log("地图已设置到航线位置");
+  // 🔥 修改：验证path数据后再计算中心点
+  let centerLng, centerLat;
+  if (
+    path.length > 0 &&
+    path[0] &&
+    Array.isArray(path[0]) &&
+    path[0].length >= 2 &&
+    !isNaN(path[0][0]) &&
+    !isNaN(path[0][1]) &&
+    path[path.length - 1] &&
+    Array.isArray(path[path.length - 1]) &&
+    path[path.length - 1].length >= 2 &&
+    !isNaN(path[path.length - 1][0]) &&
+    !isNaN(path[path.length - 1][1])
+  ) {
+    centerLng = (path[0][0] + path[path.length - 1][0]) / 2;
+    centerLat = (path[0][1] + path[path.length - 1][1]) / 2;
+    console.log("航线中心点:", [centerLng, centerLat]);
+    // 🔥 使用 setZoomAndCenter 同时设置缩放和中心点，避免白屏
+    map.setZoomAndCenter(15, [centerLng, centerLat], 1000);
+    console.log("地图已设置到航线位置");
+  } else {
+    console.warn("航线坐标无效，跳过设置地图中心");
+  }
 
   // 确保边界有效，避免地图空白
   const sw = bounds.getSouthWest();
@@ -1044,30 +1131,37 @@ const saveRoute = async () => {
     return;
   }
 
-  // 新增：检查禁飞区数据是否加载完成
   if (noFlyZoneManagerRef.value && !noFlyZoneManagerRef.value.isZonesLoaded()) {
     ElMessage.warning("禁飞区数据未加载完成，无法保存航线");
     return;
   }
 
-  // 最终检查航线是否穿越禁飞区
+  // 🔥 最终检查
   const isCrossingNoFlyZone =
     noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(drawnPoints.value);
+  const isCrossingWarningZone =
+    noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(drawnPoints.value);
+
+  // 禁飞区：直接拦截
   if (isCrossingNoFlyZone) {
-    ElMessage.error("航线穿越禁飞区域，无法保存！");
+    ElMessage.error("❌ 禁止：航线穿越禁飞区，无法保存！");
     return;
   }
 
-  // 检查航线是否穿越警告区
-  const isCrossingWarningZone =
-    noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(drawnPoints.value);
-  if (isCrossingWarningZone) {
-    ElMessage.warning("警告：当前航线穿越警告区域，请注意飞行安全");
+  // 禁高区：提示
+  let msg = "";
+  if (isCrossingWarningZone) msg += "⚠️ 注意：当前航线经过警告区域！\n";
+
+  if (msg) {
+    await ElMessageBox.confirm(msg + "\n是否继续保存？", "安全警告", {
+      confirmButtonText: "确认保存",
+      cancelButtonText: "取消",
+      type: "warning",
+    });
   }
 
   try {
     await getAllPolicies();
-    // 初始化航点数据，将绘制的航点同步到表单
     saveRouteForm.value = {
       name: "",
       description: "",
@@ -1126,28 +1220,25 @@ const handleDeleteRow = (index, item) => {
 };
 
 const confirmSaveRoute = async () => {
+  // 先定义 pointsToCheck
+  let pointsToCheck = [];
+  if (dialogTitle.value === "保存路线") {
+    pointsToCheck = drawnPoints.value;
+  } else if (dialogTitle.value === "编辑路线") {
+    pointsToCheck = saveRouteForm.value.points.map((p) => ({
+      lng: p.lng,
+      lat: p.lat,
+    }));
+  }
+
+  const isCrossingNoFlyZone =
+    noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(pointsToCheck);
+  if (isCrossingNoFlyZone) {
+    ElMessage.error("❌ 禁止：航线穿越禁飞区，无法保存！");
+    return;
+  }
   saveRouteFormRef.value.validate(async (valid) => {
     if (valid) {
-      // 最终检查航线是否穿越禁飞区
-      let pointsToCheck = [];
-
-      if (dialogTitle.value === "保存路线") {
-        pointsToCheck = drawnPoints.value;
-      } else if (dialogTitle.value === "编辑路线") {
-        pointsToCheck = saveRouteForm.value.points.map((p) => ({
-          lng: p.lng,
-          lat: p.lat,
-        }));
-      }
-
-      const isCrossingNoFlyZone =
-        noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(pointsToCheck);
-
-      if (isCrossingNoFlyZone) {
-        ElMessage.error("航线穿越禁飞区域，无法保存！");
-        return;
-      }
-
       // 检查是否穿越警告区
       const isCrossingWarningZone =
         noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(pointsToCheck);
@@ -1282,6 +1373,8 @@ const viewRoute = (route, isEditable = false) => {
   }
   try {
     clearRouteOverlaysOnly();
+    // 🔥 设置编辑状态（在清除之后）
+    isEditingRoute.value = isEditable;
     currentRoutePolyline.value = null;
     activeRouteId.value = route.id;
 
@@ -1368,29 +1461,88 @@ const viewRoute = (route, isEditable = false) => {
             iconElement.style.zIndex = "100";
           }
         });
+        // marker.on("dragging", () => {
+        //   const newLngLat = marker.getPosition();
+        //   const pointIndex = marker.pointIndex;
+
+        //   // 🔥 强制修改原始数据（让系统知道你真的改了）
+        //   route.points[pointIndex].lng = newLngLat.lng;
+        //   route.points[pointIndex].lat = newLngLat.lat;
+
+        //   // 🔥 关键：给 route 加一个“已修改标记”
+        //   route.isDragged = true;
+
+        //   const newPath = route.points.map((p) => [
+        //     Number(p.lng),
+        //     Number(p.lat),
+        //   ]);
+        //   debounceUpdatePolyline(currentRoutePolyline.value, newPath);
+        // });
         marker.on("dragging", () => {
           const newLngLat = marker.getPosition();
           const pointIndex = marker.pointIndex;
 
-          // 🔥 强制修改原始数据（让系统知道你真的改了）
+          // 修改当前航点坐标
           route.points[pointIndex].lng = newLngLat.lng;
           route.points[pointIndex].lat = newLngLat.lat;
-
-          // 🔥 关键：给 route 加一个“已修改标记”
           route.isDragged = true;
 
+          // 刷新航线
           const newPath = route.points.map((p) => [
             Number(p.lng),
             Number(p.lat),
           ]);
           debounceUpdatePolyline(currentRoutePolyline.value, newPath);
         });
-
+        // 🔥 核心：只在 dragend 弹一次提示
         marker.on("dragend", () => {
           const iconElement = document.getElementById(markerId);
           if (iconElement) {
             iconElement.style.transform = "scale(1)";
             iconElement.style.zIndex = "1";
+          }
+
+          // ======================
+          // 🔥 先强制同步更新航线，确保与航点位置一致
+          // ======================
+          const finalPath = route.points.map((p) => [
+            Number(p.lng),
+            Number(p.lat),
+          ]);
+          if (currentRoutePolyline.value) {
+            currentRoutePolyline.value.setPath(finalPath);
+          }
+
+          // ======================
+          // ✅ 拖动结束后 只校验一次
+          // ======================
+          const checkPoints = route.points.map((p) => ({
+            lng: Number(p.lng),
+            lat: Number(p.lat),
+          }));
+
+          // 1. 校验禁飞区（拦截）
+          const crossNoFly =
+            noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(checkPoints);
+          if (crossNoFly) {
+            ElMessage.error("❌ 禁止：航线/航点进入禁飞区！");
+            // 可选：恢复原点位
+            marker.setPosition([marker.originalLng, marker.originalLat]);
+            route.points[marker.pointIndex].lng = marker.originalLng;
+            route.points[marker.pointIndex].lat = marker.originalLat;
+            const newPath = route.points.map((p) => [
+              Number(p.lng),
+              Number(p.lat),
+            ]);
+            currentRoutePolyline.value.setPath(newPath);
+            return;
+          }
+
+          // 2. 校验禁高区（提示）
+          const crossWarning =
+            noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(checkPoints);
+          if (crossWarning) {
+            ElMessage.warning("⚠️ 提示：航线/航点经过禁高区");
           }
         });
       }
@@ -1412,8 +1564,8 @@ const viewRoute = (route, isEditable = false) => {
 
     const centerLng = (minLng + maxLng) / 2;
     const centerLat = (minLat + maxLat) / 2;
-    map.setCenter([centerLng, centerLat]);
-    map.setZoom(15);
+    // 🔥 使用 setZoomAndCenter 同时设置缩放和中心点，避免先缩小导致的白屏
+    map.setZoomAndCenter(15, [centerLng, centerLat], 1000);
 
     ElMessage.success(`已显示路线: ${route.name}`);
   } catch (error) {
@@ -1421,6 +1573,7 @@ const viewRoute = (route, isEditable = false) => {
     ElMessage.error("查看路线失败");
   }
 };
+// 可拖拽航点标记（查看/编辑路线用）
 const addDraggablePointMarker = (
   point,
   index,
@@ -1430,19 +1583,33 @@ const addDraggablePointMarker = (
 ) => {
   const isStart = index === 0;
   const isEnd = index === totalPoints - 1;
-  const markerStyle = isStart ? "start" : isEnd ? "end" : "middle";
-  const markerLabel = isStart ? "S" : isEnd ? "E" : (index + 1).toString();
 
-  const markerHtml = `<div id="${markerId}" class="marker ${markerStyle}">${markerLabel}</div>`;
+  let bgColor = "#909399";
+  let markerLabel = (index + 1).toString();
+
+  if (isStart) {
+    bgColor = "#7db164";
+    markerLabel = "S";
+  } else if (isEnd) {
+    bgColor = "#f56c6c";
+    markerLabel = "E";
+  }
+
+  const markerHtml = `
+    <div id="${markerId}"
+         class="marker"
+         style="background-color:${bgColor}">
+      ${markerLabel}
+    </div>
+  `;
 
   const marker = new AMap.Marker({
     position: [point.lng, point.lat],
     content: markerHtml,
-    offset: new AMap.Pixel(-13, -13), // 修正偏移量，使标记中心对齐坐标点（标记大小26x26，一半是13）
-    draggable: isEditable, // 根据参数决定是否可拖拽
+    offset: new AMap.Pixel(-13, -13),
+    draggable: isEditable,
   });
 
-  // 记录原始位置和索引
   marker.originalLng = point.lng;
   marker.originalLat = point.lat;
   marker.pointIndex = index;
@@ -1465,14 +1632,11 @@ const addDraggablePointMarker = (
         font-size: 16px;
         z-index: 10;
       }
-      .start { background-color: #7db164;}
-      .end { background-color: #f56c6c; }
-      .middle { background-color: #909399; }
     `;
     document.head.appendChild(style);
   }
-  map.add(marker);
 
+  map.add(marker);
   return marker;
 };
 const retractRoute = () => {
@@ -1615,7 +1779,7 @@ const handleSelectChange = (value) => {
     lat,
   });
   if (isPointInNoFlyZone) {
-    ElMessage.warning("该地点在禁飞区内，无法添加航点");
+    ElMessage.error("❌ 禁止：该地点在禁飞区内，无法添加航点");
     return;
   }
 
@@ -1625,14 +1789,14 @@ const handleSelectChange = (value) => {
     const isCrossingNoFlyZone =
       noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(tempPoints);
     if (isCrossingNoFlyZone) {
-      ElMessage.warning("添加该地点会导致航线穿越禁飞区，无法添加");
+      ElMessage.error("❌ 禁止：添加该地点会导致航线穿越禁飞区");
       return;
     }
     // 警告区提示
     const isCrossingWarningZone =
       noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(tempPoints);
     if (isCrossingWarningZone) {
-      ElMessage.warning("注意：添加该地点后航线经过警告区域，请注意飞行安全");
+      ElMessage.warning("⚠️ 提示：添加该地点后航线经过禁高/警告区域");
     }
   }
 
@@ -1772,7 +1936,31 @@ const handleSelectStrategyChange = (value) => {
   policyIdDialog.value = selectedItemStrategy.value?.value || "";
   console.log("当前选中策略ID:", value);
 };
+// 地图图层切换
+const onMapLayerChange = (val) => {
+  if (!map) return;
 
+  let layers = [];
+  let label = "";
+
+  switch (val) {
+    case "normal":
+      layers = [new AMap.TileLayer()];
+      label = "标准地图";
+      break;
+    case "satellite":
+      layers = [new AMap.TileLayer.Satellite()];
+      label = "卫星地图";
+      break;
+    case "satelliteMix":
+      layers = [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()];
+      label = "卫星混合";
+      break;
+  }
+
+  map.setLayers(layers);
+  ElMessage.success("已切换 → " + label);
+};
 // 鼠标悬浮提示
 const showImgTooltip = ref(false);
 const tooltipTile = ref("");
@@ -1803,6 +1991,15 @@ const handleZoneDeleted = (zoneId) => {
 
 const handleZonesCleared = () => {
   console.log("所有禁飞区已清除");
+};
+
+// 🔥 禁飞区/禁高区点击处理（用于绘制航线时）
+const handleNoFlyZoneClick = (event) => {
+  console.log("🔥🔥🔥 禁飞区/禁高区被点击，触发绘制点击处理", event);
+  // 如果当前在绘制模式，调用绘制点击处理函数
+  if (isDrawing.value && event.lnglat) {
+    handleDrawingClick(event);
+  }
 };
 // 禁飞区功能
 const regionalManagementDialog = () => {
@@ -1856,6 +2053,18 @@ onMounted(async () => {
   if (pageContent) {
     pageContent.classList.add("current-page-no-padding");
   }
+  provide("noFlyZoneMethods", {
+    isRouteCrossingNoFlyZone: (points) => {
+      return (
+        noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(points) || false
+      );
+    },
+    isRouteCrossingWarningZone: (points) => {
+      return (
+        noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(points) || false
+      );
+    },
+  });
 });
 
 onBeforeUnmount(() => {

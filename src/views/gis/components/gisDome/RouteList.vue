@@ -894,45 +894,52 @@ const confirmDelete = async () => {
 };
 
 // 完成航线编辑 - 移除航点相关提示
+// 完成航线编辑 - 最终修复版
 const completeRouteEdit = async (route) => {
+  // ======================
+  // ✅ 完成前全量校验
+  // ======================
+  const checkPoints = route.points.map((p) => ({
+    lng: Number(p.lng),
+    lat: Number(p.lat),
+  }));
+
+  // 1. 禁飞区 → 拦截
+  const crossNoFly =
+    props.noFlyZoneManagerRef?.isRouteCrossingNoFlyZone(checkPoints);
+  if (crossNoFly) {
+    ElMessage.error("航线/航点进入禁飞区，无法保存！");
+    return;
+  }
+
+  // 2. 禁高区 → 提示
+  const crossWarning =
+    props.noFlyZoneManagerRef?.isRouteCrossingWarningZone(checkPoints);
+  if (crossWarning) {
+    ElMessage.warning("航线/航点经过禁高区，请注意飞行安全");
+  }
+
   try {
-    // 🔥 修复：同时检查列表拖拽(hasDragged)和地图拖拽(route.isDragged)
-    // 未拖拽时仅提示无操作
+    // 无操作直接返回
     if (!hasDragged.value[route.id] && !route.isDragged) {
-      ElMessage.warning("未进行航点拖拽操作，无需保存！");
+      ElMessage.warning("未进行任何修改");
       return;
-    }
-    
-    // 如果是地图拖拽触发的，清除 route.isDragged 标记
-    if (route.isDragged) {
-      route.isDragged = false;
-      hasDragged.value[route.id] = true;
     }
 
     const currentRoute = routeInfo.value[0].find(
       (item) => item.id === route.id,
     );
-    
-    if (!currentRoute) {
-      ElMessage.error("航线数据未找到");
-      return;
-    }
+    if (!currentRoute) return;
 
-    // 🔥 关键修复：优先使用 route.points（地图拖拽直接修改的是这个）
-    // 只有列表拖拽时才使用 dragTempPoints
-    let finalPoints = [];
-    if (hasDragged.value[route.id] && dragTempPoints.value[route.id]?.length > 0) {
-      // 列表拖拽：使用 dragTempPoints
-      finalPoints = JSON.parse(JSON.stringify(dragTempPoints.value[route.id]));
-    } else if (route.isDragged || currentRoute.points) {
-      // 地图拖拽或无拖拽：直接使用 currentRoute.points
-      finalPoints = JSON.parse(JSON.stringify(currentRoute.points));
-    }
+    // 取最终要保存的点
+    let finalPoints = hasDragged.value[route.id]
+      ? JSON.parse(JSON.stringify(dragTempPoints.value[route.id]))
+      : JSON.parse(JSON.stringify(currentRoute.points));
 
     // 更新本地数据
     currentRoute.points = finalPoints;
 
-    // 构建后端参数
+    // 构建接口参数
     const pointsForBackend = finalPoints.map((point) => ({
       lat: formatLatLng(point.lat),
       lon: formatLatLng(point.lng),
@@ -943,108 +950,85 @@ const completeRouteEdit = async (route) => {
       routeData: {
         type: "mission",
         points: pointsForBackend,
-        home_pos:
-          pointsForBackend.length > 0
-            ? {
-                lat: pointsForBackend[0].lat,
-                lon: pointsForBackend[0].lon,
-                alt: "0",
-              }
-            : { lat: "", lon: "", alt: "0" },
+        home_pos: pointsForBackend.length
+          ? {
+              lat: pointsForBackend[0].lat,
+              lon: pointsForBackend[0].lon,
+              alt: "0",
+            }
+          : { lat: "", lon: "", alt: "0" },
       },
     };
-
-    const pointsJsonString = JSON.stringify(routeData);
 
     const params = {
       id: currentRoute.id,
       description: currentRoute.description,
       name: currentRoute.name,
-      pointsJson: pointsJsonString,
+      pointsJson: JSON.stringify(routeData),
       policyId: Number(currentRoute.policyId),
     };
 
-    let res = await updateMission(params);
-
+    const res = await updateMission(params);
     if (res.code === 200) {
-      isEditCompleted.value = true;
-      originalPoints.value[route.id] = JSON.parse(JSON.stringify(finalPoints));
-      dragTempPoints.value[route.id] = JSON.parse(JSON.stringify(finalPoints));
-      hasDragged.value[route.id] = false;
+      ElMessage.success("航线保存成功");
 
-      // 刷新列表并通知地图更新
+      // 更新原始备份
+      originalPoints.value[route.id] = JSON.parse(JSON.stringify(finalPoints));
+      hasDragged.value[route.id] = false;
+      isEditCompleted.value = true;
+
+      // ✅ 修复：保存完成后 退出编辑模式
+      // activeRouteId.value = null;
+      // isEditMode.value = false;
+      // isEditing.value = false;
+
+      // 刷新列表 + 更新地图
       await routeList(searchKeyword.value);
       emit("route-saved-and-refresh-map", route.id);
-      // ElMessage.success("航点保存成功！"); // 简化成功提示，移除航点相关内容
       emit("route-save");
-    } else {
-      ElMessage.error(`保存失败：${res.msg || "接口返回非200状态"}`);
     }
   } catch (error) {
-    console.error("航线编辑失败：", error);
-    ElMessage.error("航线编辑失败，请检查控制台日志");
+    console.error(error);
+    ElMessage.error("保存失败");
   }
 };
 // 取消航线编辑 - 优化无操作时的提示逻辑
+// 取消航线编辑 - 不收起、不退出编辑，只恢复数据
 const cancelRouteEdit = (route) => {
-  // 🔥 修复：同时检查列表拖拽(hasDragged)和地图拖拽(route.isDragged)
-  // 1. 无拖拽操作时，直接退出编辑模式
+  // 1. 检查是否有拖拽/修改，没有则直接提示
   if (!hasDragged.value[route.id] && !route.isDragged) {
-    // 重置状态并退出编辑模式，不显示提示
-    activeRouteId.value = null;
-    isEditMode.value = false;
-    isEditing.value = false;
-    editingRouteId.value = null;
-    isEditCompleted.value = false;
-    
-    // 清理缓存数据
-    delete dragTempPoints.value[route.id];
-    delete originalPoints.value[route.id];
-    delete hasDragged.value[route.id];
-    
-    // 通知父组件取消编辑
-    emit("route-cancel-edit", route);
+    ElMessage.info("已取消编辑，无修改需要恢复");
     return;
   }
-  
-  // 如果是地图拖拽触发的，清除 route.isDragged 标记
+
+  // 2. 清除地图拖拽标记
   if (route.isDragged) {
     route.isDragged = false;
-    hasDragged.value[route.id] = true; // 也设置列表的标记，保持一致
+    hasDragged.value[route.id] = true;
   }
 
-  // 2. 有拖拽操作时，执行恢复逻辑
+  // 3. 找到当前航线
   const currentRoute = routeInfo.value[0].find((item) => item.id === route.id);
+  if (!currentRoute) return;
 
-  // 强制恢复原始数据（核心：重新赋值触发响应式更新）
+  // 4. 核心：恢复原始航点数据（不收起、不退出编辑）
   const originalData = JSON.parse(
-    JSON.stringify(originalPoints.value[route.id] || currentRoute?.points || []),
+    JSON.stringify(originalPoints.value[route.id] || currentRoute.points || []),
   );
-  if (currentRoute) {
-    currentRoute.points = [...originalData]; // 解构赋值强制触发DOM更新
-  }
-  dragTempPoints.value[route.id] = [...originalData]; // 同步更新拖拽缓存
+  currentRoute.points = [...originalData]; // 强制更新列表数据
+  dragTempPoints.value[route.id] = [...originalData]; // 同步拖拽缓存
 
-  // 重置拖拽标记
+  // 5. 重置拖拽状态（保留编辑模式、保留展开）
   hasDragged.value[route.id] = false;
   isDragging.value = false;
   dragSourceIndex.value = -1;
   isEditCompleted.value = false;
 
-  // 保留编辑模式，但不刷新列表
-  activeRouteId.value = route.id;
-  isEditMode.value = true;
-  isEditing.value = true;
-  editingRouteId.value = route.id;
+  // 6. 只提示，不做收起/退出
+  ElMessage.success("已取消编辑，航点已恢复为原始位置");
 
-  ElMessage.info("已取消编辑，航点已恢复为原始位置");
-
-  // 🔥 关键修复：直接通知父组件更新地图，不依赖异步流程
-  if (currentRoute) {
-    emit("route-cancel-edit", currentRoute); // 发送已恢复的 currentRoute
-  } else {
-    emit("route-cancel-edit", route);
-  }
+  // 7. 通知父组件更新地图（只恢复，不退出）
+  emit("route-cancel-edit", currentRoute);
 };
 // 经纬度格式化
 const formatLatLng = (value) => {
