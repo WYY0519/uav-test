@@ -3,7 +3,20 @@
   <div class="drone-monitor">
     <!-- 地图底层 -->
     <div class="map-container" ref="mapContainer"></div>
-
+<!-- 地图类型切换下拉框 -->
+        <!-- 3种地图图层下拉选择 -->
+      <div style="position: absolute; top: 20px; right: 20px; z-index: 9999">
+        <el-select
+          v-model="mapLayerType"
+          @change="onMapLayerChange"
+          style="width: 130px"
+          size="default"
+        >
+          <el-option label="标准地图" value="normal" />
+          <el-option label="卫星地图" value="satellite" />
+          <el-option label="卫星混合" value="satelliteMix" />
+        </el-select>
+      </div>
     <!-- 顶部面板 -->
     <div class="top-panel">
       <el-input style="padding: 12px" v-model="searchQuery" placeholder="输入无人机编号搜索" class="search-input" clearable
@@ -685,6 +698,9 @@ const planeRealTimePos = reactive({
 const routeMarkers = ref([]); // 使用ref管理
 const routeLines = ref([]); // 使用ref管理航线线段
 
+// 🔥 新增：地图图层切换
+const mapLayerType = ref("satelliteMix"); // 默认卫星混合
+
 const options = [
   {
     value: "0",
@@ -807,6 +823,7 @@ const initMap = () => {
       renderMode: "webgl",
       layers: [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()],
     });
+
     // 地图加载完成事件
     map.on("complete", () => {
       ElMessage.success("地图加载成功");
@@ -860,6 +877,31 @@ const initMap = () => {
     console.error("地图初始化失败:", error);
     ElMessage.error("地图初始化失败");
   }
+};
+// 地图图层切换
+const onMapLayerChange = (val) => {
+  if (!map) return;
+
+  let layers = [];
+  let label = "";
+
+  switch (val) {
+    case "normal":
+      layers = [new AMap.TileLayer()];
+      label = "标准地图";
+      break;
+    case "satellite":
+      layers = [new AMap.TileLayer.Satellite()];
+      label = "卫星地图";
+      break;
+    case "satelliteMix":
+      layers = [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()];
+      label = "卫星混合";
+      break;
+  }
+
+  map.setLayers(layers);
+  ElMessage.success("已切换 → " + label);
 };
 
 // 添加标记点（强制最后一个点为终点）
@@ -3192,6 +3234,23 @@ const handleShareVideo = async () => {
 
 .route-marker:hover {
   transform: scale(1.1);
+}
+/* 地图类型切换控件 */
+.map-type-selector {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 4px 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 适配深色主题 */
+:deep(.map-type-selector .el-select__wrapper) {
+  background-color: transparent;
+  box-shadow: none;
 }
 
 /* 响应式调整 - 确保在各种屏幕尺寸下保持对齐 */
