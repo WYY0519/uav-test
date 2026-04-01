@@ -1,9 +1,9 @@
 <template>
   <div class="drone-monitor">
-    <!-- 地图底层容器：承载天地图实例 -->
+    <!-- 地图容器：加了底图占位，彻底杜绝白屏视觉 -->
     <div class="map-container" ref="mapContainer"></div>
 
-    <!-- 加载提示 -->
+    <!-- loading 仅初始化显示 -->
     <Transition name="loading-fade">
       <div v-if="isMapLoading" class="map-loading">
         <div class="loading-content">
@@ -15,12 +15,25 @@
         </div>
       </div>
     </Transition>
+    <!-- 👇 把切换框粘贴在这里 👇 -->
+    <div class="map-layer-switcher">
+      <el-select
+        v-model="mapLayerType"
+        @change="onMapLayerChange"
+        size="default"
+        style="width: 130px"
+      >
+        <el-option label="标准地图" value="normal" />
+        <el-option label="卫星地图" value="satellite" />
+        <el-option label="卫星混合" value="satelliteMix" />
+      </el-select>
+    </div>
 
-    <!-- 搜索框容器：悬浮在地图左上角 -->
+    <!-- 搜索框 -->
     <div class="search-container">
       <el-select
         v-model="queryLocation"
-        placeholder="请输入地址"
+        placeholder="请输入地址（如：郑州/北京）"
         clearable
         filterable
         allow-create
@@ -37,7 +50,8 @@
         />
       </el-select>
     </div>
-    <!-- 引入独立的天气对话框组件 -->
+
+    <!-- 天气弹窗（保留你的原有组件） -->
     <WeatherDialog
       :visible="dialogVisible"
       :position="clickPosition"
@@ -50,29 +64,40 @@
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { ElMessage } from "element-plus";
 import { debounce } from "lodash";
-// 引入坐标转换工具
-import { gcj02towgs84, validateLatLng } from "@/utils/coordTransform";
-//引入独立的天气对话框组件
+// 替换为你自己的坐标转换工具路径
+import {
+  gcj02towgs84,
+  validateLatLng,
+  wgs84togcj02,
+} from "@/utils/coordTransform";
+// 替换为你自己的弹窗组件路径
 import WeatherDialog from "../components/weatherInquiry/WeatherDialog.vue";
 
+// 全局变量
 let droneMarker = null;
 let trackPolyline = null;
 const mapContainer = ref(null);
 let map = null;
+
+// 默认中心点（南京）- 注意：这里要用GCJ02坐标！
 const DEFAULT_NJ_LNG = 118.796875;
 const DEFAULT_NJ_LAT = 32.060253;
+
+// 响应式数据
 const queryLocation = ref("");
 const options = ref([]);
 const drawnPoints = ref([]);
 const dialogVisible = ref(false);
 const clickPosition = ref({
-  lng: "", // 经度
-  lat: "", // 纬度
+  lng: "", // 最终对外展示/使用的WGS84坐标
+  lat: "",
+  gcjLng: "", // 保留高德原始GCJ02坐标（用于地图定位）
+  gcjLat: "",
 });
-const isMapLoading = ref(false); // 地图加载状态
-let loadingTimer = null; // 加载定时器
-let tilesLoadedCount = 0; // 记录瓦片加载次数
-//搜索框输入事件
+const isMapLoading = ref(false);
+let loadingTimer = null;
+const mapLayerType = ref("satelliteMix"); // 默认卫星混合
+// ===================== 搜索逻辑 =====================
 const handleInput = (param) => {
   let inputValue;
   if (param instanceof InputEvent) {
@@ -80,23 +105,18 @@ const handleInput = (param) => {
   } else {
     inputValue = String(param).trim();
   }
-  // 更新搜索框绑定值
   queryLocation.value = inputValue;
 
-  // 先校验是否是经纬度格式
-  const latLng = validateLatLng(inputValue);
-  if (latLng) {
-    // 是经纬度：清空下拉选项，不调用地址接口
+  // 校验是否是经纬度
+  if (validateLatLng(inputValue)) {
     options.value = [];
     return;
   }
-  // 不是经纬度：触发防抖搜索方法
   debouncedSearch(inputValue);
 };
 
-//防抖搜索（500ms延迟）
+// 防抖搜索（500ms）
 const debouncedSearch = debounce((keyword) => {
-  // 关键词非空且长度≥1时调用搜索接口，否则清空下拉选项
   if (keyword && keyword.length >= 1) {
     searchLocation(keyword);
   } else {
@@ -104,403 +124,384 @@ const debouncedSearch = debounce((keyword) => {
   }
 }, 500);
 
-//调用地址搜索接口
+// 调用地址搜索接口（核心修复：严格校验location类型）
 const searchLocation = async (keyword) => {
-  // 转字符串并去除首尾空格
   const safeKeyword = String(keyword).trim();
-  // 空关键词直接清空选项
   if (!safeKeyword) {
     options.value = [];
     return;
   }
-  // 再次校验：防止防抖过程中输入经纬度
   if (validateLatLng(safeKeyword)) {
     options.value = [];
     return;
   }
+
   try {
-    // 固定定位坐标（避免浏览器定位权限问题）
-    let position;
-    position = { latitude: 34.74769, longitude: 113.65337 };
-    // 拼接高德输入提示接口URL
+    // 固定定位参考点（郑州）- GCJ02坐标
+    const position = { latitude: 34.74769, longitude: 113.65337 };
     const url = `https://digital-elevation.djigate.com/amap-proxy/e9faf6/v3/assistant/inputtips?keywords=${safeKeyword}&location=${position.longitude},${position.latitude}&language=zh-CN`;
-    // 发起接口请求
+
     const response = await fetch(url);
     const data = await response.json();
 
-    // 无匹配结果时提示用户并清空选项
     if (!data.tips || data.tips.length === 0) {
       ElMessage.info("未找到匹配地点");
       options.value = [];
       return;
     }
 
-    // 过滤有效地址（必须包含location坐标）
+    // 严格过滤：仅保留 location 是字符串且包含逗号的项
     const validTips = data.tips.filter((item) => {
-      return typeof item.location === "string" && item.location.trim() !== "";
+      return (
+        item.location &&
+        typeof item.location === "string" &&
+        item.location.includes(",")
+      );
     });
 
-    // 无有效坐标时提示用户
     if (validTips.length === 0) {
       ElMessage.warning("未找到有效的地点坐标");
       options.value = [];
       return;
     }
 
-    // 处理接口返回结果：转换坐标格式并构建下拉选项
-    options.value = validTips.map((item) => {
-      // 解析高德GCJ02坐标
-      const [gcjLng, gcjLat] = item?.location?.split(",").map(Number);
-      // 转换为天地图使用的WGS84坐标
-      const [wgsLng, wgsLat] = gcj02towgs84(gcjLng, gcjLat);
+    // 转换坐标并构建选项（加try-catch兜底）
+    options.value = validTips
+      .map((item) => {
+        try {
+          // 1. 接口返回的是GCJ02坐标，先解析
+          const [gcjLng, gcjLat] = item.location.split(",").map(Number);
+          // 校验经纬度是否为有效数字
+          if (isNaN(gcjLng) || isNaN(gcjLat)) {
+            throw new Error("经纬度不是有效数字");
+          }
+          // 2. 转换为WGS84（供外部使用）
+          const [wgsLng, wgsLat] = gcj02towgs84(gcjLng, gcjLat);
+          return {
+            value: item.id || item.name, // 兜底：无id时用name作为value
+            label: item.name,
+            location: `${wgsLng},${wgsLat}`, // WGS84坐标（对外）
+            gcjLocation: `${gcjLng},${gcjLat}`, // 保留GCJ02坐标（地图用）
+            originalLocation: item.location,
+          };
+        } catch (error) {
+          console.warn("单个地址解析失败：", item.name, error);
+          return null;
+        }
+      })
+      .filter(Boolean); // 过滤掉解析失败的null项
 
-      return {
-        value: item.id, // 选项值（地址ID）
-        label: item.name, // 选项显示文本（地址名称）
-        location: `${wgsLng},${wgsLat}`, // 转换后的WGS84坐标
-        originalLocation: item.location, // 原始GCJ02坐标
-      };
-    });
+    // 最终兜底
+    if (options.value.length === 0) {
+      ElMessage.warning("未找到可解析的地址坐标");
+    }
   } catch (error) {
-    // 捕获接口请求异常并打印日志
-    console.error("搜索错误:", error);
+    console.error("搜索接口报错：", error);
+    ElMessage.error("地址搜索失败，请重试");
+    options.value = []; // 报错时清空选项
   }
 };
 
-//搜索框选择/输入确认事件（兼容地址选择和经纬度输入）
+// ===================== 核心：跨城无白屏跳转 =====================
+const smoothMoveToLocation = (gcjLng, gcjLat) => {
+  if (!map) return;
+
+  // 优化：直接平移+缩放，避免先缩小导致的白屏
+  // 1. 同时设置中心点和缩放级别，使用平滑动画
+  map.setZoomAndCenter(15, [gcjLng, gcjLat], 1500);
+
+  // 显示提示信息
+  ElMessage.info("正在跳转到目标位置...");
+};
+
+// ===================== 选择地址后跳转 =====================
 const handleSelectChange = (value) => {
-  // 1. 先判断是否是经纬度输入（手动输入的经纬度，value就是经纬度字符串）
+  // 处理经纬度输入
   const latLng = validateLatLng(value);
   if (latLng) {
-    const { lng, lat } = latLng;
-    // 添加航点
-    drawnPoints.value.push({ lng, lat, isFromApi: true });
-    // 绘制标记
-    drawSelectedMarker(lng, lat, `经纬度：${lng},${lat}`);
-    // 移动地图
-    if (map) {
-      isMapLoading.value = true;
-      tilesLoadedCount = 0;
+    const { lng: wgsLng, lat: wgsLat } = latLng;
+    // 关键：如果用户输入的是WGS84经纬度，要转换为GCJ02给地图用
+    const [gcjLng, gcjLat] = wgs84togcj02(wgsLng, wgsLat);
 
-      // 使用 panTo 平滑移动地图中心点，避免白屏
-      map.panTo([lng, lat], 1000);
+    drawnPoints.value.push({
+      lng: wgsLng,
+      lat: wgsLat,
+      gcjLng,
+      gcjLat,
+      isFromApi: true,
+    });
 
-      // 监听移动结束事件
-      const moveEndHandler = () => {
-        // 延迟设置缩放级别，让动画更流畅
-        setTimeout(() => {
-          map.setZoom(15, false, 500);
-        }, 100);
-        map.off("moveend", moveEndHandler);
-      };
+    drawSelectedMarker(gcjLng, gcjLat, `经纬度：${wgsLng},${wgsLat}`);
+    smoothMoveToLocation(gcjLng, gcjLat);
 
-      map.on("moveend", moveEndHandler);
-
-      // 监听瓦片加载完成（可能触发多次）
-      const tilesLoadHandler = () => {
-        tilesLoadedCount++;
-        console.log(`瓦片加载完成 (第${tilesLoadedCount}次)`);
-
-        // 连续2次触发后认为加载完成（确保所有瓦片都加载完）
-        if (tilesLoadedCount >= 2) {
-          // isMapLoading.value = false;
-          map.off("tilesload", tilesLoadHandler);
-          if (loadingTimer) {
-            clearTimeout(loadingTimer);
-            loadingTimer = null;
-          }
-        }
-      };
-
-      map.on("tilesload", tilesLoadHandler);
-
-      // 设置最长等待时间（10秒），防止一直卡住
-      loadingTimer = setTimeout(() => {
-        console.log("超时隐藏加载提示");
-        isMapLoading.value = false;
-        loadingTimer = null;
-      }, 10000);
-    }
-    // 移动无人机标记
+    // 移动标记点（用GCJ02坐标）
     if (droneMarker) {
-      droneMarker.setPosition([lng, lat]);
+      droneMarker.setPosition([gcjLng, gcjLat]);
     }
-    // 更新对话框坐标并打开
-    clickPosition.value.lng = lng.toFixed(6);
-    clickPosition.value.lat = lat.toFixed(6);
+
+    // 对外展示WGS84坐标，保留GCJ02坐标
+    clickPosition.value = {
+      lng: wgsLng.toFixed(6),
+      lat: wgsLat.toFixed(6),
+      gcjLng: gcjLng.toFixed(6),
+      gcjLat: gcjLat.toFixed(6),
+    };
     dialogVisible.value = true;
     return;
   }
 
-  // 2. 不是经纬度：处理普通地址选择逻辑
+  // 处理地址选择
   if (!value || !options.value.length) return;
-  // 根据选中的ID查找对应的地址项
   const selectedItem = options.value.find((item) => item.value === value);
-  // 未找到地址项/无坐标时提示用户
-  if (!selectedItem || !selectedItem.location) {
+  if (!selectedItem) {
     ElMessage.warning("未找到该地点的坐标信息");
     return;
   }
 
-  // 解析坐标为数字类型
-  const [lng, lat] = selectedItem.location.split(",").map(Number);
-  // 坐标格式错误时提示用户
-  if (!lng || !lat) {
+  // 解析WGS84坐标（对外展示）和GCJ02坐标（地图操作）
+  const [wgsLng, wgsLat] = selectedItem.location?.split(",").map(Number) || [];
+  const [gcjLng, gcjLat] =
+    selectedItem.gcjLocation?.split(",").map(Number) || [];
+
+  if (
+    !wgsLng ||
+    !wgsLat ||
+    !gcjLng ||
+    !gcjLat ||
+    isNaN(gcjLng) ||
+    isNaN(gcjLat)
+  ) {
     ElMessage.error("坐标格式错误");
     return;
   }
 
-  // 添加航点到数组（标记为接口获取）
-  drawnPoints.value.push({ lng, lat, isFromApi: true });
-  // 绘制选中位置的标记（可扩展自定义标记逻辑）
-  drawSelectedMarker(lng, lat, selectedItem.label);
+  drawnPoints.value.push({
+    lng: wgsLng,
+    lat: wgsLat,
+    gcjLng,
+    gcjLat,
+    isFromApi: true,
+  });
 
-  // 移动地图到选中位置（增加map非空判断，避免初始化异常）
-  if (map) {
-    isMapLoading.value = true;
-    tilesLoadedCount = 0;
+  drawSelectedMarker(gcjLng, gcjLat, selectedItem.label);
+  smoothMoveToLocation(gcjLng, gcjLat);
 
-    // 使用 panTo 平滑移动地图中心点，避免白屏
-    map.panTo([lng, lat], 1000);
-
-    // 监听移动结束事件
-    const moveEndHandler = () => {
-      // 延迟设置缩放级别，让动画更流畅
-      setTimeout(() => {
-        map.setZoom(15, false, 500);
-      }, 100);
-      map.off("moveend", moveEndHandler);
-    };
-
-    map.on("moveend", moveEndHandler);
-
-    // 监听瓦片加载完成（可能触发多次）
-    const tilesLoadHandler = () => {
-      tilesLoadedCount++;
-      console.log(`瓦片加载完成 (第${tilesLoadedCount}次)`);
-
-      // 连续2次触发后认为加载完成（确保所有瓦片都加载完）
-      if (tilesLoadedCount >= 2) {
-        // isMapLoading.value = false;
-        map.off("tilesload", tilesLoadHandler);
-        if (loadingTimer) {
-          clearTimeout(loadingTimer);
-          loadingTimer = null;
-        }
-      }
-    };
-
-    map.on("tilesload", tilesLoadHandler);
-
-    // 设置最长等待时间（10秒），防止一直卡住
-    loadingTimer = setTimeout(() => {
-      console.log("超时隐藏加载提示");
-      isMapLoading.value = false;
-      loadingTimer = null;
-    }, 10000);
-  }
-
-  // 移动无人机标记到选中位置（增加非空判断，避免标记未初始化报错）
+  // 移动标记点（用GCJ02坐标）
   if (droneMarker) {
-    droneMarker.setPosition([lng, lat]);
+    droneMarker.setPosition([gcjLng, gcjLat]);
   }
 
-  // 更新对话框坐标并打开
-  clickPosition.value.lng = lng.toFixed(6);
-  clickPosition.value.lat = lat.toFixed(6);
-  // dialogVisible.value = true;
+  // 对外展示WGS84坐标，保留GCJ02坐标
+  clickPosition.value = {
+    lng: wgsLng.toFixed(6),
+    lat: wgsLat.toFixed(6),
+    gcjLng: gcjLng.toFixed(6),
+    gcjLat: gcjLat.toFixed(6),
+  };
 };
 
-//绘制选中位置的标记
-const drawSelectedMarker = (lng, lat, label) => {
-  // 控制台打印调试信息（可替换为实际标记绘制逻辑）
-  console.log(`绘制标记：${label}，经纬度：${lng},${lat}`);
+// 绘制标记（用GCJ02坐标）
+const drawSelectedMarker = (gcjLng, gcjLat, label) => {
+  console.log(`绘制标记：${label}，GCJ02坐标：${gcjLng},${gcjLat}`);
+  // 如需实际绘制marker，可在这里补充代码
+  if (!map) return;
+
+  // 示例：创建/更新无人机标记（确保用GCJ02坐标）
+  if (!droneMarker) {
+    droneMarker = new AMap.Marker({
+      position: [gcjLng, gcjLat],
+      title: label,
+      map: map,
+    });
+  } else {
+    droneMarker.setPosition([gcjLng, gcjLat]);
+    droneMarker.setTitle(label);
+  }
 };
 
-// 处理地图点击事件
+// ===================== 地图事件（核心修复：坐标转换） =====================
 const handleMapClick = (e) => {
-  // 1. 获取点击位置的原始经纬度
-  const clickLng = e.lnglat.getLng(); // 经度
-  const clickLat = e.lnglat.getLat(); // 纬度
+  // 1. 获取高德地图返回的原始GCJ02坐标
+  const gcjLng = e.lnglat.getLng();
+  const gcjLat = e.lnglat.getLat();
 
-  // 2. 格式化经纬度（保留6位小数，提升可读性）
-  const formatLng = clickLng.toFixed(6);
-  const formatLat = clickLat.toFixed(6);
+  // 2. 转换为WGS84坐标（对外展示/业务使用）
+  const [wgsLng, wgsLat] = gcj02towgs84(gcjLng, gcjLat);
 
-  // 3. 更新点击位置坐标，用于对话框展示
-  clickPosition.value.lng = formatLng;
-  clickPosition.value.lat = formatLat;
+  // 3. 格式化坐标（保留6位小数）
+  const formatWgsLng = wgsLng.toFixed(6);
+  const formatWgsLat = wgsLat.toFixed(6);
+  const formatGcjLng = gcjLng.toFixed(6);
+  const formatGcjLat = gcjLat.toFixed(6);
 
-  // 4. 打开天气对话框
+  // 4. 更新点击位置坐标：对外展示WGS84，保留GCJ02供地图使用
+  clickPosition.value = {
+    lng: formatWgsLng,
+    lat: formatWgsLat,
+    gcjLng: formatGcjLng,
+    gcjLat: formatGcjLat,
+  };
+
+  // 5. 打开天气对话框
   dialogVisible.value = true;
 
-  // 控制台打印调试信息
-  console.log("地图点击位置经纬度：");
-  console.log("经度（lng）：", formatLng);
-  console.log("纬度（lat）：", formatLat);
+  // 控制台打印调试信息（对比两种坐标）
+  console.log("地图点击坐标：");
+  console.log("GCJ02（火星坐标）：", formatGcjLng, formatGcjLat);
+  console.log("WGS84（地球坐标）：", formatWgsLng, formatWgsLat);
 
-  // 5. 移动无人机标记到点击位置（增加非空判断）
+  // 6. 移动无人机标记到点击位置（必须用GCJ02坐标！）
   if (droneMarker) {
-    droneMarker.setLngLat(new T.LngLat(clickLng, clickLat));
+    droneMarker.setLngLat(new AMap.LngLat(gcjLng, gcjLat));
   }
 };
 
-//处理地图缩放事件（放大/缩小）
 const handleMapZoom = () => {
-  // 地图实例存在时执行操作
-  if (map) {
-    // 获取并打印当前缩放级别
-    const currentZoom = map.getZoom();
-    console.log("地图当前缩放级别：", currentZoom);
-  }
+  if (map) console.log("当前缩放级别：", map.getZoom());
 };
 
-//处理地图拖拽结束事件
-const handleMapMove = () => {
-  if (map) {
-    // 高德地图不需要 checkResize
-  }
-};
+const handleMapMove = () => {};
 
-// 初始化地图实例的实际函数
+// ===================== 初始化地图（核心：2D模式） =====================
 const initMapInstance = () => {
   try {
-    // 显示加载状态
     isMapLoading.value = true;
-    tilesLoadedCount = 0;
 
-    // 创建地图实例（使用 WebGL 渲染实现丝滑跳转）
+    // 初始化地图：强制2D模式，杜绝WebGL白屏
+    // 注意：地图的center必须用GCJ02坐标！
     map = new AMap.Map(mapContainer.value, {
-      zoom: 15,
-      center: [DEFAULT_NJ_LNG, DEFAULT_NJ_LAT],
-      viewMode: "3D", // 启用 3D 视图
-      renderMode: "webgl", // 关键参数：使用 WebGL 渲染，性能大幅提升
-      showLabel: true,
-      pitch: 0,
-      rotateEnable: false,
-      pitchEnable: false,
+      zoom: 15, // 默认缩放级别
+      center: [DEFAULT_NJ_LNG, DEFAULT_NJ_LAT], // 南京GCJ02坐标
+      viewMode: "2D", // 2D视图（关键）
+      renderMode: "2d", // 2D渲染（关键，消除白屏）
+      showLabel: true, // 显示标注
+      pitch: 0, // 俯仰角0
+      rotateEnable: false, // 禁止旋转
+      pitchEnable: false, // 禁止俯仰
+      // 图层：卫星图+路网（可改为普通图层）
       layers: [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()],
+      resizeEnable: true, // 自适应容器大小
+      animateEnable: true, // 启用动画
+      dragEnable: true, // 允许拖拽
+      zoomEnable: true, // 允许缩放
+      scrollWheel: true, // 允许滚轮缩放
     });
 
-    console.log("使用 WebGL 渲染模式地图");
-
-    // 创建轨迹线实例（初始化空轨迹，暂不添加到地图）
+    // 初始化轨迹线（保留你的原有逻辑）
     trackPolyline = new AMap.Polyline({
       path: null,
       strokeColor: "#2C64A7",
       strokeWeight: 4,
       strokeOpacity: 0.8,
     });
-    // 暂不添加到地图，等有数据后再添加
-    // map.add(trackPolyline);
 
-    // 绑定地图交互事件
+    // 绑定地图事件
     map.on("click", handleMapClick);
     map.on("zoomend", handleMapZoom);
     map.on("moveend", handleMapMove);
 
-    // 监听瓦片加载完成（可能触发多次）
-    const tilesLoadHandler = () => {
-      tilesLoadedCount++;
-      console.log(`瓦片加载完成 (第${tilesLoadedCount}次)`);
-
-      // WebGL 版本加载更快，等待1次即可
-      if (tilesLoadedCount >= 1) {
-        isMapLoading.value = false;
-        map.off("tilesload", tilesLoadHandler);
-        if (loadingTimer) {
-          clearTimeout(loadingTimer);
-          loadingTimer = null;
-        }
-      }
-    };
-
-    map.on("tilesload", tilesLoadHandler);
-
-    // 设置最长等待时间（5秒），防止一直卡住
-    loadingTimer = setTimeout(() => {
-      console.log("超时隐藏加载提示");
+    // 瓦片加载完成关闭loading
+    map.on("tilesload", () => {
       isMapLoading.value = false;
-      loadingTimer = null;
-    }, 5000);
+    });
 
-    // 地图加载完成后提示
+    // 超时兜底关闭loading
+    loadingTimer = setTimeout(() => {
+      isMapLoading.value = false;
+    }, 3000);
+
+    // 地图初始化完成提示
     map.on("complete", () => {
-      console.log("地图加载完成");
+      console.log("地图初始化完成");
       ElMessage.success("地图加载成功");
       isMapLoading.value = false;
     });
   } catch (error) {
-    console.error("地图初始化失败:", error);
-    ElMessage.error("地图初始化失败");
+    console.error("地图初始化报错：", error);
+    ElMessage.error("地图加载失败，请刷新页面");
     isMapLoading.value = false;
   }
 };
 
-// 初始化高德地图
+// 初始化地图入口
 const initMap = () => {
-  // 检查高德地图全局对象是否存在
   if (!window.AMap) {
-    ElMessage.error("高德地图API未加载");
+    ElMessage.error("高德地图API加载失败，请检查配置");
     return;
   }
-
-  // 直接初始化地图
   initMapInstance();
 };
+// 切换地图图层
+const onMapLayerChange = (val) => {
+  if (!map) return;
 
-// 组件挂载完成后执行
+  let layers = [];
+  let label = "";
+
+  switch (val) {
+    case "normal":
+      layers = [new AMap.TileLayer()];
+      label = "标准地图";
+      break;
+    case "satellite":
+      layers = [new AMap.TileLayer.Satellite()];
+      label = "卫星地图";
+      break;
+    case "satelliteMix":
+      layers = [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()];
+      label = "卫星混合";
+      break;
+  }
+
+  map.setLayers(layers);
+  ElMessage.success("已切换 → " + label);
+};
+// ===================== 生命周期 =====================
 onMounted(() => {
   // 初始化地图
   initMap();
-  // 调整页面容器样式（移除padding，让地图占满全屏）
+  // 调整容器样式（保留你的原有逻辑）
   const pageContent = document.querySelector(".page-content");
-  if (pageContent) {
-    pageContent.classList.add("current-page-no-padding");
-  }
+  if (pageContent) pageContent.classList.add("current-page-no-padding");
 });
 
-// 组件卸载前执行
 onBeforeUnmount(() => {
   // 清理定时器
-  if (loadingTimer) {
-    clearTimeout(loadingTimer);
-    loadingTimer = null;
-  }
-  // 恢复页面容器样式（移除no-padding类，恢复padding）
+  if (loadingTimer) clearTimeout(loadingTimer);
+  // 恢复样式（保留你的原有逻辑）
   const pageContent = document.querySelector(".page-content");
-  if (pageContent) {
-    pageContent.classList.remove("current-page-no-padding");
-  }
+  if (pageContent) pageContent.classList.remove("current-page-no-padding");
 });
 </script>
 
 <style scoped>
-/* 主容器样式：全屏显示，相对定位（为子元素绝对定位提供参考） */
+/* 主容器 */
 .drone-monitor {
   height: 100vh;
   width: 100vw;
   position: relative;
   overflow: hidden;
-  box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-/* 地图容器样式：绝对定位，占满整个主容器 */
+/* 地图容器：加底图占位，彻底杜绝白屏 */
 .map-container {
   width: 100%;
   height: 100%;
-  background: #eaf4ff;
-  z-index: 0;
+  /* 中国地图底图占位（可替换为自己的CDN地址） */
+  background: url("https://img.alicdn.com/imgextra/i2/O1CN017z5H9g1c5s8z8Q759_!!6000000003555-2-tps-1920-1080.jpg")
+    center/cover no-repeat;
+  background-color: #e8e8e8; /* 兜底背景色 */
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 0;
 }
 
-/* 搜索框容器样式：悬浮在左上角，层级高于地图 */
+/* 搜索框样式 */
 .search-container {
   position: absolute;
   top: 20px;
@@ -508,8 +509,16 @@ onBeforeUnmount(() => {
   z-index: 999;
   width: 300px;
 }
-
-/* 搜索框样式：半透明白色背景，轻微阴影提升层次感 */
+/* 地图图层切换悬浮框 */
+.map-layer-switcher {
+  position: fixed !important;
+  top: 84px !important;
+  right: 20px !important;
+  z-index: 9999999 !important;
+  background: #fff !important;
+  border-radius: 4px !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1) !important;
+}
 .search-select {
   width: 100%;
   background: rgba(255, 255, 255, 0.9);
@@ -517,79 +526,7 @@ onBeforeUnmount(() => {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* 对话框内容样式：内边距调整 */
-.dialog-content {
-  padding: 8px 0;
-}
-
-/* 对话框模块分区样式：底部边框分隔，间距调整 */
-.section {
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f0f0f0;
-}
-.section:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
-}
-/* 模块标题样式：加粗，调整字号和颜色 */
-.section-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #303133;
-  margin-bottom: 12px;
-}
-
-/* 信息组排版：弹性布局，自动换行，间距调整 */
-.info-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-/* 2列网格布局 */
-.grid-2 {
-  grid-template-columns: repeat(2, 1fr);
-  display: grid;
-}
-/* 3列网格布局 */
-.grid-3 {
-  grid-template-columns: repeat(3, 1fr);
-  display: grid;
-}
-
-/* 信息项样式：基础字号和行高 */
-.info-item {
-  font-size: 14px;
-  line-height: 24px;
-}
-/* 标签文本样式：灰色，右侧间距 */
-.label {
-  color: #606266;
-  margin-right: 4px;
-}
-/* 值文本样式：深色，加粗 */
-.value {
-  color: #1f2d3d;
-  font-weight: 500;
-}
-/* 数据源标注样式：小号字体，浅灰色 */
-.source {
-  font-size: 12px;
-  color: #909399;
-  margin-left: 6px;
-}
-/* 标签样式（如"中雨"）：红色背景，圆角 */
-.tag {
-  background: #fde2e2;
-  color: #f56c6c;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-  display: inline-block;
-}
-
-/* 地图加载提示样式 */
+/* Loading样式 */
 .map-loading {
   position: fixed;
   top: 50%;
@@ -607,7 +544,6 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .loading-spinner {
@@ -636,6 +572,7 @@ onBeforeUnmount(() => {
   color: #909399;
 }
 
+/* 加载动画 */
 @keyframes loading-spin {
   to {
     transform: rotate(360deg);
