@@ -6,9 +6,9 @@
       <div class="map-container">
         <div ref="mapContainer" class="map-wrapper">
           <!-- 加载中遮罩 -->
-          <div v-if="loading" class="loading-mask">
+          <!-- <div v-if="loading" class="loading-mask">
             <el-spin size="large">加载中...</el-spin>
-          </div>
+          </div> -->
         </div>
         <!-- 左侧控制面板，浮动在地图上层   -->
         <div class="floating-panel left-panel" v-show="!isPanelCollapsed">
@@ -385,7 +385,7 @@ const mapContainer = ref(null);
 const currentPosition = ref(null);
 let map = ref(null);
 const fixedTrackPoints = [];
-const loading = ref(true);
+// const loading = ref(true);
 
 // 绘制相关状态
 const isDrawing = ref(false);
@@ -474,7 +474,6 @@ const togglePanel = () => {
   ElMessage.success(isPanelCollapsed.value ? "面板已收起" : "面板已展开");
 };
 
-
 const mapRanging = () => {
   if (!map.value) {
     ElMessage.warning("地图初始化中，请稍候...");
@@ -513,7 +512,7 @@ const calculateTotalDistance = (path) => {
 const initMap = () => {
   if (!window.AMap) {
     ElMessage.error("高德地图API未加载，请检查网络连接");
-    loading.value = false;
+    // loading.value = false;
     return;
   }
 
@@ -530,7 +529,7 @@ const initMap = () => {
     });
 
     map.on("complete", () => {
-      loading.value = false;
+      // loading.value = false;
       map.getSize();
       ElMessage.success("地图加载成功");
       geocoder.value = new AMap.Geocoder();
@@ -540,7 +539,7 @@ const initMap = () => {
 
     map.on("error", (e) => {
       console.error("地图加载错误:", e);
-      loading.value = false;
+      // loading.value = false;
       ElMessage.error("地图加载失败，请刷新页面重试");
     });
 
@@ -588,7 +587,7 @@ const initMap = () => {
     }
   } catch (error) {
     console.error("地图初始化失败:", error);
-    loading.value = false;
+    // loading.value = false;
     ElMessage.error("地图初始化失败，请检查配置");
   }
 };
@@ -1495,16 +1494,18 @@ const viewRoute = (route, isEditable = false) => {
           debounceUpdatePolyline(currentRoutePolyline.value, newPath);
         });
         // 🔥 核心：只在 dragend 弹一次提示
+        // 在 viewRoute 函数中的 addDraggablePointMarker 部分
         marker.on("dragend", () => {
+          // 🔥 取消可能待执行的 debounced 更新，防止延迟更新覆盖恢复后的路径
+          debounceUpdatePolyline.cancel();
+
           const iconElement = document.getElementById(markerId);
           if (iconElement) {
             iconElement.style.transform = "scale(1)";
             iconElement.style.zIndex = "1";
           }
 
-          // ======================
-          // 🔥 先强制同步更新航线，确保与航点位置一致
-          // ======================
+          // 强制同步更新航线（基于当前 route.points）
           const finalPath = route.points.map((p) => [
             Number(p.lng),
             Number(p.lat),
@@ -1513,20 +1514,17 @@ const viewRoute = (route, isEditable = false) => {
             currentRoutePolyline.value.setPath(finalPath);
           }
 
-          // ======================
-          // ✅ 拖动结束后 只校验一次
-          // ======================
+          // 校验禁飞区
           const checkPoints = route.points.map((p) => ({
             lng: Number(p.lng),
             lat: Number(p.lat),
           }));
 
-          // 1. 校验禁飞区（拦截）
           const crossNoFly =
             noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(checkPoints);
           if (crossNoFly) {
             ElMessage.error("❌ 禁止：航线/航点进入禁飞区！");
-            // 可选：恢复原点位
+            // 恢复航点位置和原始数据
             marker.setPosition([marker.originalLng, marker.originalLat]);
             route.points[marker.pointIndex].lng = marker.originalLng;
             route.points[marker.pointIndex].lat = marker.originalLat;
@@ -1538,7 +1536,7 @@ const viewRoute = (route, isEditable = false) => {
             return;
           }
 
-          // 2. 校验禁高区（提示）
+          // 禁高区仅提示
           const crossWarning =
             noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(checkPoints);
           if (crossWarning) {
@@ -2101,7 +2099,7 @@ onBeforeUnmount(() => {
     }
 
     isDrawing.value = false;
-    loading.value = false;
+    // loading.value = false;
     currentPosition.value = null;
     drawnPoints.value = [];
   } catch (error) {

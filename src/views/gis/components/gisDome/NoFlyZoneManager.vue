@@ -1512,12 +1512,14 @@ const resetDrawState = () => {
   tempMarkers.value = [];
   drawPoints.value = [];
 
-  // 移除所有事件监听
-  props.map.off("click", handlePolygonDrawClick);
-  props.map.off("click", handleCircleDrawClick);
-  props.map.off("mousemove", handleCircleDragMove);
-  props.map.off("mouseup", handleCircleDragEnd);
-  props.map.off("mousemove", handlePolygonMouseMove);
+  // 移除所有事件监听（增加判空保护）
+  if (props.map) {
+    props.map.off("click", handlePolygonDrawClick);
+    props.map.off("click", handleCircleDrawClick);
+    props.map.off("mousemove", handleCircleDragMove);
+    props.map.off("mouseup", handleCircleDragEnd);
+    props.map.off("mousemove", handlePolygonMouseMove);
+  }
 };
 
 const cancelDraw = () => {
@@ -2187,16 +2189,14 @@ const restoreOriginalShapes = () => {
 
 // 清除编辑标记
 const clearEditMarkers = () => {
-  // 移除编辑标记
   editMarkers.value.forEach((item) => {
-    if (item.marker) {
+    if (item.marker && props.map) {
       props.map.remove(item.marker);
       if (noFlyZonesLayer.value) {
         noFlyZonesLayer.value.removeLayer(item.marker);
       }
     }
-    // 也移除编辑形状
-    if (item.editShape) {
+    if (item.editShape && props.map) {
       props.map.remove(item.editShape);
       if (noFlyZonesLayer.value) {
         noFlyZonesLayer.value.removeLayer(item.editShape);
@@ -2205,16 +2205,18 @@ const clearEditMarkers = () => {
   });
   editMarkers.value = [];
 
-  // 额外清理地图上所有的编辑标记
-  const allOverlays = props.map.getAllOverlays();
-  allOverlays.forEach((overlay) => {
-    if (
-      overlay instanceof AMap.Marker &&
-      (overlay._isEditMarker || !overlay._id)
-    ) {
-      props.map.remove(overlay);
-    }
-  });
+  // 清理所有编辑标记（如有直接获取所有覆盖物的操作）
+  if (props.map) {
+    const allOverlays = props.map.getAllOverlays();
+    allOverlays.forEach((overlay) => {
+      if (
+        overlay instanceof AMap.Marker &&
+        (overlay._isEditMarker || !overlay._id)
+      ) {
+        props.map.remove(overlay);
+      }
+    });
+  }
 };
 
 // 恢复所有区域的正常样式和显示状态
@@ -2572,8 +2574,8 @@ const getRadiusPoint = (center, radius) => {
   return [center.lng + lngOffset, center.lat];
 };
 // 🔥 新增：从父组件注入绘制状态和编辑状态
-const isDrawingRoute = inject('isDrawingRoute', ref(false));
-const isEditingRoute = inject('isEditingRoute', ref(false));
+const isDrawingRoute = inject("isDrawingRoute", ref(false));
+const isEditingRoute = inject("isEditingRoute", ref(false));
 
 const bindTooltipEvents = (shape, zoneData) => {
   // 🔥 修改：使用 mouseover 显示 tooltip，而不是 click
@@ -2583,10 +2585,10 @@ const bindTooltipEvents = (shape, zoneData) => {
     if (isDrawingRoute.value || isEditingRoute.value) {
       return;
     }
-    
-    console.log('🔥 mouseover 事件触发', zoneData?.name, '事件对象:', e);
+
+    console.log("🔥 mouseover 事件触发", zoneData?.name, "事件对象:", e);
     if (!zoneData) {
-      console.log('mouseover 返回：zoneData 不存在');
+      console.log("mouseover 返回：zoneData 不存在");
       return;
     }
 
@@ -2599,7 +2601,7 @@ const bindTooltipEvents = (shape, zoneData) => {
       x = e.containerPoint.x;
       y = e.containerPoint.y;
     } else {
-      console.log('mouseover 返回：无法获取位置信息');
+      console.log("mouseover 返回：无法获取位置信息");
       return;
     }
 
@@ -2618,24 +2620,24 @@ const bindTooltipEvents = (shape, zoneData) => {
 
     tooltipData.value = { ...zoneData, area };
     showTooltip.value = true;
-    console.log('tooltip 已显示:', zoneData.name, showTooltip.value);
+    console.log("tooltip 已显示:", zoneData.name, showTooltip.value);
   });
 
   shape.on("mouseout", () => {
-    console.log('mouseout 事件触发，隐藏 tooltip');
+    console.log("mouseout 事件触发，隐藏 tooltip");
     showTooltip.value = false;
   });
 
   // 🔥 新增：点击事件传递给父组件，用于绘制航线时检测禁飞区/禁高区
   shape.on("click", (e) => {
-    console.log('🔥 禁飞区/禁高区被点击', zoneData?.name, e);
+    console.log("🔥 禁飞区/禁高区被点击", zoneData?.name, e);
     // 触发 zone-click 事件，让父组件处理航点添加逻辑
     if (e && e.lnglat) {
-      emit('zone-click', {
+      emit("zone-click", {
         lnglat: e.lnglat,
         pixel: e.pixel,
         zoneData: zoneData,
-        originalEvent: e
+        originalEvent: e,
       });
     }
   });
