@@ -201,7 +201,7 @@ import Captcha from "@/components/Captcha.vue";
 import router from "@/router/index";
 import { http } from "@/utils/request";
 import { ElMessage } from "element-plus";
-import versionList from "./components/version.js";
+import versionList from "./components/versionList.js";
 import VersionModal from "./components/VersionModal.vue";
 
 // console.log("当前Token:", localStorage.getItem("token"));
