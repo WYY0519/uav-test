@@ -602,7 +602,7 @@ const confirmDraw = () => {
     zoneCoordinates = [],
     radius = 0;
   if (currentDrawType.value === "polygon") {
-    const coords = drawPoints.value.map((p) => [p[1], p[0]]);
+    const coords = drawPoints.value.map((p) => [p[0], p[1]]);
     apiCoordinates = JSON.stringify([coords]);
     zoneCoordinates = drawPoints.value.map((p) => ({ lng: p[0], lat: p[1] }));
   } else {
@@ -611,7 +611,7 @@ const confirmDraw = () => {
       new AMap.LngLat(...center),
       new AMap.LngLat(...drawPoints.value[1]),
     );
-    apiCoordinates = JSON.stringify([[[center[1], center[0]]]]);
+    apiCoordinates = JSON.stringify([[[center[0], center[1]]]]);
     zoneCoordinates = [{ lng: center[0], lat: center[1] }];
   }
 

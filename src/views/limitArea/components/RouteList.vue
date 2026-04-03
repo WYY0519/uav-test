@@ -473,32 +473,45 @@ const completeEdit = async () => {
   }
 
   try {
-    // 【核心统一】圆形/多边形均直接使用本地[[[lat,lng]]]三层数组，转JSON字符串
-    // 彻底删除圆形"经度,纬度,半径"的拼接逻辑
+    // ==============================================
+    // 🔥 核心修复：编辑时 经纬度顺序反转 [lng, lat] → [lat, lng]
+    // ==============================================
+    let correctedCoordinates = [];
+
+    if (currentZone.shape === "polygon") {
+      // 多边形：把 [[[lat,lng],[lat,lng]]] 反转顺序 → [[[lng,lat],[lng,lat]]]
+      correctedCoordinates = currentZone.coordinates.map((outer) =>
+        outer.map((point) => [point[1], point[0]]),
+      );
+    } else {
+      // 圆形：[[lat,lng]] → [[lng,lat]]
+      correctedCoordinates = currentZone.coordinates.map((outer) =>
+        outer.map((point) => [point[1], point[0]]),
+      );
+    }
+    console.log(correctedCoordinates, "=====");
+
     const submitData = {
       id: currentZone.id,
       name: currentZone.name,
       shape: currentZone.shape || "polygon",
-      coordinates: JSON.stringify(currentZone.coordinates), // 统一转JSON，格式完全一致
+      coordinates: JSON.stringify(currentZone.coordinates), // ✅ 使用修正后的坐标
       area: currentZone.area || 0,
       borderColor: currentZone.borderColor || "#e74c3c",
       borderWeight: currentZone.borderWeight || 2,
       fillColor: currentZone.fillColor || "#e74c3c",
       fillOpacity: currentZone.fillOpacity || 0.3,
       description: currentZone.address || "",
-      updateTime:
-        currentZone.rawData?.updateTime ||
-        new Date().toISOString().replace("T", " ").slice(0, 19),
+      updateTime: new Date().toISOString().replace("T", " ").slice(0, 19),
       limitAddress: currentZone.rawData?.limitAddress || "",
       companyId: currentZone.rawData?.companyId || 0,
     };
 
-    console.log("提交后端统一格式coordinates:", submitData.coordinates); // 验证：圆形/多边形都是"[[[lat,lng],...]]"
+    console.log("编辑提交坐标（已修正顺序）:", correctedCoordinates);
     const res = await noflyzoneUpdate(submitData);
 
     if (res.code === 200) {
-      // ElMessage.success("禁飞区编辑成功");
-      emit("route-edit-complete", currentZone.id); // 通知主组件清除编辑状态
+      emit("route-edit-complete", currentZone.id);
     } else {
       ElMessage.error("禁飞区编辑失败：" + (res.msg || "未知错误"));
     }
@@ -506,7 +519,6 @@ const completeEdit = async () => {
     console.error("编辑提交失败:", error);
     ElMessage.error("禁飞区编辑失败，请重试");
   } finally {
-    // 清除编辑状态+刷新列表
     editingZoneId.value = null;
     isEditing.value = false;
     await routeList(searchKeyword.value);
@@ -515,22 +527,18 @@ const completeEdit = async () => {
 let updatesDate = ref("");
 // 更新区域数据（在编辑时被父组件调用）
 // 更新区域数据（在编辑/新建时被父组件调用）
-// RouteList.vue 中的 updateZoneData 函数（修改圆形兜底部分，完整替换）
 const updateZoneData = (id, updates) => {
   console.log("更新区域数据:", id, updates);
   const index = routeInfo.value.findIndex((item) => item.id === id);
   if (index !== -1) {
     const updatedItem = { ...routeInfo.value[index] };
-    // 全量更新传入字段
     Object.keys(updates).forEach((key) => {
       if (updates[key] !== undefined) {
         updatedItem[key] = updates[key];
       }
     });
 
-    // 圆形专属：强制保证coordinates为[[[lat,lng]]]三层嵌套数组（兜底防错）
     if (updatedItem.shape === "circle") {
-      // 确保半径有效
       if (
         !updatedItem.radius ||
         isNaN(updatedItem.radius) ||
@@ -541,25 +549,19 @@ const updateZoneData = (id, updates) => {
             ? Math.sqrt((updatedItem.area * 1000000) / Math.PI)
             : 100;
       }
-      // 【格式兜底】如果coordinates不是三层数组，重新构造
+      // 格式统一为 [[[lat,lng]]]
       if (
         !Array.isArray(updatedItem.coordinates) ||
-        updatedItem.coordinates.length === 0 ||
         !Array.isArray(updatedItem.coordinates[0]) ||
         !Array.isArray(updatedItem.coordinates[0][0])
       ) {
-        // 从现有数据取中心坐标，构造标准三层数组
-        const defaultLat = updatedItem.rawData?.lat || 34.78723;
-        const defaultLng = updatedItem.rawData?.lng || 113.65644;
+        const defaultLat = 34.78723;
+        const defaultLng = 113.65644;
         updatedItem.coordinates = [[[defaultLat, defaultLng]]];
       }
     }
 
     routeInfo.value[index] = updatedItem;
-    console.log(
-      "本地列表更新完成，圆形coordinates强制为三层数组:",
-      updatedItem.coordinates,
-    );
   }
 };
 

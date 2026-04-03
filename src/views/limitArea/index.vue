@@ -29,6 +29,7 @@
                   type="primary"
                   style="width: 100%"
                   @click="regionalManagementDialog"
+                  :disabled="activeRouteId !== null || editingZoneId !== null"
                   >绘制限制区域</el-button
                 >
               </el-card>
@@ -265,6 +266,10 @@ const updateZoneDataOnEdit = (id, updates) => {
 // 处理查看路线/禁飞区
 const handleRouteView = (route) => {
   console.log("查看路线/禁飞区:", route);
+  // 🔥 新增：查看时自动关闭区域管理工具栏
+  if (noFlyZoneToolbar.value) {
+    noFlyZoneToolbar.value = false;
+  }
 
   // 判断数据类型：禁飞区有 shape 字段
   if (route.shape) {
@@ -277,6 +282,10 @@ const handleRouteView = (route) => {
 
 // 处理编辑禁飞区
 const handleRouteEdit = (zoneData) => {
+  // 🔥 新增：编辑时自动关闭区域管理工具栏
+  if (noFlyZoneToolbar.value) {
+    noFlyZoneToolbar.value = false;
+  }
   console.log("编辑禁飞区:", zoneData);
   editNoFlyZone(zoneData);
 };
@@ -902,7 +911,7 @@ const createEditableCircle = (zoneData) => {
 
     // 更新数据
     updateZoneDataOnEdit(zoneData.id, {
-      coordinates: [[[newCenter.lat, newCenter.lng]]],
+      coordinates: [[[newCenter.lng, newCenter.lat]]],
       radius: currentRadius.value,
       area: (Math.PI * currentRadius.value * currentRadius.value) / 1000000,
     });
@@ -1096,7 +1105,7 @@ const createEditablePolygon = (zoneData) => {
       zoneData.coordinates[index] = { lng: newPoint.lng, lat: newPoint.lat };
       const newArea = calculatePolygonArea(newPoints);
       // 转换为三层数组格式 [[[lat, lng], [lat, lng], ...]]
-      const newCoordinates = [newPoints.map((p) => [p.lat, p.lng])];
+      const newCoordinates = [newPoints.map((p) => [p.lng, p.lat])];
       updateZoneDataOnEdit(zoneData.id, {
         coordinates: newCoordinates,
         area: newArea,
