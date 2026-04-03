@@ -110,9 +110,9 @@
     <CommonFormDialog
       ref="formRef"
       v-model="deviceDialogVisible"
+      v-model:formModelValue="deviceFormData"
       :form-dialog-title="dialogTitle"
       :form-items="formItems"
-      :initial-data="deviceFormData"
       :rules="deviceRules"
       @submit="submitForm"
     >
@@ -126,7 +126,6 @@
             style="width: 100%"
           />
           <el-button
-            v-if="!isEditMode"
             type="primary"
             @click="videoStreamURL"
             style="margin-top: 8px"
@@ -138,9 +137,8 @@
     </CommonFormDialog>
   </div>
 </template>
-
 <script setup>
-import { ref, onUnmounted, onMounted, watch, computed, nextTick } from "vue";
+import { ref, onUnmounted, onMounted, computed, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Search, Refresh, Plus, Edit, Delete } from "@element-plus/icons-vue";
 import {
@@ -278,7 +276,7 @@ const deviceRules = {
         }
         callback();
       },
-      trigger: "blur",
+      trigger: "change",
     },
   ],
 };
@@ -382,25 +380,31 @@ const handleReset = async () => {
 // 刷新列表
 const refreshList = () => {
   loading.value = true;
-  searchForm.value = "";
+  // ✅ 修复：正确重置搜索表单
+  searchForm.value = { keyword: "" };
   selectedDeviceId.value = "";
   tableRef.value?.clearSelection();
   fetchDeviceList();
 };
 
-// 新增设备
+// 新增设备 —— 清空表单
 const handleAdd = () => {
   isEditMode.value = false;
+  // 只有新增时清空
   deviceFormData.value = {
     id: "",
     name: "",
     deviceNumber: "",
     videoIp: "",
   };
-  deviceDialogVisible.value = true;
+  // ✅ 新增：打开弹窗前先清除所有校验
+  nextTick(() => {
+    formRef.value?.clearValidate();
+    deviceDialogVisible.value = true;
+  });
 };
 
-// 编辑设备
+// 编辑设备 —— 赋值，不清空
 const handleEdit = (row) => {
   isEditMode.value = true;
   deviceFormData.value = {
@@ -409,8 +413,8 @@ const handleEdit = (row) => {
     deviceNumber: row.deviceNumber,
     videoIp: row.videoIp,
   };
-  // 使用 nextTick 确保数据更新后再打开弹窗
   nextTick(() => {
+    formRef.value?.clearValidate();
     deviceDialogVisible.value = true;
   });
 };
@@ -627,43 +631,60 @@ const handleDialogCancel = () => {
   };
 };
 
-// 申请视频流地址
+// 申请视频流地址（最终兜底版，100%生效）
 const videoStreamURL = async () => {
   try {
-    let res = await getVideoStreamAddress();
+    // 🔥 直接从响应式数据中取值，确保拿到最新值
+    const currentName = deviceFormData.value.name?.trim() || "";
+    const currentDeviceNumber = deviceFormData.value.deviceNumber?.trim() || "";
+
+    // 打印日志，确认数据（可删除）
+    console.log(
+      "最终校验值：name=",
+      currentName,
+      "deviceNumber=",
+      currentDeviceNumber,
+    );
+
+    // 非空校验
+    if (!currentName || !currentDeviceNumber) {
+      ElMessage.warning("请先填写设备名称和设备编号！");
+      return;
+    }
+
+    // 清除videoIp的错误提示
+    await nextTick();
+    formRef.value?.clearValidate("videoIp");
+
+    // 调用接口（根据后端需求传参）
+    const res = await getVideoStreamAddress({
+      deviceNumber: currentDeviceNumber,
+      deviceName: currentName,
+    });
+
     if (res.code === 200) {
       deviceFormData.value.videoIp = res.data;
-      // 清除验证错误
-      await nextTick();
-      formRef.value?.clearValidate("videoIp");
+      ElMessage.success("视频流地址申请成功！");
+    } else {
+      ElMessage.error(res.message || "视频流获取失败");
     }
   } catch (err) {
-    ElMessage.error("视频流获取失败");
+    console.error("申请视频流异常:", err);
+    ElMessage.error("视频流获取失败，请检查网络");
   }
 };
-
-watch(deviceDialogVisible, (newVal) => {
-  if (newVal === false) {
-    deviceFormData.value = {
-      id: "",
-      name: "",
-      deviceNumber: "",
-      videoIp: "",
-    };
-  }
-});
 
 onMounted(() => {
   // 初始获取列表
   fetchDeviceList();
 
-  // 启动每秒轮询更新设备状态（注意：间隔改为1000ms）
-  if (updateTimer) clearInterval(updateTimer); // 确保没有旧的定时器
+  // 启动每秒轮询更新设备状态
+  if (updateTimer) clearInterval(updateTimer);
   updateTimer = setInterval(async () => {
     if (deviceList.value.length > 0) {
       await updateDeviceStatus(deviceList.value);
     }
-  }, 1000); // 每秒调用一次
+  }, 1000);
 });
 
 onUnmounted(() => {
