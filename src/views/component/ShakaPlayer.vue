@@ -77,11 +77,18 @@ const playerConfig = {
 };
 
 // -------------------------- 新增：清除定时器（防止内存泄漏） --------------------------
+let reconnectAttempts = 0; // 重连尝试次数
+let reconnectTimer: NodeJS.Timeout | null = null; // 重连定时器
+const MAX_RECONNECT_ATTEMPTS = 3; // 最大重连次数
+const RECONNECT_DELAY = 5000; // 重连延迟（毫秒）
+
 const clearAllTimers = () => {
   if (countdownTimer) clearInterval(countdownTimer);
   if (errorTimer) clearTimeout(errorTimer);
+  if (reconnectTimer) clearTimeout(reconnectTimer);
   countdownTimer = null;
   errorTimer = null;
+  reconnectTimer = null;
 };
 
 // -------------------------- 新增：初始化加载倒计时 --------------------------
@@ -102,15 +109,15 @@ const handlePlayerError = (err: any) => {
   console.error("FLV播放器错误:", err);
   clearAllTimers(); // 清除现有定时器
 
-  // 筛选“路径错误/连接失败”相关的错误类型（根据flvjs错误码判断）
+  // 筛选"路径错误/连接失败"相关的错误类型（根据flvjs错误码判断）
   const isPathError = [
     "NETWORK_ERROR", // 网络错误（如404、连接超时）
     "MEDIA_ERROR", // 媒体加载错误（路径无效导致无法解析）
     "LOAD_ERROR", // 资源加载错误
-  ].includes(err.type);
+  ].includes(err?.type || err?.code || "");
 
   if (isPathError) {
-    // 延迟提示：等待设定时间（如3秒）后显示错误，期间保持“加载中”
+    // 延迟提示：等待设定时间（如3秒）后显示错误，期间保持"加载中"
     errorTimer = setTimeout(() => {
       isLoading.value = false; // 关闭加载状态
       showError.value = true; // 显示路径错误提示
@@ -120,6 +127,24 @@ const handlePlayerError = (err: any) => {
     isLoading.value = false;
     showError.value = true;
   }
+  
+  // 播放器出现错误时，尝试重新初始化（仅在路径错误时）
+  if (isPathError && props.src) {
+    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      reconnectAttempts++;
+      console.warn(`检测到网络错误，${RECONNECT_DELAY / 1000}秒后尝试重新连接 (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+      reconnectTimer = setTimeout(() => {
+        if (flvPlayer.value) {
+          destroyFlvPlayer();
+          initFlvPlayer();
+        }
+      }, RECONNECT_DELAY);
+    } else {
+      console.error(`已达到最大重连次数 (${MAX_RECONNECT_ATTEMPTS})，停止重连`);
+      isLoading.value = false;
+      showError.value = true;
+    }
+  }
 };
 
 // -------------------------- 原有：初始化播放器（新增错误监听） --------------------------
@@ -127,6 +152,7 @@ const initFlvPlayer = () => {
   // 重置状态：每次初始化前清除错误和加载状态
   isLoading.value = true;
   showError.value = false;
+  reconnectAttempts = 0; // 重置重连计数器
   clearAllTimers();
   destroyFlvPlayer();
 
@@ -250,13 +276,18 @@ const handleVideoClick = () => {
 
 const destroyFlvPlayer = () => {
   if (flvPlayer.value) {
-    // 移除错误监听（防止重复触发）
-    flvPlayer.value.off("error", handlePlayerError);
-    flvPlayer.value.pause();
-    flvPlayer.value.unload();
-    flvPlayer.value.detachMediaElement();
-    flvPlayer.value.destroy();
-    flvPlayer.value = null;
+    try {
+      // 移除错误监听（防止重复触发）
+      flvPlayer.value.off("error", handlePlayerError);
+      flvPlayer.value.pause();
+      flvPlayer.value.unload();
+      flvPlayer.value.detachMediaElement();
+      flvPlayer.value.destroy();
+    } catch (error) {
+      console.warn("销毁播放器时出现错误:", error);
+    } finally {
+      flvPlayer.value = null;
+    }
   }
 };
 
@@ -273,7 +304,30 @@ watch(
 
 // -------------------------- 生命周期：新增定时器销毁 --------------------------
 onMounted(() => {
+  // 添加全局错误处理器，捕获 flv.js 内部错误
+  const handleError = (event: ErrorEvent) => {
+    if (event.message && event.message.includes('flushStashedSamples')) {
+      console.warn("捕获到 flv.js 内部错误:", event.message);
+      event.preventDefault(); // 阻止错误继续抛出
+      // 自动销毁并重新初始化播放器
+      if (flvPlayer.value) {
+        destroyFlvPlayer();
+        setTimeout(() => initFlvPlayer(), 1000);
+      }
+    }
+  };
+  
+  window.addEventListener('error', handleError);
+  
   initFlvPlayer();
+  
+  // 保存事件监听器引用以便清理
+  const cleanup = () => {
+    window.removeEventListener('error', handleError);
+  };
+  
+  // 在组件卸载时清理事件监听器
+  onBeforeUnmount(cleanup);
 });
 
 // 组件卸载时清除所有定时器和播放器（防止内存泄漏）
