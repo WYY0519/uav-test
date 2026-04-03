@@ -3,6 +3,19 @@
   <div class="drone-monitor">
     <!-- 地图底层 -->
     <div class="map-container" ref="mapContainer"></div>
+            <!-- 3种地图图层下拉选择 -->
+      <div style="position: absolute; top: 20px; right: 20px; z-index: 9999">
+        <el-select
+          v-model="mapLayerType"
+          @change="onMapLayerChange"
+          style="width: 130px"
+          size="default"
+        >
+          <el-option label="标准地图" value="normal" />
+          <el-option label="卫星地图" value="satellite" />
+          <el-option label="卫星混合" value="satelliteMix" />
+        </el-select>
+      </div>
     <div class="layout-container">
       <div
         class="task-details-card-wrapper"
@@ -1295,6 +1308,8 @@ import {
   droneRtl,
   droneMode,
   droneJoystick,
+  uploadRouteFile
+
 } from "@/api/drones";
 import { missionAllList, missioRoutes } from "@/api/mission";
 import {
@@ -1557,83 +1572,93 @@ const toggleTaskList = () => {
   showTaskList.value = !showTaskList.value;
   showTaskDetails.value = false;
 };
+// 新增：地图图层切换
+const mapLayerType = ref("satelliteMix"); // 默认卫星混合
 const initMap = () => {
-  if (!window.T) {
-    ElMessage.error("天地图API未加载");
+  if (!window.AMap) {
+    ElMessage.error("高德地图API未加载");
     return;
   }
   try {
-    // 创建地图实例
-    map = new T.Map(mapContainer.value);
+    // 创建地图实例 - 使用默认中心点和缩放级别
+    map = new AMap.Map(mapContainer.value, {
+      zoom: 15,
+      center: [113.65644, 34.78723],
+      viewMode: "3D",
+      renderMode: "webgl",
+      layers: [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()],
+    });
     // 地图加载完成事件
-    map.addEventListener("load", () => {
+    map.on("complete", () => {
       ElMessage.success("地图加载成功");
     });
-    // map.centerAndZoom(new T.LngLat(113.52323, 34.81803), 12);
 
-    // // 第一个点的经纬度
-    // let lnglat1 = new T.LngLat(113.52323, 34.81803);
-    // // 第二个点的经纬度
-    // let lnglat2 = new T.LngLat(113.53567, 34.81768);
-
-    // // 计算距离
-    // let distance = map.getDistance(lnglat1, lnglat2);
-    // console.log("两点之间的距离为：" + distance + "米");
-    // 监听缩放结束事件，标记用户手动缩放
-    map.on("zoomend", () => {
-      const currentZoom = map.getZoom();
-      console.log("当前缩放级别：", currentZoom);
-      // 用户手动缩放后，标记状态
-      isUserZoomed.value = true;
-    });
-    // 添加控件
-    map.addControl(new T.Control.MapType());
-    //切换到卫星和路网的混合视图：
-    map.setMapType(TMAP_HYBRID_MAP);
-    map.addControl(new T.Control.Scale());
-    // 默认北京天安门
-    const defaultLng = 113.65644;
-    const defaultLat = 34.78723;
-    map.centerAndZoom(new T.LngLat(defaultLng, defaultLat), 15);
-    // 创建无人机标记 -- 暂时注释
-    // droneMarker = new T.Marker(new T.LngLat(defaultLng, defaultLat), {
-    //   icon: new T.Icon({
-    //     iconUrl: planeIcon,
-    //     iconSize: new T.Point(32, 32),
-    //     iconAnchor: new T.Point(16, 16),
-    //   }),
-    // });
-    // map.addOverLay(droneMarker);
-
-    // 创建轨迹线
-    trackPolyline = new T.Polyline([], {
-      color: "#2C64A7",
-      weight: 4,
-      opacity: 0.8,
-      lineStyle: "solid",
-    });
-    map.addOverLay(trackPolyline);
-    // 创建轨迹线
-    createTrackPolyline();
-    // 尝试获取当前位置
+    // 定位到当前位置
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lng = position.coords.longitude;
           const lat = position.coords.latitude;
-          map.centerAndZoom(new T.LngLat(lng, lat), 15);
-          // ElMessage.success("已定位到当前位置");
+          map.setCenter(new AMap.LngLat(lng, lat));
+          console.log("已定位到当前位置:", lng, lat);
         },
         (err) => {
-          console.warn("定位失败:", err);
-          // ElMessage.warning("定位失败，已使用默认位置");
+          console.warn("定位失败，使用默认位置");
         }
       );
     }
+
+    // 监听缩放结束事件，标记用户手动缩放
+    map.on("zoomend", () => {
+      const currentZoom = map.getZoom();
+      console.log("当前缩放级别：", currentZoom);
+      isUserZoomed.value = true;
+    });
+
+    // 添加控件 - 高德地图
+    // 使用 AMap.plugin 加载 Scale 控件
+    AMap.plugin('AMap.Scale', function () {
+      map.addControl(new AMap.Scale());
+    });
+
+    // 创建轨迹线
+    trackPolyline = new AMap.Polyline({
+      strokeColor: "#2C64A7",
+      strokeWeight: 4,
+      strokeOpacity: 0.8,
+      lineJoin: 'round',
+      lineCap: 'round',
+    });
+    map.add(trackPolyline);
   } catch (error) {
     console.error("地图初始化失败:", error);
     ElMessage.error("地图初始化失败");
   }
+};
+// 地图图层切换
+const onMapLayerChange = (val) => {
+  if (!map) return;
+
+  let layers = [];
+  let label = "";
+
+  switch (val) {
+    case "normal":
+      layers = [new AMap.TileLayer()];
+      label = "标准地图";
+      break;
+    case "satellite":
+      layers = [new AMap.TileLayer.Satellite()];
+      label = "卫星地图";
+      break;
+    case "satelliteMix":
+      layers = [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()];
+      label = "卫星混合";
+      break;
+  }
+
+  map.setLayers(layers);
+  ElMessage.success("已切换 → " + label);
 };
 
 // 处理任务列表展开/收起状态变更
@@ -1699,15 +1724,14 @@ const addMarker = (point, index, isFinalPoint = false) => {
     </div>
   `;
 
-  const marker = new T.Marker(new T.LngLat(point.lon, point.lat), {
-    icon: new T.DivIcon({
-      html: markerHtml,
-      iconSize: new T.Point(40, 40),
-      iconAnchor: new T.Point(20, 20),
-    }),
+  const marker = new AMap.Marker({
+    position: new AMap.LngLat(point.lon, point.lat),
+    content: markerHtml,
+    anchor: 'center',
+    zIndex: 9000,
   });
 
-  map.addOverLay(marker);
+  map.add(marker);
   markers.value.push(marker);
   console.log(`添加标记点 ${index}: ${markerLabel} (${markerClass})`);
 };
@@ -1715,26 +1739,27 @@ const addMarker = (point, index, isFinalPoint = false) => {
 // 添加线段
 const addLineSegment = (fromPoint, toPoint) => {
   const path = [
-    new T.LngLat(fromPoint.lon, fromPoint.lat),
-    new T.LngLat(toPoint.lon, toPoint.lat),
+    new AMap.LngLat(fromPoint.lon, fromPoint.lat),
+    new AMap.LngLat(toPoint.lon, toPoint.lat),
   ];
 
-  const line = new T.Polyline(path, {
-    color: "#409EFF",
-    weight: 3,
-    opacity: 0.8,
+  const line = new AMap.Polyline({
+    path: path,
+    strokeColor: "#409EFF",
+    strokeWeight: 3,
+    strokeOpacity: 0.8,
     lineStyle: "solid",
   });
 
-  map.addOverLay(line);
+  map.add(line);
   lines.value.push(line);
 };
 
 // 清除所有覆盖物
 const clearOverlays = () => {
   if (map) {
-    markers.value.forEach((marker) => map.removeOverLay(marker));
-    lines.value.forEach((line) => map.removeOverLay(line));
+    markers.value.forEach((marker) => map.remove(marker));
+    lines.value.forEach((line) => map.remove(line));
     markers.value = [];
     lines.value = [];
   }
@@ -1794,7 +1819,7 @@ const startAnimation = () => {
     }
 
     // 移动地图视野跟随动画
-    map.panTo(new T.LngLat(newLon, newLat));
+    map.panTo(new AMap.LngLat(newLon, newLat));
 
     // 到达终点或超时停止动画
     if (isLastPoint) {
@@ -1979,14 +2004,15 @@ const handleSearchClear = () => {
 };
 // 创建轨迹线
 const createTrackPolyline = () => {
-  if (trackPolyline) map.removeOverLay(trackPolyline);
-  trackPolyline = new T.Polyline([], {
-    color: "#2C64A7",
-    weight: 4,
-    opacity: 0.8,
-    lineStyle: "solid",
+  if (trackPolyline) map.remove(trackPolyline);
+  trackPolyline = new AMap.Polyline([], {
+    strokeColor: "#2C64A7",
+    strokeWeight: 4,
+    strokeOpacity: 0.8,
+    lineJoin: 'round',
+    lineCap: 'round',
   });
-  map.addOverLay(trackPolyline);
+  map.add(trackPolyline);
 };
 //查看详情弹窗关闭
 const handleClose = () => {
@@ -2344,9 +2370,17 @@ const handleUploadRouteConfirm = async (routeId) => {
 
         // 转换数据
         const jsonData = JSON.parse(res.data);
-        // 航点转换成航线
-        let routePoints = jsonData.routeData.points;
+        // 航点转换成航线，并转换经纬度为数字类型
+        let routePoints = jsonData.routeData.points.map(point => ({
+          ...point,
+          lon: parseFloat(point.lon),
+          lat: parseFloat(point.lat),
+          alt: parseFloat(point.alt || 30)
+        }));
         markRouteOnMap(routePoints);
+
+        // 关闭上传航线弹窗
+        returnVoyageDialogVisibleUploadRoute.value = false;
       }
     }
   } catch (error) {
@@ -2672,7 +2706,7 @@ const markPositionOnMap2 = (lng, lat, height) => {
     // 清除已有的返航点标记
     clearReturnVoyageMarkers2();
     // 创建经纬度对象
-    const point = new T.LngLat(lng, lat);
+    const point = new AMap.LngLat(lng, lat);
     // 创建自定义HTML标记（使用DivIcon替代Control）
     const html = `
 <div style="
@@ -2698,16 +2732,14 @@ const markPositionOnMap2 = (lng, lat, height) => {
   "></div>
 </div>
 `;
-    // 创建DivIcon
-    const icon = new T.DivIcon({
-      html: html,
-      iconSize: new T.Point(36, 36 + (height ? 40 : 20)), // 调整图标大小以适应内容
-      iconAnchor: new T.Point(18, 18), // 锚点在图标中心
+    // 创建Marker
+    const marker = new AMap.Marker({
+      position: point,
+      content: html,
+      anchor: "center",
+      zIndex: 10000,
     });
-
-    // 创建标记并添加到地图
-    const marker = new T.Marker(point, { icon: icon, zIndex: 10000 });
-    map.addOverLay(marker);
+    map.add(marker);
     // 保存标记引用以便后续清除
     dronePositionMarker.value = marker;
     // 核心逻辑：根据状态决定缩放级别
@@ -2721,9 +2753,8 @@ const markPositionOnMap2 = (lng, lat, height) => {
       targetZoom = map.getZoom();
     }
     // 移动到目标位置，使用计算出的缩放级别（不会重置为16）
-    map.centerAndZoom(point, targetZoom);
-    // 定位到该点并设置合适的缩放级别
-    // map.centerAndZoom(point, 16);
+    map.setCenter(point);
+    map.setZoom(targetZoom);
   } catch (error) {
     console.error("标注位置失败:", error);
     ElMessage.error("标注位置失败");
@@ -2734,7 +2765,7 @@ let returnVoyageMarker = ref(null);
 const clearReturnVoyageMarkers = () => {
   if (returnVoyageMarker.value && map) {
     try {
-      map.removeOverLay(returnVoyageMarker.value);
+      map.remove(returnVoyageMarker.value);
     } catch (error) {
       console.warn("清除标记失败:", error);
     }
@@ -2745,7 +2776,7 @@ const clearReturnVoyageMarkers = () => {
 let dronePositionMarker = ref(null);
 const clearReturnVoyageMarkers2 = () => {
   if (dronePositionMarker.value && map) {
-    map.removeOverLay(dronePositionMarker.value);
+    map.remove(dronePositionMarker.value);
     dronePositionMarker.value = null;
   }
 };
@@ -2895,11 +2926,11 @@ watch(
     if (map && typeof map.checkResize === "function") {
       // 延迟一小段时间，确保DOM已经更新完成
       setTimeout(() => {
-        map.checkResize(); // 天地图API提供的重绘方法
+        map.checkResize(); // 高德地图API提供的重绘方法
         // 如果有必要，可以同时调整地图视野
         if (currentPosition.value) {
           map.panTo(
-            new T.LngLat(currentPosition.value.lng, currentPosition.value.lat)
+            new AMap.LngLat(currentPosition.value.lng, currentPosition.value.lat)
           );
         }
       }, 300);
@@ -2980,7 +3011,7 @@ onBeforeUnmount(() => {
   // 清理所有标记
   trackState.markers.forEach((marker) => {
     try {
-      map.removeOverLay(marker);
+      map.remove(marker);
     } catch (error) {
       /* 忽略错误 */
     }
@@ -2998,7 +3029,7 @@ onBeforeUnmount(() => {
   // 清理轨迹线
   if (trackPolyline) {
     try {
-      map.removeOverLay(trackPolyline);
+      map.remove(trackPolyline);
     } catch (error) {
       /* 忽略错误 */
     }
@@ -3108,94 +3139,206 @@ const uploadFile = async () => {
     ElMessage.warning("请输入文件描述后再上传");
     return;
   } else if (waypointStrategy.value === "") {
-    ElMessage.warning("请输入航点策略后再上传");
+    ElMessage.warning("请选择航点策略后再上传");
     return;
   }
+
   const fileInput = document.createElement("input");
   fileInput.type = "file";
+  fileInput.accept = ".kml"; // 只允许选择kml文件
   fileInput.onchange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("name", fileName.value); // 添加文件名参数
-      formData.append("description", fileDescription.value); // 添加描述信息
-      formData.append("policyId", waypointStrategy.value); // 添加航线策略 暂时先不传
-      console.log("上传参数:", { fileName: fileName.value, description: fileDescription.value, policyId: waypointStrategy.value, droneId: searchQuery.value });
-      console.log("FormData entries:");
-      for (let pair of formData.entries()) {
-        console.log(pair[0], pair[1]);
-      }
+
       try {
-        // 调用 doMission 接口上传航线文件
-        console.log("开始调用 doMission 接口...");
-        const response = await doMission(formData, searchQuery.value);
-        console.log("doMission 接口响应:", response);
-        
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("name", fileName.value);
+        formData.append("description", fileDescription.value);
+        formData.append("policyId", waypointStrategy.value);
+
+        console.log("上传文件参数：", {
+          fileName: fileName.value,
+          fileDescription: fileDescription.value,
+          waypointStrategy: waypointStrategy.value,
+          file: file.name
+        });
+
+        // 使用新的API函数上传文件
+        const response = await uploadRouteFile(formData);
+
+        console.log("文件上传响应：", response);
+
         if (response.code === 200) {
           ElMessage.success("上传成功");
           fileName.value = "";
           fileDescription.value = "";
           waypointStrategy.value = "";
-          
-          // 解析返回的航线数据
-          let jsonRouteData = null;
+
+          let jsonRouteData;
           try {
-            jsonRouteData = JSON.parse(response.data);
-          } catch (e) {
-            console.warn("解析航线数据失败:", e);
-          }
-          
-          if (jsonRouteData && jsonRouteData.routeData) {
-            // 1. 提取并转换航线数据（与选择已有航线格式对齐）
-            const routeData = jsonRouteData.routeData;
-            const routePoints = routeData.points || []; // 确保拿到点数组
-            // 2. 调用markRouteOnMap在地图展示航线
-            markRouteOnMap(routePoints);
-            console.log(jsonRouteData, "jsonRouteData");
-            const totalDistance = calculateTotalRouteDistance(
-              jsonRouteData.routeData.points
-            );
-            console.log(`航线总路程：${totalDistance} 米`); // 输出：航线总路程：315.7 米
-          } else {
-            // 异常处理：上传成功但无航线数据
-            ElMessage.warning("上传成功，但未获取到航线数据，无法在地图展示");
-            console.warn("航线数据缺失：", response.data);
+            jsonRouteData = typeof response.data === 'string'
+              ? JSON.parse(response.data)
+              : response.data;
+
+            if (jsonRouteData && jsonRouteData.routeData) {
+              const routeData = jsonRouteData.routeData;
+              const routePoints = routeData.points || [];
+              markRouteOnMap(routePoints);
+
+              const totalDistance = calculateTotalRouteDistance(routePoints);
+              console.log(`航线总路程：${totalDistance} 米`);
+            } else {
+              ElMessage.warning("上传成功，但未获取到航线数据");
+            }
+          } catch (parseError) {
+            console.error("解析返回的航线数据失败：", parseError);
+            ElMessage.warning("文件上传成功，但解析航线数据失败");
           }
         } else {
           ElMessage.error(response.message || "上传失败");
         }
       } catch (error) {
-        ElMessage.error(error.message || "上传失败");
-        console.log(error + "111111", "==www===");
-        // 1. 手动构建 Mock 响应
-        const mockResponse = mockMissionResponse; // 引入上面定义的 Mock 数据
-        // 2. 走原有成功流程：解析 Mock 数据
+        console.error("上传失败：", error);
+        ElMessage.error("文件上传失败，请检查网络或联系管理员");
+
+        // 保留原有mock数据逻辑用于测试
+        console.log("使用测试数据模拟上传成功");
+        const mockResponse = mockMissionResponse;
         if (mockResponse.code === 200) {
           ElMessage.success("上传成功（使用测试数据）");
-          // 清空表单（与真实成功逻辑一致）
           fileName.value = "";
           fileDescription.value = "";
           waypointStrategy.value = "";
-          // 解析 Mock 的航线数据（与真实逻辑一致）
+
           let jsonRouteData = JSON.parse(mockResponse.data);
           if (jsonRouteData && jsonRouteData.routeData) {
             const routeData = jsonRouteData.routeData;
             const routePoints = routeData.points || [];
-            // 标注航线到地图（与真实逻辑一致）
             markRouteOnMap(routePoints);
-            // 计算并打印航线总距离（与真实逻辑一致）
+
             const totalDistance = calculateTotalRouteDistance(routePoints);
             console.log(`Mock 航线总路程：${totalDistance} 米`);
           }
-        } else {
-          ElMessage.error(mockResponse.message || "测试数据加载失败");
         }
+      } finally {
+        // 关闭加载状态
+        // loading.close();
       }
     }
   };
   fileInput.click();
 };
+// const uploadFile = async () => {
+//   if (fileName.value === "") {
+//     ElMessage.warning("请输入文件名后再上传");
+//     return;
+//   } else if (fileDescription.value === "") {
+//     ElMessage.warning("请输入文件描述后再上传");
+//     return;
+//   } else if (waypointStrategy.value === "") {
+//     ElMessage.warning("请输入航点策略后再上传");
+//     return;
+//   }
+//   const fileInput = document.createElement("input");
+//   fileInput.type = "file";
+//   fileInput.onchange = async (e) => {
+//     const file = e.target.files[0];
+//     if (file) {
+//       const formData = new FormData();
+//       formData.append("file", file);
+//       formData.append("name", fileName.value); // 添加文件名参数
+//       formData.append("description", fileDescription.value); // 添加描述信息
+//       formData.append("policyId", waypointStrategy.value); // 添加航线策略 暂时先不传
+//       console.log("上传参数:", { fileName: fileName.value, description: fileDescription.value, policyId: waypointStrategy.value, droneId: searchQuery.value });
+//       console.log("FormData entries:");
+//       for (let pair of formData.entries()) {
+//         console.log(pair[0], pair[1]);
+//       }
+//       try {
+//         // 调用 doMission 接口上传航线文件
+//         console.log("开始调用 doMission 接口...");
+//         const response = await doMission(formData, searchQuery.value);
+//         console.log("doMission 接口响应:", response);
+        
+//         if (response.code === 200) {
+//           ElMessage.success("上传成功");
+//           fileName.value = "";
+//           fileDescription.value = "";
+//           waypointStrategy.value = "";
+
+//           // 关闭上传航线弹窗
+//           returnVoyageDialogVisibleUploadRoute.value = false;
+
+//           // 解析返回的航线数据
+//           let jsonRouteData = null;
+//           try {
+//             jsonRouteData = JSON.parse(response.data);
+//             console.log("解析后的航线数据:", jsonRouteData);
+//           } catch (e) {
+//             console.warn("解析航线数据失败:", e);
+//           }
+
+//           if (jsonRouteData && jsonRouteData.routeData) {
+//             // 1. 提取并转换航线数据（与选择已有航线格式对齐）
+//             const routeData = jsonRouteData.routeData;
+//             let routePoints = routeData.points || []; // 确保拿到点数组
+
+//             // 2. 转换经纬度为数字类型（后端返回的是字符串）
+//             routePoints = routePoints.map(point => ({
+//               ...point,
+//               lon: parseFloat(point.lon),
+//               lat: parseFloat(point.lat),
+//               alt: parseFloat(point.alt || 30)
+//             }));
+
+//             console.log("转换后的航点数据:", routePoints);
+//             // 3. 调用markRouteOnMap在地图展示航线
+//             markRouteOnMap(routePoints);
+//             console.log(jsonRouteData, "jsonRouteData");
+//             const totalDistance = calculateTotalRouteDistance(
+//               jsonRouteData.routeData.points
+//             );
+//             console.log(`航线总路程：${totalDistance} 米`); // 输出：航线总路程：315.7 米
+//           } else {
+//             // 异常处理：上传成功但无航线数据
+//             ElMessage.warning("上传成功，但未获取到航线数据，无法在地图展示");
+//             console.warn("航线数据缺失：", response.data);
+//           }
+//         } else {
+//           ElMessage.error(response.message || "上传失败");
+//         }
+//       } catch (error) {
+//         ElMessage.error(error.message || "上传失败");
+//         console.log(error + "111111", "==www===");
+//         // 1. 手动构建 Mock 响应
+//         const mockResponse = mockMissionResponse; // 引入上面定义的 Mock 数据
+//         // 2. 走原有成功流程：解析 Mock 数据
+//         if (mockResponse.code === 200) {
+//           ElMessage.success("上传成功（使用测试数据）");
+//           // 清空表单（与真实成功逻辑一致）
+//           fileName.value = "";
+//           fileDescription.value = "";
+//           waypointStrategy.value = "";
+//           // 解析 Mock 的航线数据（与真实逻辑一致）
+//           let jsonRouteData = JSON.parse(mockResponse.data);
+//           if (jsonRouteData && jsonRouteData.routeData) {
+//             const routeData = jsonRouteData.routeData;
+//             const routePoints = routeData.points || [];
+//             // 标注航线到地图（与真实逻辑一致）
+//             markRouteOnMap(routePoints);
+//             // 计算并打印航线总距离（与真实逻辑一致）
+//             const totalDistance = calculateTotalRouteDistance(routePoints);
+//             console.log(`Mock 航线总路程：${totalDistance} 米`);
+//           }
+//         } else {
+//           ElMessage.error(mockResponse.message || "测试数据加载失败");
+//         }
+//       }
+//     }
+//   };
+//   fileInput.click();
+// };
 // 在地图上标注航线点（修复距离计算重复累加问题）
 const markRouteOnMap = (routeData) => {
   if (!map) {
@@ -3253,10 +3396,10 @@ const markRouteOnMap = (routeData) => {
     console.log(`✅ 航线总路程（原正确逻辑）：${totalDist} 米`); // 两者结果一致
 
     // 6. 生成地图标记和航线线段（保留原功能逻辑）
-    const mapRoutePoints = []; // 用于天地图绘制的经纬度数组
+    const mapRoutePoints = []; // 用于高德地图绘制的经纬度数组
     validRoutePoints.forEach((point, index) => {
       const { lat, lon, alt = 30 } = point;
-      const lngLat = new T.LngLat(lon, lat);
+      const lngLat = new AMap.LngLat(lon, lat);
       mapRoutePoints.push(lngLat);
 
       // 生成标记点（S起点、E终点、中间点）
@@ -3278,15 +3421,13 @@ const markRouteOnMap = (routeData) => {
         </div>
       `;
 
-      const marker = new T.Marker(lngLat, {
-        icon: new T.DivIcon({
-          html: markerHtml,
-          iconSize: new T.Point(40, 40),
-          iconAnchor: new T.Point(20, 20),
-        }),
+      const marker = new AMap.Marker({
+        position: lngLat,
+        content: markerHtml,
+        anchor: 'center',
         zIndex: 500,
       });
-      map.addOverLay(marker);
+      map.add(marker);
       routeMarkers.push(marker);
     });
     console.log(
@@ -3298,6 +3439,7 @@ const markRouteOnMap = (routeData) => {
     );
     // 7. 绘制航线线段并调整地图视野（保留原功能）
     drawRouteLine(mapRoutePoints);
+    console.log("准备调整地图视野，航点数量:", mapRoutePoints.length);
     fitMapToRoute(mapRoutePoints);
     ElMessage.success(
       `航线标注成功！总长度：${routeTotalDistance.value.toFixed(2)} 米`
@@ -3316,7 +3458,7 @@ const clearRouteMarkers = () => {
     // 清除标记
     routeMarkers.forEach((marker) => {
       try {
-        map.removeOverLay(marker);
+        map.remove(marker);
       } catch (error) {
         /* 忽略错误 */
       }
@@ -3336,7 +3478,7 @@ const clearRouteMarkers = () => {
     // 清除航线
     if (routePolyline) {
       try {
-        map.removeOverLay(routePolyline);
+        map.remove(routePolyline);
       } catch (error) {
         /* 忽略错误 */
       }
@@ -3344,37 +3486,37 @@ const clearRouteMarkers = () => {
     }
   }
 };
-// 绘制航线（增加天地图兼容性处理）
+// 绘制航线（增加高德地图兼容性处理）
 const drawRouteLine = (routePoints) => {
   if (!map || routePoints.length < 2) return;
 
   // 清除旧航线
   if (routePolyline) {
     try {
-      map.removeOverLay(routePolyline);
+      map.remove(routePolyline);
     } catch (error) {
       console.warn("清除旧航线失败：", error);
     }
   }
 
   try {
-    // 创建新航线（天地图不支持arrowheads属性，移除该属性）
-    routePolyline = new T.Polyline(routePoints, {
-      color: "#409EFF",
-      weight: 4,
-      opacity: 0.8,
+    // 创建新航线（高德地图）
+    routePolyline = new AMap.Polyline({
+      path: routePoints,
+      strokeColor: "#409EFF",
+      strokeWeight: 4,
+      strokeOpacity: 0.8,
       lineStyle: "solid",
-      // 移除arrowheads属性，天地图不支持
     });
 
-    map.addOverLay(routePolyline);
+    map.add(routePolyline);
   } catch (lineErr) {
     console.error("绘制航线失败：", lineErr);
     ElMessage.warning("绘制航线失败");
   }
 };
 
-// 优化：调整地图视图以显示完整航线（天地图兼容版）
+// 优化：调整地图视图以显示完整航线（高德地图兼容版）
 const fitMapToRoute = (routePoints) => {
   if (!map || routePoints.length === 0) return;
 
@@ -3387,14 +3529,14 @@ const fitMapToRoute = (routePoints) => {
     }
 
     // 计算所有点的经纬度范围（优化版）
-    let minLng = routePoints[0].getLng();
-    let maxLng = routePoints[0].getLng();
-    let minLat = routePoints[0].getLat();
-    let maxLat = routePoints[0].getLat();
+    let minLng = routePoints[0].lng;
+    let maxLng = routePoints[0].lng;
+    let minLat = routePoints[0].lat;
+    let maxLat = routePoints[0].lat;
 
     routePoints.forEach((point) => {
-      const lng = point.getLng();
-      const lat = point.getLat();
+      const lng = point.lng;
+      const lat = point.lat;
 
       minLng = Math.min(minLng, lng);
       maxLng = Math.max(maxLng, lng);
@@ -3405,7 +3547,7 @@ const fitMapToRoute = (routePoints) => {
     // 计算中心点
     const centerLng = (minLng + maxLng) / 2;
     const centerLat = (minLat + maxLat) / 2;
-    const centerPoint = new T.LngLat(centerLng, centerLat);
+    const centerPoint = new AMap.LngLat(centerLng, centerLat);
 
     // 计算经纬度跨度
     const lngSpan = maxLng - minLng;
@@ -3443,7 +3585,7 @@ const calculateOptimalZoom = (lngSpan, latSpan) => {
   // 计算地图需要显示的最大距离
   const maxDistance = Math.max(lngDistance, latDistance);
 
-  // 根据距离计算缩放级别（天地图缩放级别范围：1-18）
+  // 根据距离计算缩放级别（高德地图缩放级别范围：1-18）
   let zoomLevel = 18; // 最大缩放级别
 
   if (maxDistance > 1000) {
@@ -3524,12 +3666,12 @@ const updateDeviceOnlineStatus = async (deviceList) => {
             console.log("经纬度为默认0值，使用模拟数据执行动画");
 
             // 生成基于默认位置的10组模拟数据
-            const baseLon = 113.603112; // 基础经度
-            const baseLat = 34.798278; // 基础纬度
-            const mockPoints = generateMockPoints(baseLon, baseLat, 10);
+            // const baseLon = 113.603112; // 基础经度
+            // const baseLat = 34.798278; // 基础纬度
+            // const mockPoints = generateMockPoints(baseLon, baseLat, 10);
 
             // 更新位置标记为基础位置
-            markPositionOnMap2(baseLon, baseLat, alt || 2);
+            // markPositionOnMap2(baseLon, baseLat, alt || 2);
 
             // 使用模拟数据执行动画
             // startAnimationWithMockData(mockPoints);
@@ -3628,7 +3770,7 @@ const startAnimationWithMockData = (mockPoints) => {
     }
 
     // 移动地图视野跟随动画
-    map.panTo(new T.LngLat(current.lon, current.lat));
+    map.panTo(new AMap.LngLat(current.lon, current.lat));
   }, 1000); // 1秒切换一个点
 };
 
@@ -3687,7 +3829,7 @@ const startAnimationWithCoordinates = (currentLon, currentLat) => {
       addLineSegment(prevPoint, currentPoint.value);
     }
 
-    map.panTo(new T.LngLat(newLon, newLat));
+    map.panTo(new AMap.LngLat(newLon, newLat));
 
     if (isLastPoint) {
       clearInterval(animationTimer.value);
