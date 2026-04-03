@@ -383,7 +383,7 @@ const { isCollapse } = collapseContext;
 // 状态变量
 const mapContainer = ref(null);
 const currentPosition = ref(null);
-let map = ref(null);
+const map = ref(null);
 const fixedTrackPoints = [];
 // const loading = ref(true);
 
@@ -517,7 +517,7 @@ const initMap = () => {
   }
 
   try {
-    map = new AMap.Map(mapContainer.value, {
+    map.value = new AMap.Map(mapContainer.value, {
       zoom: 15,
       center: [113.65644, 34.78723],
       viewMode: "2D", // 2D视图
@@ -528,16 +528,16 @@ const initMap = () => {
       pitch: 0, // 俯仰角0
     });
 
-    map.on("complete", () => {
+    map.value.on("complete", () => {
       // loading.value = false;
-      map.getSize();
+      map.value.getSize();
       ElMessage.success("地图加载成功");
       geocoder.value = new AMap.Geocoder();
       // initNoFlyZones();
-      map.on("zoomend", handleMapZoom);
+      map.value.on("zoomend", handleMapZoom);
     });
 
-    map.on("error", (e) => {
+    map.value.on("error", (e) => {
       console.error("地图加载错误:", e);
       // loading.value = false;
       ElMessage.error("地图加载失败，请刷新页面重试");
@@ -546,10 +546,10 @@ const initMap = () => {
     // 添加卫星图层
     const satelliteLayer = new AMap.TileLayer.Satellite();
     const roadNetLayer = new AMap.TileLayer.RoadNet();
-    map.add([satelliteLayer, roadNetLayer]);
+    map.value.add([satelliteLayer, roadNetLayer]);
 
     // 添加比例尺控件
-    map.addControl(new AMap.Scale());
+    map.value.addControl(new AMap.Scale());
 
     trackPolyline = new AMap.Polyline([], {
       strokeColor: "#409eff",
@@ -557,15 +557,15 @@ const initMap = () => {
       strokeOpacity: 0.8,
       lineJoin: "round",
     });
-    map.add(trackPolyline);
+    map.value.add(trackPolyline);
 
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lng = position.coords.longitude;
           const lat = position.coords.latitude;
-          map.setCenter([lng, lat]);
-          map.setZoom(15);
+          map.value.setCenter([lng, lat]);
+          map.value.setZoom(15);
         },
         (err) => {
           console.warn("定位失败:", err);
@@ -593,11 +593,11 @@ const initMap = () => {
 };
 
 const handleMapZoom = () => {
-  if (map && typeof map.getSize === "function") {
+  if (map.value && typeof map.value.getSize === "function") {
     setTimeout(() => {
-      map.getSize();
+      map.value.getSize();
       if (currentPosition.value) {
-        map.panTo([currentPosition.value.lng, currentPosition.value.lat]);
+        map.value.panTo([currentPosition.value.lng, currentPosition.value.lat]);
       }
     }, 300);
   }
@@ -669,7 +669,7 @@ const handleRouteSave = () => {
 
 // 绘制功能
 const drawBotton = () => {
-  if (!map || isDrawing.value || isViewing.value) return;
+  if (!map.value || isDrawing.value || isViewing.value) return;
 
   // 新增：检查禁飞区数据是否加载完成
   if (noFlyZoneManagerRef.value && !noFlyZoneManagerRef.value.isZonesLoaded()) {
@@ -681,19 +681,19 @@ const drawBotton = () => {
   clearRouteOverlaysOnly();
   isDrawing.value = true;
   drawingLine = new AMap.Polyline([], {
-    strokeColor: "#409eff", // 蓝色
+    strokeColor: "##2C64A7#2C64A7", // 蓝色
     strokeWeight: 4,
     strokeOpacity: 0.8,
     lineJoin: "round",
   });
   drawingLine._isRouteOverlay = true;
-  map.add(drawingLine);
+  map.value.add(drawingLine);
 
   ElMessage.info("请在地图上点击添加航点（禁飞区内无法添加）");
   drawingClickHandler = (e) => {
     handleDrawingClick(e);
   };
-  map.on("click", drawingClickHandler);
+  map.value.on("click", drawingClickHandler);
 };
 // 绘制点击事件（允许绘制，只提示）
 const handleDrawingClick = (e) => {
@@ -835,7 +835,7 @@ const addPointMarker = (point, index, totalPoints) => {
   marker.isRouteMarker = true;
   marker._isRoutePoint = true;
   marker._isDrawingMarker = true;
-  map.add(marker);
+  map.value.add(marker);
 
   if (!document.getElementById("route-markers-style")) {
     const style = document.createElement("style");
@@ -937,7 +937,7 @@ const completeBotton = () => {
   console.log("完成绘制，有效航点路径:", path);
 
   // 获取所有覆盖物
-  const overlays = map.getAllOverlays();
+  const overlays = map.value.getAllOverlays();
   console.log("当前地图覆盖物总数:", overlays.length);
 
   // 清除绘制模式下的临时航点标记
@@ -945,7 +945,7 @@ const completeBotton = () => {
   overlays.forEach((overlay, index) => {
     if (overlay.isRouteMarker && overlay._isDrawingMarker) {
       console.log(`清除绘制模式临时航点标记 ${index}:`, overlay);
-      map.remove(overlay);
+      map.value.remove(overlay);
       removedMarkers++;
     }
   });
@@ -960,7 +960,7 @@ const completeBotton = () => {
       overlay === drawingLine
     ) {
       console.log("清除旧航线折线:", overlay);
-      map.remove(overlay);
+      map.value.remove(overlay);
       removedLines++;
     }
   });
@@ -993,7 +993,7 @@ const completeBotton = () => {
     path: path,
   });
 
-  map.add(polyline);
+  map.value.add(polyline);
   currentRoutePolyline.value = polyline;
 
   console.log("航线折线已添加到地图", polyline, "路径点数:", path.length);
@@ -1011,7 +1011,7 @@ const completeBotton = () => {
 
   // 验证航线是否在地图上
   setTimeout(() => {
-    const finalOverlays = map.getAllOverlays();
+    const finalOverlays = map.value.getAllOverlays();
     console.log("最终地图覆盖物数量:", finalOverlays.length);
     const polylineFound = finalOverlays.some((o) => o === polyline);
     console.log("航线是否存在于地图:", polylineFound);
@@ -1051,7 +1051,7 @@ const completeBotton = () => {
     centerLat = (path[0][1] + path[path.length - 1][1]) / 2;
     console.log("航线中心点:", [centerLng, centerLat]);
     // 🔥 使用 setZoomAndCenter 同时设置缩放和中心点，避免白屏
-    map.setZoomAndCenter(15, [centerLng, centerLat], 1000);
+    map.value.setZoomAndCenter(15, [centerLng, centerLat], 1000);
     console.log("地图已设置到航线位置");
   } else {
     console.warn("航线坐标无效，跳过设置地图中心");
@@ -1088,14 +1088,14 @@ const completeBotton = () => {
       }
     }
     // 设置边界，添加20像素的填充
-    map.setBounds(bounds, [20, 20, 20, 20]);
+    map.value.setBounds(bounds, [20, 20, 20, 20]);
     console.log("地图边界已设置");
   }
 
   // 注意：不要在这里设置 isDrawing.value = false
   // 保持绘制状态直到保存或取消，这样绘制按钮会保持禁用状态
   if (drawingClickHandler) {
-    map.off("click", drawingClickHandler);
+    map.value.off("click", drawingClickHandler);
     drawingClickHandler = null;
   }
   saveRouteBot.value = true;
@@ -1116,7 +1116,7 @@ const cancelBotton = () => {
 
   clearRouteOverlaysOnly();
   isDrawing.value = false;
-  map.off("click", drawingClickHandler);
+  map.value.off("click", drawingClickHandler);
   drawingClickHandler = null;
   drawnPoints.value = [];
   activeRouteId.value = null;
@@ -1366,7 +1366,7 @@ const handleRouteCancelEdit = (route) => {
 };
 const viewRoute = (route, isEditable = false) => {
   console.log("viewRoute1111", route, "是否可编辑:", isEditable);
-  if (!map) {
+  if (!map.value) {
     ElMessage.error("地图未初始化，无法查看路线");
     return;
   }
@@ -1417,7 +1417,7 @@ const viewRoute = (route, isEditable = false) => {
     polyline._isRouteOverlay = true;
     polyline._isRoutePolyline = true;
     polyline._routeId = route.id;
-    map.add(polyline);
+    map.value.add(polyline);
     currentRoutePolyline.value = polyline;
 
     // 双击编辑
@@ -1563,7 +1563,7 @@ const viewRoute = (route, isEditable = false) => {
     const centerLng = (minLng + maxLng) / 2;
     const centerLat = (minLat + maxLat) / 2;
     // 🔥 使用 setZoomAndCenter 同时设置缩放和中心点，避免先缩小导致的白屏
-    map.setZoomAndCenter(15, [centerLng, centerLat], 1000);
+    map.value.setZoomAndCenter(15, [centerLng, centerLat], 1000);
 
     ElMessage.success(`已显示路线: ${route.name}`);
   } catch (error) {
@@ -1634,7 +1634,7 @@ const addDraggablePointMarker = (
     document.head.appendChild(style);
   }
 
-  map.add(marker);
+  map.value.add(marker);
   return marker;
 };
 const retractRoute = () => {
@@ -1642,8 +1642,8 @@ const retractRoute = () => {
   activeRouteId.value = null;
   clearRouteOverlaysOnly();
 
-  if (map) {
-    const overlays = map.getAllOverlays();
+  if (map.value) {
+    const overlays = map.value.getAllOverlays();
     overlays.forEach((overlay) => {
       if (
         overlay instanceof AMap.Marker &&
@@ -1658,7 +1658,7 @@ const retractRoute = () => {
             content.includes("end") ||
             content.includes("middle"))
         ) {
-          map.remove(overlay);
+          map.value.remove(overlay);
         }
       }
     });
@@ -1670,16 +1670,16 @@ const retractRoute = () => {
 
 // 清除覆盖物函数
 const clearRouteOverlaysOnly = () => {
-  if (!map) return;
+  if (!map.value) return;
 
-  const overlays = map.getAllOverlays();
+  const overlays = map.value.getAllOverlays();
   console.log("开始清除航线覆盖物，总数:", overlays.length);
 
   // 清除所有航线相关的航点标记（包括 _isDrawingMarker 标记的和通过 addDraggablePointMarker 创建的）
   overlays.forEach((overlay, index) => {
     if (overlay.isRouteMarker) {
       console.log(`清除航点标记 ${index}:`, overlay);
-      map.remove(overlay);
+      map.value.remove(overlay);
     }
   });
 
@@ -1687,12 +1687,12 @@ const clearRouteOverlaysOnly = () => {
   overlays.forEach((overlay, index) => {
     if (overlay._isRouteOverlay || overlay._isRoutePolyline) {
       console.log(`清除航线折线 ${index}:`, overlay);
-      map.remove(overlay);
+      map.value.remove(overlay);
     }
   });
 
   if (drawingLine) {
-    map.remove(drawingLine);
+    map.value.remove(drawingLine);
     drawingLine = null;
   }
 
@@ -1701,28 +1701,28 @@ const clearRouteOverlaysOnly = () => {
 };
 
 const clearRouteMarkersOnly = () => {
-  if (!map) return;
-  map.getAllOverlays().forEach((overlay) => {
+  if (!map.value) return;
+  map.value.getAllOverlays().forEach((overlay) => {
     if (overlay instanceof AMap.Marker && overlay.isRouteMarker) {
-      map.remove(overlay);
+      map.value.remove(overlay);
     }
   });
 };
 
 const clearOverlays = () => {
-  if (map) {
-    const overlays = map.getAllOverlays();
+  if (map.value) {
+    const overlays = map.value.getAllOverlays();
     overlays.forEach((overlay) => {
       if (overlay._zoneId || overlay._isNoFlyZone) {
         return;
       }
       if (overlay.isRouteMarker || overlay._isRouteOverlay) {
-        map.remove(overlay);
+        map.value.remove(overlay);
       }
     });
 
     if (drawingLine) {
-      map.remove(drawingLine);
+      map.value.remove(drawingLine);
       drawingLine = null;
     }
 
@@ -1891,10 +1891,10 @@ const searchLocation = async (keyword) => {
 
 const drawSelectedMarker = (lng, lat, name) => {
   if (searchMarker.value) {
-    map.remove(searchMarker.value);
+    map.value.remove(searchMarker.value);
   }
 
-  if (!map || !map.add) {
+  if (!map.value || !map.value.add) {
     ElMessage.error("地图未初始化完成");
     return;
   }
@@ -1905,8 +1905,8 @@ const drawSelectedMarker = (lng, lat, name) => {
   }
 
   const point = [lng, lat];
-  map.setCenter(point);
-  map.setZoom(16);
+  map.value.setCenter(point);
+  map.value.setZoom(16);
   ElMessage.success(`已标记地点：${name}`);
 };
 
@@ -1936,7 +1936,7 @@ const handleSelectStrategyChange = (value) => {
 };
 // 地图图层切换
 const onMapLayerChange = (val) => {
-  if (!map) return;
+  if (!map.value) return;
 
   let layers = [];
   let label = "";
@@ -1956,7 +1956,7 @@ const onMapLayerChange = (val) => {
       break;
   }
 
-  map.setLayers(layers);
+  map.value.setLayers(layers);
   ElMessage.success("已切换 → " + label);
 };
 // 鼠标悬浮提示
@@ -2007,7 +2007,7 @@ watch(saveRouteDialogVisible, (newValue) => {
   if (!newValue) {
     if (newValue === false) {
       isDrawing.value = false;
-      map.off("click", drawingClickHandler);
+      map.value.off("click", drawingClickHandler);
       drawingClickHandler = null;
       clearOverlays();
       drawnPoints.value = [];
@@ -2024,11 +2024,14 @@ watch(saveRouteDialogVisible, (newValue) => {
 watch(
   isCollapse,
   (newVal) => {
-    if (map && typeof map.getSize === "function") {
+    if (map.value && typeof map.value.getSize === "function") {
       setTimeout(() => {
-        map.getSize();
+        map.value.getSize();
         if (currentPosition.value) {
-          map.setCenter([currentPosition.value.lng, currentPosition.value.lat]);
+          map.value.setCenter([
+            currentPosition.value.lng,
+            currentPosition.value.lat,
+          ]);
         }
       }, 300);
     }
@@ -2071,31 +2074,31 @@ onBeforeUnmount(() => {
     pageContent.classList.remove("current-page-no-padding");
   }
 
-  if (map) {
-    map.off("zoomend", handleMapZoom);
+  if (map.value) {
+    map.value.off("zoomend", handleMapZoom);
   }
 
   try {
     if (drawingLine) {
-      map.remove(drawingLine);
+      map.value.remove(drawingLine);
       drawingLine = null;
     }
 
-    if (map) {
-      const overlays = map.getAllOverlays();
+    if (map.value) {
+      const overlays = map.value.getAllOverlays();
       overlays.forEach((overlay) => {
-        map.remove(overlay);
+        map.value.remove(overlay);
       });
     }
 
-    if (map) {
-      // map.off("click", handleMapClick);
-      map.off("complete");
-      map.off("error");
+    if (map.value) {
+      // map.value.off("click", handleMapClick);
+      map.value.off("complete");
+      map.value.off("error");
     }
 
-    if (map) {
-      map = null;
+    if (map.value) {
+      map.value = null;
     }
 
     isDrawing.value = false;
@@ -2106,13 +2109,13 @@ onBeforeUnmount(() => {
     console.error("清理资源失败:", error);
   }
 
-  if (map) {
-    map.off("complete", () => {});
-    map.off("error", () => {});
+  if (map.value) {
+    map.value.off("complete", () => {});
+    map.value.off("error", () => {});
     if (drawingClickHandler) {
-      map.off("click", drawingClickHandler);
+      map.value.off("click", drawingClickHandler);
     }
-    map = null;
+    map.value = null;
   }
   drawingLine = null;
 });

@@ -47,78 +47,63 @@
                 {{ itemInfo.totalDistance }} 米
               </div>
               <div>
-                <!-- 查看/收起按钮：编辑模式下隐藏 -->
+                <!-- 查看 / 收起 → 永远显示 -->
                 <span
-                  v-if="!isEditMode"
                   :class="
-                    isRouteExpanded && itemInfo.id === activeRouteId
+                    itemInfo._expanded
                       ? 'routeOperation-box-foldUp'
                       : 'routeOperation-box-view'
                   "
                   @click="
-                    isRouteExpanded && itemInfo.id === activeRouteId
-                      ? retractRoute()
+                    itemInfo._expanded
+                      ? retractRoute(itemInfo)
                       : viewRoute(itemInfo)
                   "
                 >
-                  {{
-                    isRouteExpanded && itemInfo.id === activeRouteId
-                      ? "收起"
-                      : "查看"
-                  }}
+                  {{ itemInfo._expanded ? "收起" : "查看" }}
                 </span>
 
-                <!-- 编辑/收起按钮：查看模式下隐藏 -->
+                <!-- 编辑 / 取消 -->
                 <span
-                  v-if="
-                    !isRouteExpanded ||
-                    (isEditMode && itemInfo.id !== activeRouteId)
-                  "
                   :class="
-                    isEditing && itemInfo.id === activeRouteId
+                    itemInfo._editing
                       ? 'routeOperation-box-cancel'
                       : 'routeOperation-box-edit'
                   "
                   @click="
-                    isEditing && itemInfo.id === activeRouteId
-                      ? retractRoute()
+                    itemInfo._editing
+                      ? cancelRouteEdit(itemInfo)
                       : routeEdit(itemInfo)
                   "
                 >
-                  {{
-                    isEditing && itemInfo.id === activeRouteId ? "收起" : "编辑"
-                  }}
+                  {{ itemInfo._editing ? "取消" : "编辑" }}
                 </span>
 
-                <!-- 完成/取消按钮：仅编辑模式且当前航线激活时显示 -->
+                <!-- 完成 → 仅编辑时显示 -->
                 <span
-                  v-if="isEditMode && itemInfo.id === activeRouteId"
+                  v-if="itemInfo._editing"
                   class="routeOperation-box-complete"
                   @click="completeRouteEdit(itemInfo)"
-                  >完成</span
                 >
-                <span
-                  v-if="isEditMode && itemInfo.id === activeRouteId"
-                  class="routeOperation-box-cancel"
-                  @click="cancelRouteEdit(itemInfo)"
-                  >取消</span
-                >
+                  完成
+                </span>
 
+                <!-- 删除 → 一直显示 -->
                 <span
                   class="routeOperation-box-delete"
                   @click="deleteRoute(itemInfo)"
-                  >删除</span
                 >
+                  删除
+                </span>
               </div>
             </div>
           </div>
 
-          <!-- 航点列表 - 仅编辑模式且当前航线激活时展示，查看模式下不展示 -->
-          <!-- 航点列表容器添加key，强制DOM刷新 -->
+          <!-- 航点列表 -->
           <div
             class="routeInformation"
-            v-if="isEditMode && itemInfo.id === activeRouteId"
-            :key="`route-${itemInfo.id}-${hasDragged[itemInfo.id]}`"
+            v-if="itemInfo._editing"
+            :key="`route-${itemInfo.id}`"
           >
             <div
               class="routeInformation-list"
@@ -126,7 +111,7 @@
                 itemInfo,
               )"
               :key="`point-${indexPrototype}-${JSON.stringify(itemPrototype)}`"
-              :draggable="isEditMode && itemInfo.id === activeRouteId"
+              :draggable="itemInfo._editing"
               @dragstart="handleDragStart(indexPrototype, itemInfo)"
               @dragover="handleDragOver"
               @drop="handleDrop(indexPrototype, itemInfo)"
@@ -221,7 +206,7 @@
               <template #suffix>s</template>
             </el-input>
           </el-form-item>
-          <el-form-item label="动作:" prop="action">
+          <el-form-item label="动作:">
             <el-select
               v-model="formData.action"
               placeholder="请选择航向角类型"
@@ -235,7 +220,7 @@
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="速度:" prop="velocity">
+          <el-form-item label="速度:">
             <el-input
               v-model="formData.velocity"
               placeholder="请输入速度"
@@ -246,7 +231,7 @@
               <template #suffix>m/s</template>
             </el-input>
           </el-form-item>
-          <el-form-item label="航向角:" prop="headingAngle">
+          <el-form-item label="航向角:">
             <el-select
               v-model="formData.heading_angle.mode"
               placeholder="请选择航向角类型"
@@ -299,7 +284,7 @@
               </el-input>
             </div>
           </el-form-item>
-          <el-form-item label="高度策略:" prop="heightStrategy">
+          <el-form-item label="高度策略:">
             <el-select
               v-model="formData.height_strategy"
               placeholder="请选择高度策略类型"
@@ -313,7 +298,7 @@
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="优先级:" prop="priority">
+          <el-form-item label="优先级:">
             <el-select
               v-model="formData.priority"
               placeholder="请选择优先级类型"
@@ -327,7 +312,7 @@
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="分类:" prop="sort">
+          <el-form-item label="分类:">
             <el-select
               v-model="formData.sort"
               placeholder="请选择分类类型"
@@ -341,7 +326,7 @@
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="航线失联行为:" prop="routeLossBehavior">
+          <el-form-item label="航线失联行为:">
             <el-select
               v-model="formData.route_loss_behavior"
               placeholder="请选择航线失联行为"
@@ -553,7 +538,7 @@ const currentPage = ref(1);
 const pageSize = ref(5);
 const total = ref(0);
 const activeRouteId = ref(null);
-const isRouteExpanded = ref(false); // 查看模式下的展开状态
+const isRouteExpanded = ref(false);
 const waypointSettingVisible = ref(false);
 const deleteDialogVisible = ref(false);
 const saveRouteDialogVisible = ref(false);
@@ -565,9 +550,9 @@ const waypointOptions = ref([]);
 const selectedItemStrategy = ref({});
 const deletingRouteIndex = ref(-1);
 const newArr = ref([]);
-const isEditMode = ref(false); // 编辑模式开关（核心：区分查看/编辑）
+const isEditMode = ref(false);
 const editingRouteId = ref(null);
-const isEditing = ref(false); // 编辑状态标记
+const isEditing = ref(false);
 const formData = ref({
   heading_angle: {
     mode: "",
@@ -590,7 +575,7 @@ const dragTempPoints = ref({});
 const originalPoints = ref({});
 const isEditCompleted = ref(false);
 const currentEditingPoint = ref(null);
-const hasDragged = ref({}); // 记录每个航线是否发生过拖拽
+const hasDragged = ref({});
 
 // 选项数据
 const headingActionOptions = ref([
@@ -603,12 +588,9 @@ const headingActionOptions = ref([
 const headingAngleOptions = ref([
   { label: "朝着目标不变", value: "towards the goal" },
   { label: "偏航", value: "at an angle to the target point" },
-  // { label: "朝某一点不变", value: "towards a certain point" },
 ]);
 
 const heightStrategyOptions = ref([
-  // { label: "先升高再向目标点", value: "Rise first" },
-  // { label: "先向目标点再升高", value: "First to the target point" },
   { label: "匀速升高", value: "Rise at a uniform rate" },
 ]);
 
@@ -639,11 +621,11 @@ const lossBehaviorOptions = ref([
 const saveRouteRules = {
   name: [
     { required: true, message: "请输入路线名称", trigger: "blur" },
-    { min: 1, max: 15, message: "长度在 1 到 15 个字符", trigger: "blur" },
+    { min: 1, max: 15, trigger: "blur" },
   ],
   description: [
     { required: true, message: "请输入路线描述", trigger: "blur" },
-    { min: 1, max: 30, message: "长度在 1 到 30 个字符", trigger: "blur" },
+    { min: 1, max: 30, trigger: "blur" },
   ],
   points: [
     {
@@ -665,16 +647,15 @@ const routeList = async (value = "") => {
       pageSize: pageSize.value,
     });
     if (res.code === 200) {
-      let newRouteInfo = ref([res.data.list.map(convertItem)]);
+      let newRouteInfo = res.data.list.map(convertItem);
       total.value = res.data.total;
-      newRouteInfo.value[0].forEach((item) => {
+      newRouteInfo.forEach((item) => {
+        item._expanded = false;
+        item._editing = false;
         const result = calculateTotalDistance(item.points);
         item.totalDistance = result.total;
       });
-      routeInfo.value[0] = newRouteInfo.value[0];
-
-      // 注意：不再在这里调用 viewRoute 或 routeEdit
-      // 保存后的 viewRoute 由 handleRouteSave 统一处理，避免冲突
+      routeInfo.value = [newRouteInfo];
     }
   } catch (error) {
     console.error(error);
@@ -704,8 +685,7 @@ const handleCurrentChange = (val) => {
 
 // 获取当前显示的航点
 const getCurrentPoints = (route) => {
-  if (!route || !activeRouteId.value) return [];
-
+  if (!route) return [];
   if (isEditCompleted.value) {
     return route.points || [];
   } else {
@@ -713,18 +693,27 @@ const getCurrentPoints = (route) => {
   }
 };
 
-// 查看航线 - 纯查看模式，禁用拖拽，隐藏编辑按钮
+// 查看航线
 const viewRoute = (route) => {
-  // 重置编辑相关状态
+  // 👇 核心：点击查看时，关闭所有其他航线的 编辑状态 + 展开状态
+  routeInfo.value[0].forEach((item) => {
+    if (item.id !== route.id) {
+      item._editing = false; // 关闭其他编辑
+      item._expanded = false; // 收起其他展开
+    }
+  });
+
+  // 当前查看的：展开、关闭编辑
+  route._expanded = true;
+  route._editing = false;
+
+  emit("route-view", route);
   isEditMode.value = false;
   isEditing.value = false;
   isEditCompleted.value = false;
-
-  emit("route-view", route);
   activeRouteId.value = route.id;
   isRouteExpanded.value = true;
 
-  // 初始化航点数据备份
   originalPoints.value[route.id] = JSON.parse(
     JSON.stringify(route.points || []),
   );
@@ -732,27 +721,14 @@ const viewRoute = (route) => {
     JSON.stringify(route.points || []),
   );
   hasDragged.value[route.id] = false;
-
-  console.log("查看航线，航点不可拖拽:", route.id);
 };
 
 // 收起航线
-const retractRoute = () => {
+const retractRoute = (route) => {
+  route._expanded = false;
+  route._editing = false;
   emit("route-retract");
 
-  // 回滚未保存的拖拽数据
-  if (activeRouteId.value && !isEditCompleted.value) {
-    const currentRoute = routeInfo.value[0]?.find(
-      (r) => r.id === activeRouteId.value,
-    );
-    if (currentRoute && originalPoints.value[activeRouteId.value]) {
-      currentRoute.points = JSON.parse(
-        JSON.stringify(originalPoints.value[activeRouteId.value]),
-      );
-    }
-  }
-
-  // 重置所有状态
   activeRouteId.value = null;
   isRouteExpanded.value = false;
   isEditMode.value = false;
@@ -766,13 +742,10 @@ const retractRoute = () => {
   hasDragged.value = {};
 };
 
-// 拖拽开始 - 确认仅校验 isEditMode，无其他多余限制
+// 拖拽开始
 const handleDragStart = (index, route) => {
-  // 仅编辑模式下允许拖拽
-  if (!isEditMode.value) return;
-
+  if (!route._editing) return;
   isDragging.value = true;
-  isEditing.value = true;
   dragSourceIndex.value = index;
   if (!dragTempPoints.value[route.id]) {
     dragTempPoints.value[route.id] = JSON.parse(
@@ -789,28 +762,22 @@ const handleDragOver = (e) => {
 
 // 拖拽放下
 const handleDrop = (targetIndex, route) => {
-  // 双重校验：编辑模式+当前激活航线
-  if (!isEditMode.value || !isEditing.value || route.id !== activeRouteId.value)
-    return;
   if (
+    !route._editing ||
     !isDragging.value ||
-    dragSourceIndex.value === -1 ||
     dragSourceIndex.value === targetIndex
   )
     return;
 
-  // 关键：强制初始化缓存（防止取消后缓存为空）
   if (!dragTempPoints.value[route.id]) {
     dragTempPoints.value[route.id] = JSON.parse(
       JSON.stringify(route.points || []),
     );
   }
 
-  const points = [...dragTempPoints.value[route.id]]; // 解构赋值避免直接修改原数组
+  const points = [...dragTempPoints.value[route.id]];
   const [draggedItem] = points.splice(dragSourceIndex.value, 1);
   points.splice(targetIndex, 0, draggedItem);
-
-  // 重新赋值触发响应式更新
   dragTempPoints.value[route.id] = [...points];
   hasDragged.value[route.id] = true;
 
@@ -827,30 +794,21 @@ const handleDragEnd = () => {
   dragSourceIndex.value = -1;
 };
 
-// 编辑航线 - 进入编辑模式，展示航点并启用拖拽，隐藏查看按钮
-// 编辑航线 - 进入编辑模式，展示航点并启用拖拽，隐藏查看按钮
+// 编辑航线
 const routeEdit = async (route) => {
-  // 重置查看相关状态
-  isRouteExpanded.value = false;
-
-  // 如果已经是当前激活航线且已处于编辑模式，则不重复初始化拖拽状态
-  if (activeRouteId.value === route.id && isEditMode.value) {
-    // 仅确保航点列表使用当前拖拽缓存，无需重置
-    activeRouteId.value = route.id;
-    isEditMode.value = true;
-    editingRouteId.value = route.id;
-    isEditing.value = true;
-    // 不重置 dragTempPoints 和 hasDragged
-    emit("route-edit", route);
-    return;
-  }
+  routeInfo.value[0].forEach((item) => {
+    item._expanded = false;
+    item._editing = false;
+  });
+  route._editing = true;
+  route._expanded = true;
+  emit("route-edit", route);
 
   activeRouteId.value = route.id;
   isEditMode.value = true;
   editingRouteId.value = route.id;
   isEditing.value = true;
 
-  // 初始化拖拽状态（仅在第一次进入或切换航线时重置）
   hasDragged.value[route.id] = false;
   if (!originalPoints.value[route.id]) {
     originalPoints.value[route.id] = JSON.parse(
@@ -863,9 +821,6 @@ const routeEdit = async (route) => {
     );
   }
   isEditCompleted.value = false;
-
-  emit("route-edit", route);
-  console.log("进入编辑模式，航点可拖拽:", route.id);
 };
 
 // 删除航线
@@ -893,18 +848,13 @@ const confirmDelete = async () => {
   }
 };
 
-// 完成航线编辑 - 移除航点相关提示
-// 完成航线编辑 - 最终修复版
+// 完成航线编辑
 const completeRouteEdit = async (route) => {
-  // ======================
-  // ✅ 完成前全量校验
-  // ======================
   const checkPoints = route.points.map((p) => ({
     lng: Number(p.lng),
     lat: Number(p.lat),
   }));
 
-  // 1. 禁飞区 → 拦截
   const crossNoFly =
     props.noFlyZoneManagerRef?.isRouteCrossingNoFlyZone(checkPoints);
   if (crossNoFly) {
@@ -912,7 +862,6 @@ const completeRouteEdit = async (route) => {
     return;
   }
 
-  // 2. 禁高区 → 提示
   const crossWarning =
     props.noFlyZoneManagerRef?.isRouteCrossingWarningZone(checkPoints);
   if (crossWarning) {
@@ -920,7 +869,6 @@ const completeRouteEdit = async (route) => {
   }
 
   try {
-    // 无操作直接返回
     if (!hasDragged.value[route.id] && !route.isDragged) {
       ElMessage.warning("未进行任何修改");
       return;
@@ -931,15 +879,12 @@ const completeRouteEdit = async (route) => {
     );
     if (!currentRoute) return;
 
-    // 取最终要保存的点
     let finalPoints = hasDragged.value[route.id]
       ? JSON.parse(JSON.stringify(dragTempPoints.value[route.id]))
       : JSON.parse(JSON.stringify(currentRoute.points));
 
-    // 更新本地数据
     currentRoute.points = finalPoints;
 
-    // 构建接口参数
     const pointsForBackend = finalPoints.map((point) => ({
       lat: formatLatLng(point.lat),
       lon: formatLatLng(point.lng),
@@ -970,19 +915,14 @@ const completeRouteEdit = async (route) => {
 
     const res = await updateMission(params);
     if (res.code === 200) {
-      ElMessage.success("航线保存成功");
+      route._editing = false;
+      route._expanded = true;
 
-      // 更新原始备份
       originalPoints.value[route.id] = JSON.parse(JSON.stringify(finalPoints));
       hasDragged.value[route.id] = false;
       isEditCompleted.value = true;
 
-      // ✅ 修复：保存完成后 退出编辑模式
-      // activeRouteId.value = null;
-      // isEditMode.value = false;
-      // isEditing.value = false;
-
-      // 刷新列表 + 更新地图
+      ElMessage.success("航线保存成功");
       await routeList(searchKeyword.value);
       emit("route-saved-and-refresh-map", route.id);
       emit("route-save");
@@ -992,44 +932,29 @@ const completeRouteEdit = async (route) => {
     ElMessage.error("保存失败");
   }
 };
-// 取消航线编辑 - 优化无操作时的提示逻辑
-// 取消航线编辑 - 不收起、不退出编辑，只恢复数据
+
+// 取消航线编辑
 const cancelRouteEdit = (route) => {
-  // 1. 检查是否有拖拽/修改，没有则直接提示
   if (!hasDragged.value[route.id] && !route.isDragged) {
-    ElMessage.info("已取消编辑，无修改需要恢复");
+    ElMessage.warning("未进行任何修改");
     return;
   }
 
-  // 2. 清除地图拖拽标记
-  if (route.isDragged) {
-    route.isDragged = false;
-    hasDragged.value[route.id] = true;
+  const currentRoute = routeInfo.value[0].find((item) => item.id === route.id);
+  if (currentRoute && originalPoints.value[route.id]) {
+    currentRoute.points = JSON.parse(
+      JSON.stringify(originalPoints.value[route.id]),
+    );
   }
 
-  // 3. 找到当前航线
-  const currentRoute = routeInfo.value[0].find((item) => item.id === route.id);
-  if (!currentRoute) return;
+  route._editing = false; // 这里必须是false！
+  route._expanded = false;
 
-  // 4. 核心：恢复原始航点数据（不收起、不退出编辑）
-  const originalData = JSON.parse(
-    JSON.stringify(originalPoints.value[route.id] || currentRoute.points || []),
-  );
-  currentRoute.points = [...originalData]; // 强制更新列表数据
-  dragTempPoints.value[route.id] = [...originalData]; // 同步拖拽缓存
-
-  // 5. 重置拖拽状态（保留编辑模式、保留展开）
   hasDragged.value[route.id] = false;
-  isDragging.value = false;
-  dragSourceIndex.value = -1;
-  isEditCompleted.value = false;
-
-  // 6. 只提示，不做收起/退出
-  ElMessage.success("已取消编辑，航点已恢复为原始位置");
-
-  // 7. 通知父组件更新地图（只恢复，不退出）
+  ElMessage.success("已取消编辑，航点已恢复");
   emit("route-cancel-edit", currentRoute);
 };
+
 // 经纬度格式化
 const formatLatLng = (value) => {
   if (!value || isNaN(Number(value))) return "";
@@ -1045,12 +970,7 @@ const editAirline = (value, index) => {
   formData.value.residence_time = value.residenceTime;
   formData.value.action = value.action;
   formData.value.velocity = value.velocity;
-  formData.value.heading_angle = {
-    mode: value.headingAngle?.mode || "",
-    angle: value.headingAngle?.angle || "",
-    lon: formatLatLng(value.headingAngle?.lon) || "",
-    lat: formatLatLng(value.headingAngle?.lat) || "",
-  };
+  formData.value.heading_angle = value.headingAngle || {};
   formData.value.height_strategy = value.heightStrategy;
   formData.value.priority = value.priority;
   formData.value.sort = value.sort;
@@ -1067,14 +987,13 @@ const editWaypoint = async () => {
   }
 
   if (!props.noFlyZoneManagerRef.isZonesLoaded()) {
-    ElMessage.warning("禁飞区数据正在加载中，请稍候再试");
+    ElMessage.warning("禁飞区数据正在加载中，请稍后再试");
     return;
   }
 
   const newLng = parseFloat(formData.value.lon);
   const newLat = parseFloat(formData.value.lat);
   const waypointNum = parseInt(formData.value.waypointNumber);
-  const pointIndex = waypointNum - 1;
 
   if (isNaN(newLng) || isNaN(newLat) || isNaN(waypointNum)) {
     ElMessage.error("航点数据格式错误，请输入有效的数字");
@@ -1090,7 +1009,7 @@ const editWaypoint = async () => {
   }
 
   const isPointInWarningZone =
-    props.noFlyZoneManagerRef?.isRouteCrossingWarningZone([pointToCheck]);
+    props.noFlyZoneManagerRef.isPointInWarningZone(pointToCheck);
   if (isPointInWarningZone) {
     ElMessage.warning("该航点位置在禁高区（警告区）内，请注意飞行安全");
   }
@@ -1110,43 +1029,35 @@ const editWaypoint = async () => {
       const currentRoute = routeInfo.value[0]?.find(
         (item) => item.id === activeRouteId.value,
       );
-      if (!currentRoute) {
-        ElMessage.error("未找到当前航线数据");
-        return;
-      }
+      if (!currentRoute) return;
 
+      const pointIndex = waypointNum - 1;
       const updatedWaypoint = {
-        lat: formatLatLng(newLat),
-        lng: formatLatLng(newLng),
-        alt: parseInt(formData.value.alt) || 30,
-        action: formData.value.action || "hover",
-        headingAngle: {
-          ...formData.value.heading_angle,
-          lon: formatLatLng(formData.value.heading_angle.lon) || "",
-          lat: formatLatLng(formData.value.heading_angle.lat) || "",
-        },
-        heightStrategy:
-          formData.value.height_strategy || "Rise at a uniform rate",
+        id: formData.value.id,
+        lng: formData.value.lon,
+        lat: formData.value.lat,
+        alt: parseInt(formData.value.alt) || 0,
         residenceTime: parseInt(formData.value.residence_time) || 0,
-        routeLossBehavior: formData.value.route_loss_behavior || "return",
-        velocity: parseInt(formData.value.velocity) || 1,
-        priority: formData.value.priority || "high",
-        sort: formData.value.sort || "Regular tasks",
+        action: formData.value.action,
+        velocity: parseInt(formData.value.velocity) || 0,
+        headingAngle: formData.value.heading_angle,
+        heightStrategy: formData.value.height_strategy,
+        priority: formData.value.priority,
+        sort: formData.value.sort,
+        routeLossBehavior: formData.value.route_loss_behavior,
       };
 
-      // 更新本地数据和拖拽缓存
       currentRoute.points[pointIndex] = { ...updatedWaypoint };
-      if (!dragTempPoints.value[activeRouteId.value]) {
-        dragTempPoints.value[activeRouteId.value] = [...currentRoute.points];
+      if (!dragTempPoints.value[currentRoute.id]) {
+        dragTempPoints.value[currentRoute.id] = [...currentRoute.points];
       }
-      dragTempPoints.value[activeRouteId.value][pointIndex] = {
+      dragTempPoints.value[currentRoute.id][pointIndex] = {
         ...updatedWaypoint,
       };
-      // hasDragged.value[activeRouteId.value] = true;
 
       emit("waypoint-updated", {
         route: currentRoute,
-        pointIndex: pointIndex,
+        pointIndex,
         newPoint: updatedWaypoint,
       });
       await routeList(searchKeyword.value);
@@ -1170,7 +1081,7 @@ const getAllPolicies = async () => {
       }));
     }
   } catch (error) {
-    console.error("获取所有策略:", error);
+    console.error("获取所有策略：", error);
     ElMessage.error("获取所有策略失败");
   }
 };
@@ -1180,14 +1091,13 @@ const handleSelectStrategyChange = (value) => {
   selectedItemStrategy.value = waypointOptions.value.find(
     (item) => item.value === value,
   );
-  policyIdDialog.value = selectedItemStrategy.value?.value || "";
+  policyIdDialog.value = selectedItemStrategy.value?.id || "";
 };
 
 // 添加航点行
 const handleAddRow = (index, item) => {
   const newPoint = { alt: "", lng: "", lat: "" };
   saveRouteForm.value.points.splice(index + 1, 0, newPoint);
-  ElMessage.info(`在第${index + 1}行后添加了新行`);
 };
 
 // 删除航点行
@@ -1197,12 +1107,11 @@ const handleDeleteRow = (index, item) => {
     return;
   }
   saveRouteForm.value.points.splice(index, 1);
-  ElMessage.info(`已删除第${index + 1}行`);
 };
 
 // 确认保存路线
 const confirmSaveRoute = async () => {
-  saveRouteFormRef.value.validate(async (valid) => {
+  await saveRouteFormRef.value.validate(async (valid) => {
     if (valid) {
       if (!props.noFlyZoneManagerRef) {
         ElMessage.warning("禁飞区数据未加载，无法进行校验");
@@ -1210,7 +1119,7 @@ const confirmSaveRoute = async () => {
       }
 
       if (!props.noFlyZoneManagerRef.isZonesLoaded()) {
-        ElMessage.warning("禁飞区数据正在加载中，请稍候再试");
+        ElMessage.warning("禁飞区数据正在加载中，请稍后再试");
         return;
       }
 
@@ -1271,8 +1180,8 @@ const confirmSaveRoute = async () => {
         const pointsJson = convertPoints(newArr.value.points);
         let params = {
           id: listRouteEditId.value,
-          description: saveRouteForm.value.description,
-          name: saveRouteForm.value.name,
+          description: newArr.value.description,
+          name: newArr.value.name,
           pointsJson: pointsJson,
           policyId: policyIdDialog.value,
         };
@@ -1297,20 +1206,15 @@ const parseNumber = (value) => {
   return value;
 };
 
-// 更新 dragTempPoints（供父组件调用）
+// 更新 dragTempPoints
 const updateDragTempPoints = (routeId, points) => {
   if (dragTempPoints.value[routeId] && points) {
     dragTempPoints.value[routeId] = JSON.parse(JSON.stringify(points));
     hasDragged.value[routeId] = true;
-    console.log(
-      "更新 dragTempPoints:",
-      routeId,
-      points.map((p) => ({ lat: p.lat, lng: p.lng })),
-    );
   }
 };
 
-// 打开航点编辑弹窗（供父组件调用）
+// 打开航点编辑弹窗
 const openWaypointEditDialog = (route, pointIndex) => {
   const currentRoute = routeInfo.value[0].find((item) => item.id === route.id);
   if (
@@ -1338,11 +1242,16 @@ const openWaypointEditDialog = (route, pointIndex) => {
   }
 
   editAirline(point, pointIndex + 1);
-  currentEditingPoint.value = { routeId: route.id, pointIndex: pointIndex };
+  currentEditingPoint.value = { routeId: route.id, pointIndex };
 };
 
-// 打开航线编辑弹窗（供父组件调用）
+// 打开航线编辑弹窗
 const openRouteEditDialog = async (route) => {
+  const currentRoute = routeInfo.value[0]?.find((item) => item.id === route.id);
+  if (!currentRoute || !currentRoute._editing) {
+    return; // 查看状态 → 直接阻止
+  }
+
   await getAllPolicies();
   saveRouteForm.value = {
     name: route.name,
@@ -1392,35 +1301,28 @@ defineExpose({
   display: flex;
   flex-direction: column;
 }
-
 .route-search {
   margin-bottom: 12px;
 }
-
 .route-list-content {
   flex: 1;
   overflow-y: auto;
   padding-right: 6px;
 }
-
 .route-list-content::-webkit-scrollbar {
   width: 6px;
 }
-
 .route-list-content::-webkit-scrollbar-track {
   background: rgba(80, 80, 80, 0.1);
   border-radius: 3px;
 }
-
 .route-list-content::-webkit-scrollbar-thumb {
-  background: rgba(88, 130, 179, 0.5);
+  background: rgba(88, 131, 179, 0.5);
   border-radius: 3px;
 }
-
 .route-list-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(88, 130, 179, 0.8);
+  background: rgba(88, 131, 179, 0.8);
 }
-
 .routeOperation {
   background-color: #2e3649db;
   color: #fff;
@@ -1430,19 +1332,16 @@ defineExpose({
   display: flex;
   flex-direction: column;
 }
-
 .routeOperation-box {
   display: flex;
   justify-content: space-between;
   flex-direction: column;
   width: 100%;
 }
-
 .tooltip-container {
   position: relative;
   display: inline-block;
 }
-
 .truncated-text {
   overflow: hidden;
   white-space: nowrap;
@@ -1450,7 +1349,6 @@ defineExpose({
   display: block;
   cursor: pointer;
 }
-
 .route-detail-info {
   display: flex;
   flex-direction: column;
@@ -1458,67 +1356,55 @@ defineExpose({
   margin-top: 8px;
   color: #f4f2f257;
 }
-
 .detail-item {
   display: flex;
   align-items: center;
 }
-
 .detail-label {
   flex-shrink: 0;
 }
-
 .detail-value {
   flex: 1;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-
 .routeOperation-box-view {
   color: #7db164;
   cursor: pointer;
   margin-right: 6px;
 }
-
 .routeOperation-box-foldUp {
   color: rgb(255 255 255 / 34%);
   cursor: pointer;
   margin-right: 6px;
 }
-
 .routeOperation-box-edit {
   color: #1677ff;
   cursor: pointer;
   margin-right: 6px;
 }
-
 .routeOperation-box-complete {
   color: #d28b06;
   cursor: pointer;
   margin-right: 6px;
 }
-
 .routeOperation-box-cancel {
   color: #8c8c8c;
   cursor: pointer;
   margin-right: 6px;
 }
-
 .routeOperation-box-delete {
   color: red;
   cursor: pointer;
 }
-
 .routeInformation {
   max-height: 200px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: rgb(88 130 179) rgba(80, 80, 80, 0.4);
+  scrollbar-color: rgb(88 131 179) rgba(80, 80, 80, 0.4);
   margin-top: 16px;
 }
-
-/* 拖拽样式增强 */
 .routeInformation-list {
   display: flex;
   justify-content: space-between;
@@ -1528,28 +1414,21 @@ defineExpose({
   cursor: grab;
   transition: all 0.2s ease;
 }
-
 .routeInformation-list:first-child {
   margin-top: 0;
 }
-
 .routeInformation-list-edit {
   color: #1677ff;
   cursor: pointer;
 }
-
-/* 拖拽中样式 */
 .routeInformation-list.dragging {
   opacity: 0.7;
   background-color: #404858;
   cursor: grabbing;
 }
-
-/* 查看模式下航点无拖拽光标 */
 .routeInformation-list[draggable="false"] {
   cursor: default;
 }
-
 :deep(.el-pagination) {
   justify-content: left !important;
   overflow-x: scroll;
@@ -1558,15 +1437,12 @@ defineExpose({
   padding: 12px 8px 8px !important;
   border-radius: 12px 12px 0 0;
 }
-
 :deep(.el-pagination__classifier) {
   color: #fff;
 }
-
 :deep(.el-select__wrapper) {
   margin: 6px 0 0 0;
 }
-
 :deep(.el-pagination .el-select__wrapper),
 :deep(.el-pagination .btn-prev),
 :deep(.el-pager li),
@@ -1574,11 +1450,10 @@ defineExpose({
 :deep(.el-input__wrapper) {
   background: none;
 }
-
-:deep(.el-pager li.is-active, .el-pager li:hover) {
+:deep(.el-pager li.is-active),
+:deep(.el-pager li:hover) {
   color: #409eff;
 }
-
 :deep(.el-pagination > .is-first),
 :deep(.el-pagination > .is-last),
 :deep(.el-pagination .el-select__placeholder),
@@ -1588,23 +1463,18 @@ defineExpose({
 :deep(.el-pagination button) {
   color: #fff;
 }
-
 :deep(.route-search .el-input__wrapper) {
   background-color: #2e3649db;
 }
-
 :deep(.route-search .el-input__inner) {
   color: #fff;
 }
-
 :deep(.save-route .el-form-item__label) {
   width: 60px !important;
 }
-
 :deep(.save-route .el-form-item__content) {
   margin-right: 12px !important;
 }
-
 .operation-btn {
   width: 24px;
   height: 24px;
@@ -1616,54 +1486,43 @@ defineExpose({
   font-weight: bold;
   transition: all 0.2s;
 }
-
 .add-btn {
   background-color: #409eff;
   color: white;
 }
-
 .add-btn:hover {
   background-color: #66b1ff;
 }
-
 .delete-btn {
   background-color: #f56c6c;
   color: white;
 }
-
 .delete-btn:hover {
-  background-color: #f78989;
+  background-color: #f78c8c;
 }
-
 .delete-btn:disabled {
   background-color: #ccc;
   cursor: not-allowed;
 }
-
 :deep(.waypoints-scroll-container) {
   scrollbar-width: thin;
   scrollbar-color: #409eff rgba(0, 0, 0, 0.1);
 }
-
 :deep(.waypoints-scroll-container::-webkit-scrollbar) {
   width: 6px;
 }
-
 :deep(.waypoints-scroll-container::-webkit-scrollbar-track) {
   background: rgba(0, 0, 0, 0.1);
   border-radius: 3px;
 }
-
 :deep(.waypoints-scroll-container::-webkit-scrollbar-thumb) {
   background: #409eff;
   border-radius: 3px;
 }
-
 @media screen and (max-width: 800px) {
   .tooltip-container {
     width: 65%;
   }
-
   .routeOperation-box-view,
   .routeOperation-box-foldUp,
   .routeOperation-box-edit,
@@ -1672,22 +1531,18 @@ defineExpose({
     width: 20px;
     text-align: center;
   }
-
   .routeOperation-box-view::after {
     content: "查";
     font-size: 16px;
   }
-
   .routeOperation-box-foldUp::after {
     content: "收";
     font-size: 16px;
   }
-
   .routeOperation-box-edit::after {
     content: "编";
     font-size: 16px;
   }
-
   .routeOperation-box-delete::after {
     content: "删";
     font-size: 16px;
