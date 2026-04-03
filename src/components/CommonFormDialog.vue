@@ -4,7 +4,7 @@
     :model-value="modelValue"
     @update:model-value="handleVisibleChange"
     :width="dialogWidth"
-    :destroy-on-close="destroyOnClose"
+    :destroy-on-close="false"
     @close="handleClose"
   >
     <el-form
@@ -14,7 +14,6 @@
       :label-width="labelWidth"
       class="form-container"
     >
-      <!-- 动态渲染表单项 -->
       <el-form-item
         v-for="item in formItems"
         :key="`form-item-${item.prop}`"
@@ -24,7 +23,7 @@
         :hidden="item.hidden || false"
         :label-width="item.labelWidth || props.labelWidth"
       >
-        <!-- 输入框类型：绑定失焦事件，支持失焦校验 -->
+        <!-- 输入框：v-model 绑定 formData，实时同步 -->
         <template v-if="item.type === 'input'">
           <el-input
             v-model="formData[item.prop]"
@@ -38,13 +37,12 @@
             "
             :maxlength="item.maxlength"
             :show-word-limit="!!item.maxlength"
-            clearable="true"
+            clearable
             style="width: 100%"
             @blur="item.validateOnBlur && handleFieldBlur(item)"
           />
         </template>
 
-        <!-- 数字输入框类型 -->
         <template v-if="item.type === 'input-number'">
           <el-input-number
             v-model="formData[item.prop]"
@@ -61,7 +59,6 @@
           />
         </template>
 
-        <!-- 下拉选择类型：原有逻辑不变 -->
         <template v-if="item.type === 'select'">
           <el-select
             v-model="formData[item.prop]"
@@ -90,7 +87,6 @@
           </el-select>
         </template>
 
-        <!-- 文本域类型：绑定失焦事件 -->
         <template v-if="item.type === 'textarea'">
           <el-input
             v-model="formData[item.prop]"
@@ -103,7 +99,6 @@
           />
         </template>
 
-        <!-- 自定义内容插槽：原有逻辑不变 -->
         <slot
           :name="`form-${item.prop}`"
           :formData="formData"
@@ -125,125 +120,71 @@
 import { ref, reactive, watch, nextTick } from "vue";
 import { ElMessage } from "element-plus";
 
-// 接收父组件参数（完整类型定义 + 默认值）
+// 🔥 核心改造：把 initialData 改成 v-model 双向绑定
 const props = defineProps({
-  formDialogTitle: {
-    type: String,
-    required: true,
-    default: "表单弹窗",
-  },
-  modelValue: {
-    type: Boolean,
-    default: false,
-  },
-  formItems: {
-    type: Array,
-    required: true,
-    default: () => [],
-  },
-  rules: {
-    type: Object,
-    default: () => ({}),
-  },
-  initialData: {
-    type: Object,
-    default: () => ({}),
-  },
-  dialogWidth: {
-    type: String,
-    default: "500px",
-  },
-  labelWidth: {
-    type: String,
-    default: "100px",
-  },
-  destroyOnClose: {
-    type: Boolean,
-    default: true,
-  },
-  isEdit: {
-    type: Boolean,
-    default: false,
-  },
-  validateBeforeSubmit: {
-    type: Boolean,
-    default: true,
-  },
+  formDialogTitle: { type: String, required: true, default: "表单弹窗" },
+  modelValue: { type: Boolean, default: false },
+  // 🔥 用 modelValue 绑定表单数据，替代原来的 initialData
+  formModelValue: { type: Object, required: true },
+  formItems: { type: Array, required: true, default: () => [] },
+  rules: { type: Object, default: () => ({}) },
+  dialogWidth: { type: String, default: "500px" },
+  labelWidth: { type: String, default: "100px" },
+  destroyOnClose: { type: Boolean, default: false },
+  isEdit: { type: Boolean, default: false },
+  validateBeforeSubmit: { type: Boolean, default: true },
 });
 
-// 向父组件传递事件
-const emit = defineEmits(["submit", "cancel", "update:modelValue", "close"]);
+const emit = defineEmits([
+  "submit",
+  "cancel",
+  "update:modelValue",
+  "close",
+  // 🔥 新增：同步表单数据回父组件
+  "update:formModelValue",
+]);
 
-// 核心状态：表单数据、表单引用
-const formData = reactive({});
+// 🔥 核心：formData 直接绑定父组件的 formModelValue，双向同步
+const formData = reactive({ ...props.formModelValue });
 const formRef = ref(null);
-// 失焦校验专用状态
-const fieldValidatePass = ref({}); // 字段接口校验是否通过：{ prop: true/false }
-const validateLoading = ref({}); // 字段校验加载状态：{ prop: true/false }
-const submitLoading = ref(false); // 表单提交加载状态（恢复原有注释的状态）
+const fieldValidatePass = ref({});
+const validateLoading = ref({});
+const submitLoading = ref(false);
 
-// 初始化表单数据 + 校验状态
-const initFormData = () => {
-  // 清空原有表单数据
-  Object.keys(formData).forEach((key) => delete formData[key]);
-  // 赋值初始数据
-  Object.assign(formData, { ...props.initialData });
-  // 初始化校验状态：未校验默认为true（首次提交会触发整体校验）
-  const initValidateStatus = {};
-  props.formItems.forEach((item) => {
-    initValidateStatus[item.prop] = true;
-  });
-  fieldValidatePass.value = initValidateStatus;
-  validateLoading.value = {};
-  submitLoading.value = false;
-};
-
-// 监听初始数据变化（深度监听，适配编辑场景数据回显）
+// 🔥 实时同步子组件输入 → 父组件
 watch(
-  () => props.initialData,
+  formData,
   (newVal) => {
-    if (newVal) {
-      initFormData();
-    }
-  },
-  { deep: true, immediate: true },
-);
-
-// 监听表单配置变化，重置校验状态
-watch(
-  () => props.formItems,
-  () => {
-    nextTick(() => {
-      formRef.value?.clearValidate();
-    });
+    emit("update:formModelValue", { ...newVal });
   },
   { deep: true },
 );
 
-// 监听弹窗显隐，初始化/清空数据
+// 🔥 父组件数据变化 → 同步到子组件
+watch(
+  () => props.formModelValue,
+  (newVal) => {
+    Object.assign(formData, { ...newVal });
+  },
+  { deep: true, immediate: true },
+);
+
+// 🔥 弹窗打开时，只做校验清空，不重置数据
 watch(
   () => props.modelValue,
   (newVal) => {
     if (newVal) {
       nextTick(() => {
-        initFormData();
         formRef.value?.clearValidate();
       });
-    } else {
-      // 关闭弹窗清空所有状态
-      Object.keys(formData).forEach((key) => delete formData[key]);
-      fieldValidatePass.value = {};
-      validateLoading.value = {};
-      submitLoading.value = false;
     }
   },
   { immediate: true },
 );
 
-// 核心改造：表单项失焦校验方法（适配新增传id=-1、编辑传当前行id）
+// 失焦校验（保持原有逻辑，修复参数）
 const handleFieldBlur = async (formItem) => {
   const { prop, validateApi, validateMsg } = formItem;
-  // 步骤1：先执行前端规则校验，格式错误直接返回，不调用接口
   try {
     await formRef.value.validateField(prop);
   } catch (error) {
@@ -251,28 +192,20 @@ const handleFieldBlur = async (formItem) => {
     return;
   }
 
-  // 步骤2：字段值为空时，不调用接口（前端required已校验，兜底处理）
   if (!formData[prop] && formData[prop] !== 0) {
     fieldValidatePass.value[prop] = true;
     return;
   }
 
-  // 步骤3：构造校验接口参数（核心改造点）
-  // 新增：{ 校验字段: 字段值, id: -1 }
-  // 编辑：{ 校验字段: 字段值, id: 当前行id（从formData.id取） }
   const validateParams = {
-    message: formData[prop], // 携带当前校验字段的键值对
-    id: props.isEdit ? formData.id || "" : -1, // 新增固定-1，编辑取表单id
+    [prop]: formData[prop],
+    id: props.isEdit ? formData.id || "" : -1,
   };
 
-  // 步骤4：调用后端接口进行唯一性校验
   validateLoading.value[prop] = true;
   try {
-    // 传递构造后的校验参数（替代原formData，仅传必要字段+id）
     const res = await validateApi(validateParams);
-    // 接口code=200表示校验通过（字段可用）
     fieldValidatePass.value[prop] = res.code === 200;
-    // 校验失败给出友好提示
     if (res.code !== 200) {
       ElMessage.warning(validateMsg || res.message || "该字段已存在");
     }
@@ -284,7 +217,7 @@ const handleFieldBlur = async (formItem) => {
   }
 };
 
-// 批量校验所有带失焦校验的字段（提交前调用）
+// 批量校验失焦字段
 const validateAllFieldApi = async () => {
   const needValidateItems = props.formItems.filter(
     (item) => item.validateOnBlur,
@@ -294,9 +227,7 @@ const validateAllFieldApi = async () => {
   let allPass = true;
   for (const item of needValidateItems) {
     if (!fieldValidatePass.value[item.prop]) {
-      // 未通过的字段重新执行失焦校验
       await handleFieldBlur(item);
-      // 更新校验结果
       if (!fieldValidatePass.value[item.prop]) {
         allPass = false;
       }
@@ -305,7 +236,7 @@ const validateAllFieldApi = async () => {
   return allPass;
 };
 
-// 表单提交方法：整合前端规则校验 + 后端接口校验
+// 提交表单
 const handleSubmit = async () => {
   if (!props.validateBeforeSubmit) {
     emit("submit", { ...formData });
@@ -314,16 +245,13 @@ const handleSubmit = async () => {
 
   try {
     submitLoading.value = true;
-    // 第一步：前端整体规则校验
     await formRef.value.validate();
-    // 第二步：所有失焦校验字段的后端接口校验
     const isAllApiPass = await validateAllFieldApi();
     if (!isAllApiPass) {
       ElMessage.warning("部分字段校验失败，请修正后再提交");
       submitLoading.value = false;
       return;
     }
-    // 所有校验通过，提交表单
     emit("submit", { ...formData });
   } catch (error) {
     ElMessage.warning("请完善表单必填项并修正格式错误");
@@ -332,31 +260,29 @@ const handleSubmit = async () => {
   }
 };
 
-// 对话框显隐变化处理
+// 弹窗控制
 const handleVisibleChange = (value) => {
   emit("update:modelValue", value);
 };
 
-// 取消按钮点击事件
 const handleCancel = () => {
   emit("cancel");
   emit("update:modelValue", false);
 };
 
-// 对话框关闭事件
 const handleClose = () => {
   emit("close");
   emit("update:modelValue", false);
 };
 
-// 暴露方法给父组件
+// 暴露方法给父组件（修复方法名，和父组件调用一致）
 defineExpose({
+  validate: () => formRef.value?.validate(),
+  clearValidate: (field) => formRef.value?.clearValidate(field),
   clearForm: () => {
-    initFormData();
+    Object.keys(formData).forEach((key) => delete formData[key]);
     formRef.value?.clearValidate();
   },
-  validateForm: () => formRef.value?.validate(),
-  clearValidate: (prop) => formRef.value?.clearValidate(prop),
 });
 </script>
 
