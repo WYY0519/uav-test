@@ -133,13 +133,33 @@
               align-items: center;" 
           class="fontGradient">  
           <span>无人机监控</span>
-          <img 
+          <div>
+              <img 
             style="width: 16px; height: 16px; cursor: pointer;" 
             :src="shareVideo" 
             alt="分享视频" 
+             title="分享视频"
             class="logo" 
             @click="handleShareVideo"
           /> 
+         <img 
+            style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" 
+            :src="shareVideo2" 
+            alt="开始录制" 
+            title="开始录制"
+            class="logo" 
+            @click="toggleRecording(0)"
+          />
+          <img 
+            style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" 
+            :src="shareVideo3" 
+            alt='停止录制' 
+            title='停止录制' 
+            class="logo" 
+            @click="toggleRecording(1)"
+          />
+          </div>
+        
         </div>
           <!-- 监控内容区域 -->
           <!-- <ShakaPlayer src="http://192.168.1.148:7080/stream/1/hls.m3u8" :config="playerConfig" /> -->
@@ -153,8 +173,9 @@
           <ShakaPlayer v-if="droneMonitoringShow" :src="`ws://121.41.60.99:8082/${droneMonitoringUrl}.live.flv`"
             :config="playerConfig" />
           <M3u8Player v-if="dronM3u8PlayerShow" :video-url="videoUrl" :width="1000" :height="600"
-            @error="handleError" />
+            @error="handleError" /> 
         </div>
+         
         <div class="device-info">
           <h4 class="fontGradient">无人机信息</h4>
           <p>设备编号: {{ selectedDeviceInfo?.deviceId }}</p>
@@ -585,11 +606,15 @@ import ShakaPlayer from "../component/ShakaPlayer.vue";
 import M3u8Player from "../component/M3u8Player.vue";
 import UavMonitorVisible from "./components/uavMonitor/uavMonitorVisible.vue";
 import { dronePolicyList } from "@/api/dronePolicy.js";
+import { videoStartRecording ,videoStopRecording} from "@/api/video.js";
+// 
 import { getRouteList } from "@/api/route";
 // import droneIconUrl from "@/assets/mti-无人机.png";
 import planeIcon from "@/assets/航空飞机.png";
 import localIcon from "@/assets/local.png";
 import shareVideo from "@/assets/分享.png";
+import shareVideo2 from "@/assets/录制_开始录制.png";
+import shareVideo3 from "@/assets/录制_停止录制.png";
 
 
 // 可选的播放器配置
@@ -622,6 +647,9 @@ const returnVoyageForm = ref({
   latitude: "",
   height: "",
 });
+// 视频录制状态
+const currentRecordId = ref(''); // 👈 加上这个
+const isRecording = ref(false); 
 // 表单验证规则
 const returnVoyageRules = {
   longitude: [{ required: true, message: "请输入经度", trigger: "blur" }],
@@ -903,7 +931,62 @@ const onMapLayerChange = (val) => {
   map.setLayers(layers);
   ElMessage.success("已切换 → " + label);
 };
+// 切换录制状态
+const toggleRecording = async (value) => {
+  console.log(isRecording.value,"=====")
+  if (!selectedDeviceInfo.value || !selectedDeviceInfo.value.videoIp) {
+    ElMessage.warning("请先选择无人机设备");
+    return;
+  }
 
+  // 正在录制 → 停止
+  if (value === 1) {
+    try {
+      if (!currentRecordId.value) {
+        ElMessage.warning("未找到录制ID，无法停止");
+        isRecording.value = false;
+        return;
+      }
+      let res = await videoStopRecording({
+        recordId: currentRecordId.value // 正确传录制ID
+      });
+      console.log("停止录制返回:", res);
+      ElMessage.success("已停止录制");
+    } catch (err) {
+      console.error(err);
+      ElMessage.error("停止录制失败");
+    } finally {
+      // 无论成功失败，都重置状态
+      isRecording.value = false;
+      currentRecordId.value = '';
+    }
+    return;
+  }
+
+  // 未录制 → 开始
+  try {
+    isRecording.value = true; // 先切图标，防止接口慢导致不切换
+    let data = {
+      droneId: searchQuery.value,
+      streamUrl: selectedDeviceInfo.value.videoIp,
+      // title: selectedDeviceInfo.value.deviceName || "无人机录制"
+    };
+    let res = await videoStartRecording(data);
+    console.log("开始录制返回:", res);
+
+    if (res?.code === 200 && res?.data) {
+      currentRecordId.value = res.data; // 保存后端返回的录制ID
+      ElMessage.success("开始录制成功");
+    } else {
+      ElMessage.error(res?.message || "开始录制失败");
+      isRecording.value = false;
+    }
+  } catch (err) {
+    console.error(err);
+    ElMessage.error("开始录制异常");
+    isRecording.value = false;
+  }
+};
 // 添加标记点（强制最后一个点为终点）
 const addMarker = (point, index, isFinalPoint = false) => {
   let markerLabel, markerClass;
@@ -2050,7 +2133,7 @@ onMounted(() => {
       block: "start", // 元素顶部与视口顶部对齐，但会受scroll-margin-top影响
     });
   }
-  initMap();
+  (window.__amapReady || Promise.resolve()).then(() => initMap());
   getAllPolicies(); //获取策略
   initOptionListener();
   // 根据初始锁定状态设置滑块位置

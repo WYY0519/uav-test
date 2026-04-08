@@ -175,8 +175,8 @@
                             indexPrototype === 0
                               ? "(起点)"
                               : indexPrototype === itemInfo.points.length - 1
-                              ? "(终点)"
-                              : ""
+                                ? "(终点)"
+                                : ""
                           }}
                           <div
                             class="routEdit"
@@ -454,8 +454,7 @@ let routeInfo = ref([
 ]);
 // 路线列表
 const routes = ref([]);
-// 天地图API密钥（请替换为您自己的密钥）
-const TIANDITU_KEY = "69a5cdb2a588f9138791d3ec5136addc";
+
 // 保存路线对话框状态
 const saveRouteDialogVisible = ref(false);
 //保存路线 校验
@@ -524,44 +523,46 @@ const currentShowNav = computed(() => {
   return activeNav.value; // 其他页显示当前导航对应的列表
 });
 
-//天地图
+//高德地图
 const initMap = () => {
-  if (!window.T) {
-    ElMessage.error("天地图API未加载，请检查网络连接");
+  if (!window.AMap) {
+    ElMessage.error("高德地图API未加载，请检查网络连接");
     loading.value = false;
     return;
   }
   try {
     // 创建地图实例
-    map = new T.Map(mapContainer.value);
+    map = new AMap.Map(mapContainer.value, {
+      zoom: 13,
+      center: [116.481028, 39.921983],
+      viewMode: "3D",
+      renderMode: "webgl",
+      layers: [new AMap.TileLayer.Satellite(), new AMap.TileLayer.RoadNet()],
+    });
     // 地图加载完成事件
-    map.addEventListener("load", () => {
+    map.on("complete", () => {
       loading.value = false;
       ElMessage.success("地图加载成功");
     });
     // 地图加载错误事件
-    map.addEventListener("error", (e) => {
+    map.on("error", (e) => {
       console.error("地图加载错误:", e);
       loading.value = false;
       ElMessage.error("地图加载失败，请刷新页面重试");
     });
-    // 设置地图中心点和缩放级别
-    map.centerAndZoom(new T.LngLat(116.481028, 39.921983), 13);
-    // 添加地图图层
-    const layer = new T.TileLayer("img_w", {
-      zIndex: 1,
-      token: TIANDITU_KEY,
+    // 添加地图控件
+    AMap.plugin(["AMap.ToolBar", "AMap.Scale"], function () {
+      map.addControl(new AMap.ToolBar());
+      map.addControl(new AMap.Scale());
     });
-    map.addLayer(layer);
-    //切换到卫星和路网的混合视图：
-    map.setMapType(TMAP_HYBRID_MAP);
     // 尝试获取当前位置
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lng = position.coords.longitude;
           const lat = position.coords.latitude;
-          map.centerAndZoom(new T.LngLat(lng, lat), 15);
+          map.setCenter([lng, lat]);
+          map.setZoom(15);
           ElMessage.success("已定位到当前位置");
         },
         (err) => {
@@ -580,7 +581,7 @@ const initMap = () => {
           //     default:
           //         ElMessage.err("获取位置失败，请稍后再试");
           // }
-        }
+        },
       );
     }
   } catch (error) {
@@ -661,13 +662,14 @@ const startDrawing = () => {
   if (!map || isDrawing.value || isViewing.value) return;
   isDrawing.value = true;
   // 创建绘制线
-  drawingLine = new T.Polyline([], {
-    color: "#c0274e",
-    weight: 8,
-    opacity: 0.8,
-    lineStyle: "solid",
+  drawingLine = new AMap.Polyline({
+    path: [],
+    strokeColor: "#c0274e",
+    strokeWeight: 8,
+    strokeOpacity: 0.8,
+    strokeStyle: "solid",
   });
-  map.addOverLay(drawingLine);
+  map.add(drawingLine);
   ElMessage.info("请在地图上点击添加航点");
   // 绑定地图点击事件
   drawingClickHandler = (e) => {
@@ -678,9 +680,7 @@ const startDrawing = () => {
     };
     drawnPoints.value.push(point);
     // 更新绘制线
-    drawingLine.setLngLats(
-      drawnPoints.value.map((p) => new T.LngLat(p.lng, p.lat))
-    );
+    drawingLine.setPath(drawnPoints.value.map((p) => [p.lng, p.lat]));
     // 清除所有标记点并重新绘制（关键修改）
     clearMarkers();
     drawnPoints.value.forEach((p, idx) => {
@@ -690,7 +690,7 @@ const startDrawing = () => {
     ElMessage.info(`已添加 ${drawnPoints.value.length} 个航点`);
   };
 
-  map.addEventListener("click", drawingClickHandler);
+  map.on("click", drawingClickHandler);
 };
 //设备新增
 const startDrawingEquipment = () => {
@@ -728,27 +728,25 @@ const addPointMarker = (point, index, totalPoints) => {
     index === 0
       ? MARKER_STYLES.START
       : isEnd
-      ? MARKER_STYLES.END
-      : MARKER_STYLES.MIDDLE;
+        ? MARKER_STYLES.END
+        : MARKER_STYLES.MIDDLE;
 
   // 动态生成标记文本
   const markerLabel =
     markerStyle === MARKER_STYLES.START
       ? "S"
       : markerStyle === MARKER_STYLES.END
-      ? "E"
-      : (index + 1).toString();
+        ? "E"
+        : (index + 1).toString();
 
   // 创建标记点HTML
   const markerHtml = `<div class="marker ${markerStyle.className}">${markerLabel}</div>`;
 
   // 创建标记
-  const marker = new T.Marker(new T.LngLat(point.lng, point.lat), {
-    icon: new T.DivIcon({
-      html: markerHtml,
-      iconSize: new T.Point(40, 40),
-      iconAnchor: new T.Point(20, 20),
-    }),
+  const marker = new AMap.Marker({
+    position: [point.lng, point.lat],
+    content: markerHtml,
+    offset: new AMap.Pixel(-20, -20),
   });
 
   // 确保样式只添加一次
@@ -774,7 +772,7 @@ const addPointMarker = (point, index, totalPoints) => {
     `;
     document.head.appendChild(style);
   }
-  map.addOverLay(marker);
+  map.add(marker);
 };
 
 // 在调用addPointMarker的地方，传入当前数组长度
@@ -785,9 +783,9 @@ drawnPoints.value.forEach((point, index) => {
 const clearMarkers = () => {
   if (!map) return;
 
-  map.getOverlays().forEach((overlay) => {
-    if (overlay instanceof T.Marker && overlay.isRouteMarker) {
-      map.removeOverLay(overlay);
+  map.getAllOverlays().forEach((overlay) => {
+    if (overlay instanceof AMap.Marker && overlay.isRouteMarker) {
+      map.remove(overlay);
     }
   });
 };
@@ -798,25 +796,25 @@ const finishDrawing = () => {
     return;
   }
   const coordinates = drawnPoints.value;
-  const path = coordinates.map((point) => new T.LngLat(point.lng, point.lat));
+  const path = coordinates.map((point) => [point.lng, point.lat]);
   if (!map) return; // 确保地图已初始化
   // 清除之前的覆盖物（可选）
   clearOverlays();
   // 创建线对象
-  const polyline = new T.Polyline(path, {
-    color: "#409eff", // 线颜色
-    weight: 8, // 线宽
-    opacity: 0.8, // 透明度
-    lineStyle: "solid", // 线样式
+  const polyline = new AMap.Polyline({
+    path: path,
+    strokeColor: "#409eff", // 线颜色
+    strokeWeight: 8, // 线宽
+    strokeOpacity: 0.8, // 透明度
+    strokeStyle: "solid", // 线样式
   });
   // 添加到地图
-  map.addOverLay(polyline);
+  map.add(polyline);
   // 调整地图视野显示所有点
-  const bounds = new T.LngLatBounds();
-  path.forEach((lnglat) => bounds.extend(lnglat));
+  map.setFitView([polyline]);
   // 清除绘制状态
   isDrawing.value = false;
-  map.removeEventListener("click", drawingClickHandler);
+  map.off("click", drawingClickHandler);
   drawingClickHandler = null;
   //保存路线
   saveRoute();
@@ -945,12 +943,12 @@ const confirmSaveRoute = async () => {
             alt: 30, // 默认高度30米，可以根据需要修改
           })),
         };
-        (newArr.value = {
+        ((newArr.value = {
           name: saveRouteForm.value.name,
           description: saveRouteForm.value.description,
           points: routeData.points,
         }),
-          console.log(newArr.value);
+          console.log(newArr.value));
         const pointsJson = convertPoints(newArr.value.points);
         let params = {
           name: newArr.value.name,
@@ -978,22 +976,21 @@ const viewRoute = (route) => {
   // 显示查看状态
   isViewing.value = false;
   // 绘制路线
-  const path = route.points.map((p) => new T.LngLat(p.lng, p.lat));
-  const polyline = new T.Polyline(path, {
-    color: "#2c64a7",
-    weight: 8,
-    opacity: 0.8,
-    lineStyle: "solid",
+  const path = route.points.map((p) => [p.lng, p.lat]);
+  const polyline = new AMap.Polyline({
+    path: path,
+    strokeColor: "#2c64a7",
+    strokeWeight: 8,
+    strokeOpacity: 0.8,
+    strokeStyle: "solid",
   });
-  map.addOverLay(polyline);
+  map.add(polyline);
   // 添加标记点
   route.points.forEach((point, index) => {
     addPointMarker(point, index, route.points.length);
   });
   // 调整地图视图
-  const bounds = new T.LngLatBounds();
-  path.forEach((lnglat) => bounds.extend(lnglat));
-  // map.fitBounds(bounds);
+  map.setFitView([polyline]);
   ElMessage.info(`已显示路线: ${route.name}`);
 };
 const editAirline = (value, index) => {
@@ -1029,14 +1026,14 @@ const confirmDelete = async () => {
 // 清除所有覆盖物
 const clearOverlays = () => {
   if (map) {
-    map.clearOverLays();
+    map.clearMap();
     if (drawingLine) {
-      map.removeOverLay(drawingLine);
+      // drawingLine is already removed by clearMap, but we need to nullify the reference
       drawingLine = null;
     }
     if (carTrack) {
       carTrack.stop();
-      map.removeOverLay(carTrack);
+      // carTrack may not be an overlay, but we still need to nullify
       carTrack = null;
     }
   }
@@ -1049,7 +1046,7 @@ const editWaypoint = () => {
 const handleMapClick = (e) => {
   if (!isDrawing.value) return;
 
-  // 1. 获取点击的原始坐标（天地图点击事件返回的是GCJ-02坐标）
+  // 1. 获取点击的原始坐标（高德地图点击事件返回的是GCJ-02坐标）
   const originalLng = e.lnglat.lng;
   const originalLat = e.lnglat.lat;
 
@@ -1066,21 +1063,20 @@ const handleMapClick = (e) => {
   // 添加新点并更新绘制线
   drawnPoints.value.push(point);
   if (drawingLine) {
-    drawingLine.setLngLats(
-      drawnPoints.value.map((p) => new T.LngLat(p.lng, p.lat))
-    );
+    drawingLine.setPath(drawnPoints.value.map((p) => [p.lng, p.lat]));
   }
 
   // 添加标记点（使用转换后的坐标）
-  const marker = new T.Marker(new T.LngLat(point.lng, point.lat), {
-    icon: new T.Icon({
+  const marker = new AMap.Marker({
+    position: [point.lng, point.lat],
+    icon: new AMap.Icon({
       iconUrl: droneIcon,
-      iconSize: new T.Point(12, 12),
-      iconAnchor: new T.Point(6, 6),
+      size: new AMap.Size(12, 12),
+      imageSize: new AMap.Size(12, 12),
     }),
   });
   marker.isRouteMarker = true; // 标记为路线标记，方便后续清除
-  map.addOverLay(marker);
+  map.add(marker);
 };
 // 修改子组件中监听isCollapse变化的部分
 watch(
@@ -1092,18 +1088,16 @@ watch(
     if (map && typeof map.checkResize === "function") {
       // 延迟一小段时间，确保DOM已经更新完成
       setTimeout(() => {
-        map.checkResize(); // 天地图API提供的重绘方法
+        map.checkResize(); // 高德地图API也提供checkResize方法
 
         // 如果有必要，可以同时调整地图视野
         if (currentPosition.value) {
-          map.panTo(
-            new T.LngLat(currentPosition.value.lng, currentPosition.value.lat)
-          );
+          map.panTo([currentPosition.value.lng, currentPosition.value.lat]);
         }
       }, 300);
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 watch(waypointSettingVisible, (newVale) => {
   if (newVale === false) {
@@ -1132,7 +1126,7 @@ watch(activeNav, (newVal, oldVal) => {
   }
 });
 onMounted(() => {
-  //天地图
+  //高德地图
   initMap();
   //航线列表
   routeList();
@@ -1162,29 +1156,29 @@ onBeforeUnmount(() => {
     // 停止并清除轨迹对象
     if (carTrack) {
       carTrack.stop();
-      map.removeOverLay(carTrack);
+      map.remove(carTrack);
       carTrack = null;
     }
 
     // 清除绘制线
     if (drawingLine) {
-      map.removeOverLay(drawingLine);
+      map.remove(drawingLine);
       drawingLine = null;
     }
 
     // 清除所有覆盖物
     if (map) {
-      const overlays = map.getOverlays();
+      const overlays = map.getAllOverlays();
       overlays.forEach((overlay) => {
-        map.removeOverLay(overlay);
+        map.remove(overlay);
       });
     }
 
     // 移除事件监听
     if (map) {
-      map.removeEventListener("click", handleMapClick);
-      map.removeEventListener("load");
-      map.removeEventListener("error");
+      map.off("click", handleMapClick);
+      map.off("complete");
+      map.off("error");
     }
 
     // 销毁地图实例
@@ -1203,10 +1197,10 @@ onBeforeUnmount(() => {
   }
   // 清理资源
   if (map) {
-    map.removeEventListener("load", () => {});
-    map.removeEventListener("error", () => {});
+    map.off("complete");
+    map.off("error");
     if (drawingClickHandler) {
-      map.removeEventListener("click", drawingClickHandler);
+      map.off("click", drawingClickHandler);
     }
     map = null;
   }

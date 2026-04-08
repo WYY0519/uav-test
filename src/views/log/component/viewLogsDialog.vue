@@ -100,7 +100,10 @@ watch(
       internalVisible.value = true;
 
       await nextTick();
-      if (!map) initMap();
+      if (!map) {
+        await (window.__amapReady || Promise.resolve());
+        initMap();
+      }
 
       await nextTick();
       loadLogContent();
@@ -236,8 +239,12 @@ const extractCoordinates = (logData) => {
       const gps = item?.status?.global_position_int;
       if (!gps) return;
 
-      const lon = Number(gps.lon) / 10000000;
-      const lat = Number(gps.lat) / 10000000;
+      let lon = Number(gps.lon);
+      let lat = Number(gps.lat);
+
+      // MAVLink 整数格式（>= 1e7 量级）需除以 1e7，浮点格式直接使用
+      if (Math.abs(lon) >= 1e7) lon = lon / 10000000;
+      if (Math.abs(lat) >= 1e7) lat = lat / 10000000;
 
       if (isNaN(lon) || isNaN(lat) || Math.abs(lon) < 0.0001) return;
       res.push({ longitude: lon, latitude: lat });

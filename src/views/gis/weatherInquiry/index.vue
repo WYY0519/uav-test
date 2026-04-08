@@ -458,8 +458,8 @@ const onMapLayerChange = (val) => {
 };
 // ===================== 生命周期 =====================
 onMounted(() => {
-  // 初始化地图
-  initMap();
+  // 初始化地图（等待高德地图脚本加载完毕）
+  (window.__amapReady || Promise.resolve()).then(() => initMap());
   // 调整容器样式（保留你的原有逻辑）
   const pageContent = document.querySelector(".page-content");
   if (pageContent) pageContent.classList.add("current-page-no-padding");

@@ -31,8 +31,8 @@
           </el-radio>
         </template>
       </el-table-column>
-      <el-table-column prop="name" label="航线名称" min-width="100" />
-      <el-table-column prop="createTime" label="航线描述" min-width="180">
+      <el-table-column prop="name" label="航线名称" min-width="100" align="center" />
+      <el-table-column prop="createTime" label="航线描述" min-width="180" align="center">
         <template #default="{ row }">
           {{ row.description }}
         </template>

@@ -2962,7 +2962,7 @@ onMounted(() => {
       block: "start", // 元素顶部与视口顶部对齐，但会受scroll-margin-top影响
     });
   }
-  initMap();
+  (window.__amapReady || Promise.resolve()).then(() => initMap());
   getAllPolicies(); //获取策略
   initOptionListener();
   //任务管理

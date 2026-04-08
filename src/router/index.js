@@ -61,9 +61,14 @@ const router = createRouter({
           component: () => import("@/views/limitArea/index.vue"),
         },
         {
-          path: "/role", //角色管理
-          name: "manage",
+          path: "/role", //无人机列表
+          name: "role",
           component: () => import("@/views/role/index.vue"),
+        },
+        {
+          path: "/video", //无人机列表
+          name: "video",
+          component: () => import("@/views/video/index.vue"),
         },
         {
           path: "/user/list", //用户列表

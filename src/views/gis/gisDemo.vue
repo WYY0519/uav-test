@@ -2047,7 +2047,7 @@ watch(noFlyZoneManagerRef, (newVal) => {
 });
 // 初始化
 onMounted(async () => {
-  initMap();
+  (window.__amapReady || Promise.resolve()).then(() => initMap());
   await getAllPolicies();
   //去掉父级继承的padding
   const pageContent = document.querySelector(".page-content");

@@ -45,7 +45,7 @@ import { Sunny } from "@element-plus/icons-vue";
 // 响应式数据
 const latitudelongitude = ref({ lng: "", lat: "", gcjLng: "", gcjLat: "" });
 const cityCode = ref("");
-const gdKey = ref("2731752e51881bb9d549b1793728d0f5");
+const gdKey = ref(import.meta.env.VITE_AMAP_REST_KEY || "2731752e51881bb9d549b1793728d0f5");
 const locationInfo = ref({ formatted_address: "" }); // 初始化兜底
 const weatherInfomation = ref({});
 

@@ -238,6 +238,7 @@ const menuMap = {
   "/home": { text: "首页" },
   "/largeScreen": { text: "大屏" },
   "/role": { parent: "无人机管理", text: "无人机列表" },
+  "/video": { parent: "无人机管理", text: "航拍列表" },
   "/device/monitor": { parent: "无人机管理", text: "无人机监控" },
   "/user/list": { parent: "用户管理", text: "用户列表" },
   "/user/roles": { parent: "用户管理", text: "角色管理" },
