@@ -748,8 +748,8 @@ onMounted(() => {
   font-family: monospace;
   white-space: pre-wrap;
 }
-:deep(.el-dialog__body){
-  padding: 10px ;
+:deep(.el-dialog__body) {
+  padding: 10px;
 }
 /* 响应式优化：小屏幕下调整布局 */
 @media (max-width: 768px) {
