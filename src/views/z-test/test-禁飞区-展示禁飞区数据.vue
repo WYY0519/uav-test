@@ -48,7 +48,7 @@ import "leaflet-draw/dist/leaflet.draw.css";
 import "leaflet-draw";
 
 // 天地图密钥（建议替换为自己申请的密钥，避免失效）
-const TIAN_DI_TU_KEY = "69a5cdb2a588f9138791d3ec5136addc";
+const TIAN_DI_TU_KEY = import.meta.env.VITE_APP_TIANDITU_KEY || "69a5cdb2a588f9138791d3ec5136addc";
 
 // 2. 地图核心对象初始化（避免null）
 let map = null;

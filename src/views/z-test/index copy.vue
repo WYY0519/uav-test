@@ -48,7 +48,7 @@ let werf = {
 const getCityByLatLng = async (lat, lng) => {
   try {
     // 替换为你的高德Key
-    const amapKey = "2731752e51881bb9d549b1793728d0f5";
+    const amapKey = import.meta.env.VITE_AMAP_REST_KEY || "2731752e51881bb9d549b1793728d0f5";
     // 高德逆地理编码API
     const url = `https://restapi.amap.com/v3/geocode/regeo?location=${lng},${lat}&key=${amapKey}&extensions=base`;
 

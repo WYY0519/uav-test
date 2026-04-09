@@ -70,6 +70,9 @@
 import { ref, onMounted, nextTick } from "vue";
 import { ElMessage } from "element-plus";
 
+// 天地图密钥
+const TIANDITU_KEY = import.meta.env.VITE_APP_TIANDITU_KEY || "69a5cdb2a588f9138791d3ec5136addc";
+
 // 基础变量
 let droneMarker = null;
 let trackPolyline = null;
@@ -164,7 +167,7 @@ const initMap = () => {
     }
     // map = new T.Map(mapContainer.value);
     map = new T.Map(mapContainer.value, {
-      key: "69a5cdb2a588f9138791d3ec5136addc",
+      key: TIANDITU_KEY,
       zoom: 15,
       center: new T.LngLat(121.4836, 31.2304),
     });
@@ -188,13 +191,13 @@ const initMap = () => {
 
     // 初始化地图时，指定瓦片服务域名
     const vecLayer = new T.TileLayer("vec_w", {
-      key: "69a5cdb2a588f9138791d3ec5136addc",
+      key: TIANDITU_KEY,
       url: "https://t0.tianditu.gov.cn/vec_w/wmts", // 固定使用t0域名
     });
     map.addLayer(vecLayer);
 
     const cvaLayer = new T.TileLayer("cva_w", {
-      key: "69a5cdb2a588f9138791d3ec5136addc",
+      key: TIANDITU_KEY,
       url: "https://t0.tianditu.gov.cn/cva_w/wmts",
     });
     map.addLayer(cvaLayer);

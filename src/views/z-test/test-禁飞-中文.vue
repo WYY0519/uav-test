@@ -78,7 +78,7 @@ const drawControl = ref(null);
 const noFlyZonesLayer = ref(null);
 
 // 天地图密钥 - 请替换为你自己的有效密钥
-const TIAN_DI_TU_KEY = "69a5cdb2a588f9138791d3ec5136addc";
+const TIAN_DI_TU_KEY = import.meta.env.VITE_APP_TIANDITU_KEY || "69a5cdb2a588f9138791d3ec5136addc";
 
 // 手动加载Leaflet库
 function loadScript(url) {

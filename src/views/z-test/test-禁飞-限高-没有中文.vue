@@ -84,7 +84,7 @@ if (!L.Util.formatNum) {
 }
 
 // 天地图密钥
-const TIAN_DI_TU_KEY = "69a5cdb2a588f9138791d3ec5136addc";
+const TIAN_DI_TU_KEY = import.meta.env.VITE_APP_TIANDITU_KEY || "69a5cdb2a588f9138791d3ec5136addc";
 let map: L.Map | null = null;
 let drawControl: any = null;
 let noFlyZonesLayer: L.FeatureGroup<any> | null = null;
