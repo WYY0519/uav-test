@@ -642,6 +642,13 @@ const addMemberColumns = [
 // 无人机列表列配置
 const uavColumns = [
   {
+    prop: "index",
+    label: "序号",
+    width: "60",
+    align: "center",
+    showOverflowTooltip: true,
+  },
+  {
     prop: "name",
     label: "无人机名称",
     width: "150",
@@ -652,34 +659,6 @@ const uavColumns = [
     prop: "deviceNumber",
     label: "无人机编号",
     width: "150",
-    align: "center",
-    showOverflowTooltip: true,
-  },
-  {
-    prop: "ip",
-    label: "无人机IP",
-    width: "150",
-    align: "center",
-    showOverflowTooltip: true,
-  },
-  {
-    prop: "dataPort",
-    label: "数据端口",
-    width: "100",
-    align: "center",
-    showOverflowTooltip: true,
-  },
-  {
-    prop: "controlPort",
-    label: "控制端口",
-    width: "100",
-    align: "center",
-    showOverflowTooltip: true,
-  },
-  {
-    prop: "picturePort",
-    label: "图传端口",
-    width: "100",
     align: "center",
     showOverflowTooltip: true,
   },
@@ -1150,8 +1129,12 @@ const getUavList = async () => {
   try {
     const res = await getProjectDevicesList(currentProject.value.projectId);
     if (res && res.code === 200 && res.data) {
-      uavTableData.value = res.data || [];
+      uavTableData.value = (res.data || []).map((item, index) => ({
+        ...item,
+        index: index + 1, // 序号从1开始，0是数组下标
+      }));
     }
+    console.log("1", uavTableData.value);
   } catch (error) {
     console.error("获取无人机列表失败:", error);
     ElMessage.error("获取无人机列表失败，请重试");
@@ -1202,6 +1185,7 @@ const getAvailableDevices = async () => {
     const res = await listUsefulDevice();
     if (res && res.code === 200 && res.data) {
       addUavTableData.value = res.data || [];
+      console.log(addUavTableData.value, "addUavTableData.value");
     }
   } catch (error) {
     console.error("获取可用设备列表失败:", error);

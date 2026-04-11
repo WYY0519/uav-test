@@ -4,7 +4,7 @@
     <!-- 地图底层 -->
     <div class="map-container" ref="mapContainer"></div>
             <!-- 3种地图图层下拉选择 -->
-      <div style="position: absolute; top: 20px; right: 20px; z-index: 9999">
+      <div style="position: absolute; top: 20px; right: 20px; ">
         <el-select
           v-model="mapLayerType"
           @change="onMapLayerChange"
@@ -71,7 +71,7 @@
       </div>
       <!-- 引入任务列表组件 -->
       <TaskList
-        style="width: 15%"
+        style="width: 20%"
         :initial-show-task-list="showTaskList"
         @toggle-task-list="handleTaskListToggle"
         @select-task="selectTask"
@@ -81,8 +81,8 @@
       <div
         class="bottom-section"
         :style="{
-          flex: showTaskList ? '0 0 85%' : '0 0 100%',
-          'min-width': showTaskList ? '85%' : '100%',
+          flex: showTaskList ? '0 0 80%' : '0 0 100%',
+          'min-width': showTaskList ? '80%' : '100%',
         }"
       >
         <!-- 顶部面板 -->
@@ -3962,8 +3962,8 @@ const handleClickOutside = (event) => {
   color: #fff;
 }
 .bottom-section {
-  flex: 0 0 85%;
-  min-width: 85%;
+  flex: 0 0 80%;
+  min-width: 80%;
   position: relative;
   overflow: hidden;
   /* pointer-events: none; */

@@ -389,13 +389,13 @@ const devicesColumns = [
     align: "center",
     showOverflowTooltip: true,
   },
-  {
-    prop: "id",
-    label: "设备ID",
-    width: "80",
-    align: "center",
-    showOverflowTooltip: true,
-  },
+  // {
+  //   prop: "id",
+  //   label: "设备ID",
+  //   width: "80",
+  //   align: "center",
+  //   showOverflowTooltip: true,
+  // },
   {
     prop: "name",
     label: "设备名称",
@@ -411,9 +411,9 @@ const devicesColumns = [
     showOverflowTooltip: true,
   },
   {
-    prop: "ip",
-    label: "IP地址",
-    width: "150",
+    prop: "videoIp",
+    label: "视频流地址",
+    width: "200",
     align: "center",
     showOverflowTooltip: true,
   },

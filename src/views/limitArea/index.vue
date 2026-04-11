@@ -104,7 +104,7 @@
         <div style="font-size: 14px">{{ tooltipTile }}</div>
       </div>
       <!-- 3种地图图层下拉选择 -->
-      <div style="position: absolute; top: 20px; right: 20px; z-index: 9999">
+      <div style="position: absolute; top: 20px; right: 20px">
         <el-select
           v-model="mapLayerType"
           @change="onMapLayerChange"
