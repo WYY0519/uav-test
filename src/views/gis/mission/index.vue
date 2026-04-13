@@ -3,31 +3,26 @@
   <div class="drone-monitor">
     <!-- 地图底层 -->
     <div class="map-container" ref="mapContainer"></div>
-            <!-- 3种地图图层下拉选择 -->
-      <div style="position: absolute; top: 20px; right: 20px;">
-        <el-select
-          v-model="mapLayerType"
-          @change="onMapLayerChange"
-          style="width: 130px"
-          size="default"
-        >
-          <el-option label="标准地图" value="normal" />
-          <el-option label="卫星地图" value="satellite" />
-          <el-option label="卫星混合" value="satelliteMix" />
-        </el-select>
-      </div>
+    <!-- 3种地图图层下拉选择 -->
+    <div style="position: absolute; top: 20px; right: 20px; ">
+      <el-select v-model="mapLayerType" @change="onMapLayerChange" style="width: 130px" size="default">
+        <el-option label="标准地图" value="normal" />
+        <el-option label="卫星地图" value="satellite" />
+        <el-option label="卫星混合" value="satelliteMix" />
+      </el-select>
+    </div>
     <div class="layout-container">
-      <div
-        class="task-details-card-wrapper"
-        :class="{ 'task-list-expanded': showTaskList }"
-        v-show="showTaskDetails"
-      >
+      <div class="task-details-card-wrapper" :class="{ 'task-list-expanded': showTaskList }" v-show="showTaskDetails">
         <el-card style="max-width: 480px">
           <template #header>
             <div class="card-header">
               <span>任务详情</span>
             </div>
           </template>
+          <p style="font-size: 12px">所属任务：</p>
+          <p style="font-size: 12px">
+            {{ selectedMission?.missionName || selectedMission?.name || "--" }}
+          </p>
           <p style="font-size: 12px">飞控编号：</p>
           <p style="font-size: 12px">
             {{
@@ -37,84 +32,50 @@
             }}
           </p>
 
-          <el-select
-            style="margin: 12px 0"
-            v-model="selectedRouteValue"
-            placeholder="请选择航线"
-            @change="handleRouteSelect"
-          >
-            <el-option
-              v-for="item in taskOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
+          <el-select style="margin: 12px 0" v-model="selectedRouteValue" placeholder="请选择航线"
+            @change="handleRouteSelect">
+            <el-option v-for="item in taskOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
           <div>
-            <el-button type="info" @click="showTaskDetails = false"
-              >取消</el-button
-            >
+            <el-button type="info" @click="showTaskDetails = false">取消</el-button>
             <!--  -->
-            <el-button
-              :disabled="
-                !(
-                  selectedMission?.assignedDevice?.deviceNumber &&
-                  selectedMission?.assignedDevice?.deviceNumber.trim()
-                ) || !selectedRouteValue
-              "
-              type="primary"
-              @click="executeMission(selectedMission)"
-              >开始</el-button
-            >
+            <el-button :disabled="!(
+              selectedMission?.assignedDevice?.deviceNumber &&
+              selectedMission?.assignedDevice?.deviceNumber.trim()
+            ) || !selectedRouteValue
+              " type="primary" @click="executeMission(selectedMission)">开始</el-button>
           </div>
         </el-card>
       </div>
       <!-- 引入任务列表组件 -->
-      <TaskList
-        style="width: 20%"
-        :initial-show-task-list="showTaskList"
-        @toggle-task-list="handleTaskListToggle"
-        @select-task="selectTask"
-        @mouseleave-task="mouseleaveTask"
-        @update-task-list-status="handleTaskListStatusUpdate"
-      />
-      <div
-        class="bottom-section"
-        :style="{
-          flex: showTaskList ? '0 0 80%' : '0 0 100%',
-          'min-width': showTaskList ? '80%' : '100%',
-        }"
-      >
+      <TaskList :style="{ width: showTaskList ? '20%' : '0%', overflow: 'hidden' }"
+        :initial-show-task-list="showTaskList" @toggle-task-list="handleTaskListToggle" @select-task="selectTask"
+        @mouseleave-task="mouseleaveTask" @update-task-list-status="handleTaskListStatusUpdate" />
+      <!-- 任务列表切换按钮 -->
+      <div class="task-list-toggle" @click.stop="showTaskList = !showTaskList">
+        <el-icon :style="{ color: '#409eff' }">
+          <Fold v-if="!showTaskList" />
+          <Expand v-else />
+        </el-icon>
+      </div>
+      <div class="bottom-section" :class="{ 'full-width': !showTaskList }">
         <!-- 顶部面板 -->
         <div class="top-panel">
-          <el-input
-            style="padding: 12px"
-            v-model="searchQuery"
-            placeholder="输入无人机编号搜索"
-            class="search-input"
-            clearable
-            @clear="handleSearchClear"
-            @keyup.enter="handleSearch"
-            type="primary"
-          >
+          <el-input style="padding: 12px" v-model="searchQuery" placeholder="输入无人机编号搜索" class="search-input" clearable
+            @clear="handleSearchClear" @keyup.enter="handleSearch" type="primary">
             <template #append>
-              <el-button
-                style="
+              <el-button style="
                   background-color: #409eff;
                   color: white;
                   padding-left: 17px;
-                "
-                :icon="Search"
-                @click="handleSearch"
-              />
+                " :icon="Search" @click="handleSearch" />
             </template>
           </el-input>
         </div>
         <!-- 左侧信息面板  -->
         <div class="left-panel">
           <div class="panel-content">
-            <div
-              style="
+            <div style="
                 display: flex;
                 flex-direction: column;
                 height: 100%;
@@ -124,14 +85,10 @@
                 border: 2px solid rgba(60, 127, 231, 0.7);
                 border-radius: 12px;
                 box-sizing: border-box;
-              "
-            >
+              ">
               <div class="compass-container">
                 <div class="compass">
-                  <div
-                    class="arrow"
-                    :style="{ transform: `rotate(${droneHeading}deg)` }"
-                  ></div>
+                  <div class="arrow" :style="{ transform: `rotate(${droneHeading}deg)` }"></div>
                   <span class="direction north">北</span>
                   <span class="direction south">南</span>
                   <span class="direction west">西</span>
@@ -165,33 +122,28 @@
                     {{
                       uavStatusContent?.system_time?.time_boot_ms
                         ? convertTime(
-                            uavStatusContent?.system_time?.time_boot_ms
-                          )
+                          uavStatusContent?.system_time?.time_boot_ms
+                        )
                         : ""
                     }}
                   </el-descriptions-item>
                   <el-descriptions-item label="经纬度">
                     {{
                       uavStatusContent?.global_position_int?.lon &&
-                      uavStatusContent?.global_position_int?.lat
+                        uavStatusContent?.global_position_int?.lat
                         ? `${uavStatusContent?.global_position_int?.lon},
-                                ${uavStatusContent?.global_position_int?.lat}`
+                    ${uavStatusContent?.global_position_int?.lat}`
                         : uavStatusContent?.global_position_int?.lon ||
-                          uavStatusContent?.global_position_int?.lat
+                        uavStatusContent?.global_position_int?.lat
                     }}
                   </el-descriptions-item>
                 </el-descriptions>
-                <el-button
-                  style="
+                <el-button style="
                     width: 100%;
                     margin: 5px 0 0 0;
                     background: #2c3d45;
                     color: #fff;
-                  "
-                  class="direction-btn right"
-                  @click.stop="uavViewDetails()"
-                  :disabled="!isConnected || !canOperate"
-                >
+                  " class="direction-btn right" @click.stop="uavViewDetails()">
                   查看详情
                 </el-button>
               </div>
@@ -200,37 +152,18 @@
               <div style="height: 30px; color: #fff; padding-left: 12px">
                 无人机设置灵敏度
               </div>
-              <el-select
-                v-model="sensitivity"
-                placeholder="请选择灵敏度"
-                @change="droneModeSettingChange2"
-              >
-                <el-option
-                  v-for="item in sensitivityOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
+              <el-select v-model="sensitivity" placeholder="请选择灵敏度" @change="droneModeSettingChange2">
+                <el-option v-for="item in sensitivityOptions" :key="item.value" :label="item.label"
+                  :value="item.value" />
               </el-select>
             </div>
             <div class="uav-mode">
               <div style="height: 30px; color: #fff; padding-left: 12px">
                 无人机模式设置
               </div>
-              <el-select
-                v-model="droneModeSetting"
-                placeholder="Select"
-                @change="droneModeSettingChange"
-                :disabled="!isConnected || !canOperate"
-                ref="selectRef"
-                @visible-change="handleVisibleChange"
-              >
-                <el-option
-                  v-for="item in options"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
+              <el-select v-model="droneModeSetting" placeholder="Select" @change="droneModeSettingChange"
+                :disabled="!isConnected || !canOperate" ref="selectRef" @visible-change="handleVisibleChange">
+                <el-option v-for="item in options" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </div>
           </div>
@@ -252,18 +185,10 @@
           :src= "ws://121.41.60.99:8082/live/stream_key.live.flv"
           :config="playerConfig" /> -->
               <!-- <ShakaPlayer :src="videoStream" :config="playerConfig" /> rtsp://121.41.60.99:7896/stream_from_yunxiang/1F00263233510834373435  -->
-              <ShakaPlayer
-                v-if="droneMonitoringShow"
-                :src="`ws://121.41.60.99:8082/${droneMonitoringUrl}.live.flv`"
-                :config="playerConfig"
-              />
-              <M3u8Player
-                v-if="dronM3u8PlayerShow"
-                :video-url="videoUrl"
-                :width="1000"
-                :height="600"
-                @error="handleError"
-              />
+              <ShakaPlayer v-if="droneMonitoringShow" :src="`ws://121.41.60.99:8082/${droneMonitoringUrl}.live.flv`"
+                :config="playerConfig" />
+              <M3u8Player v-if="dronM3u8PlayerShow" :video-url="videoUrl" :width="1000" :height="600"
+                @error="handleError" />
             </div>
             <div class="device-info">
               <h4 class="fontGradient">无人机信息</h4>
@@ -276,23 +201,15 @@
               <p>设备类型: {{ selectedDeviceInfo?.deviceType }}</p>
             </div>
             <div class="mission-section">
-              <div
-                class="mission-buttons"
-                style="
+              <div class="mission-buttons" style="
                   display: flex;
                   flex-direction: column;
                   gap: 8px;
                   height: 165px;
                   overflow-y: scroll;
                   scrollbar-color: rgb(88, 130, 179) rgba(80, 80, 80, 0.4);
-                "
-              >
-                <el-button
-                  plain
-                  class="mission-btn"
-                  @click="handleUploadMission"
-                  :disabled="!isConnected"
-                >
+                ">
+                <el-button plain class="mission-btn" @click="handleUploadMission" :disabled="!isConnected">
                   <el-icon>
                     <Upload />
                   </el-icon>
@@ -300,62 +217,32 @@
                 </el-button>
 
                 <div class="upload-container">
-                  <el-input
-                    v-model="fileName"
-                    placeholder="请输入航线名称"
-                    style="height: 26px; margin-bottom: 8px"
-                    clearable
-                  />
-                  <el-input
-                    v-model="fileDescription"
-                    placeholder="请输入航线描述"
-                    style="height: 26px; margin-bottom: 8px"
-                    clearable
-                  />
-                  <el-select
-                    v-model="waypointStrategy"
-                    placeholder="请选择航点策略"
-                    @change="handleSelectStrategyChange"
-                    clearable
-                  >
-                    <el-option
-                      v-for="item in waypointOptions"
-                      :key="item.value"
-                      :label="item.label"
-                      :value="item.value"
-                    />
+                  <el-input v-model="fileName" placeholder="请输入航线名称" style="height: 26px; margin-bottom: 8px"
+                    clearable />
+                  <el-input v-model="fileDescription" placeholder="请输入航线描述" style="height: 26px; margin-bottom: 8px"
+                    clearable />
+                  <el-select v-model="waypointStrategy" placeholder="请选择航点策略" @change="handleSelectStrategyChange"
+                    clearable>
+                    <el-option v-for="item in waypointOptions" :key="item.value" :label="item.label"
+                      :value="item.value" />
                   </el-select>
-                  <el-button
-                    @click="uploadFile"
-                    style="
+                  <el-button @click="uploadFile" style="
                       margin-top: 10px;
                       height: 26px;
                       width: 100%;
                       background: #2c3d45;
                       color: #fff;
-                    "
-                    :disabled="!isConnected"
-                  >
+                    " :disabled="!isConnected">
                     上传航线文件
                   </el-button>
                 </div>
-                <el-button
-                  plain
-                  class="mission-btn"
-                  @click="startMission"
-                  style="margin: 0"
-                >
+                <el-button plain class="mission-btn" @click="startMission" style="margin: 0">
                   <el-icon>
                     <VideoPlay />
                   </el-icon>
                   执行航线
                 </el-button>
-                <el-button
-                  plain
-                  class="mission-btn"
-                  @click="handlePauseMission"
-                  style="margin: 0"
-                >
+                <el-button plain class="mission-btn" @click="handlePauseMission" style="margin: 0">
                   <el-icon>
                     <VideoPlay />
                   </el-icon>
@@ -376,8 +263,7 @@
 
         <!-- 底部控制面板 -->
         <div class="bottom-panel" style="display: flex; flex-direction: column">
-          <div
-            style="
+          <div style="
               width: 100%;
               display: flex;
               background: rgba(0, 40, 90, 0.7);
@@ -386,8 +272,7 @@
               padding: 6px 12px;
               overflow-x: auto;
               scrollbar-color: rgb(88, 130, 179) rgba(80, 80, 80, 0.4);
-            "
-          >
+            ">
             <span class="routeProgress">航线进度：</span>
             <el-progress style="width: 100%" :percentage="percentage" striped />
           </div>
@@ -397,72 +282,49 @@
               <div class="direction-buttons bottom-buttons">
                 <div>
                   <div style="margin-bottom: 6px; text-align: center">前进</div>
-                  <el-button
-                    :disabled="!isConnected || !canOperate"
-                    @click="flyDirection(1, 'forward')"
-                  >
+                  <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(1, 'forward')">
                     <img :src="ICONS.rise" alt="" />
                   </el-button>
                 </div>
                 <div style="display: flex">
-                  <div
-                    style="
+                  <div style="
                       display: flex;
                       justify-content: center;
                       align-items: center;
-                    "
-                  >
+                    ">
                     <div style="width: 48px; margin-right: 6px">左横滚</div>
 
-                    <el-button
-                      :disabled="!isConnected || !canOperate"
-                      @click="flyDirection(2, 'left')"
-                    >
+                    <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'left')">
                       <img :src="ICONS.leftRoll" alt="" />
                     </el-button>
                   </div>
-                  <div
-                    style="
+                  <div style="
                       display: flex;
                       justify-content: center;
                       align-items: center;
-                    "
-                  >
-                    <el-button
-                      style="
+                    ">
+                    <el-button style="
                         border: 2px solid #7f99a6;
                         background: #181d1f;
                         color: #a0c2d2;
                         margin: 6px;
-                      "
-                      :disabled="!isConnected || !canOperate"
-                      @click="flyDirection(2, 'neutralization')"
-                    >
+                      " :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'neutralization')">
                       归中
                     </el-button>
                   </div>
-                  <div
-                    style="
+                  <div style="
                       display: flex;
                       justify-content: center;
                       align-items: center;
-                    "
-                  >
-                    <el-button
-                      style=""
-                      :disabled="!isConnected || !canOperate"
-                      @click="flyDirection(2, 'right')"
-                    >
+                    ">
+                    <el-button style="" :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'right')">
                       <img :src="ICONS.rightRoll" alt="" />
                     </el-button>
                     <div style="width: 48px; margin-left: 6px">右横滚</div>
                   </div>
                 </div>
                 <div>
-                  <el-button
-                    :disabled="!isConnected || !canOperate"
-                    @click="flyDirection(1, 'backward')"
-                  >
+                  <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(1, 'backward')">
                     <img :src="ICONS.decline" alt="" />
                   </el-button>
                   <div style="margin-top: 6px; text-align: center">后退</div>
@@ -473,72 +335,50 @@
             <div class="direction-buttons bottom-buttons">
               <div>
                 <div style="margin-bottom: 6px; text-align: center">上升</div>
-                <el-button
-                  :disabled="!isConnected || !canOperate"
-                  @click="flyDirection(2, 'forward')"
-                >
+                <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'forward')">
                   <img :src="ICONS.forward" alt="" />
                 </el-button>
               </div>
               <div style="display: flex">
-                <div
-                  style="
+                <div style="
                     text-align: center;
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                  "
-                >
+                  ">
                   <div style="width: 32px; margin-right: 6px">向左</div>
-                  <el-button
-                    :disabled="!isConnected || !canOperate"
-                    @click="flyDirection(1, 'left')"
-                  >
+                  <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(1, 'left')">
                     <img :src="ICONS.theLeft" alt="" />
                   </el-button>
                 </div>
-                <div
-                  style="
+                <div style="
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                  "
-                >
-                  <el-button
-                    style="
+                  ">
+                  <el-button style="
                       border: 2px solid #7f99a6;
                       background: #181d1f;
                       color: #a0c2d2;
                       margin: 6px;
-                    "
-                    :disabled="!isConnected || !canOperate"
-                    @click="flyDirection(2, 'neutralization')"
-                  >
+                    " :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'neutralization')">
                     归中
                   </el-button>
                 </div>
-                <div
-                  style="
+                <div style="
                     text-align: center;
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                  "
-                >
-                  <el-button
-                    :disabled="!isConnected || !canOperate"
-                    @click="flyDirection(1, 'right')"
-                  >
+                  ">
+                  <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(1, 'right')">
                     <img :src="ICONS.theRight" alt="" />
                   </el-button>
                   <div style="width: 32px; margin-left: 6px">向右</div>
                 </div>
               </div>
               <div>
-                <el-button
-                  :disabled="!isConnected || !canOperate"
-                  @click="flyDirection(2, 'backward')"
-                >
+                <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'backward')">
                   <img :src="ICONS.backward" alt="" />
                 </el-button>
                 <div style="margin-top: 6px; text-align: center">下降</div>
@@ -546,53 +386,28 @@
             </div>
             <!-- 主要控制按钮 -->
             <div class="main-controls">
-              <el-button
-                type="info"
-                :disabled="!isConnected"
-                class="control-btn emergency"
-                @click="updateDeviceOnlineStatus"
-              >
+              <el-button type="info" :disabled="!isConnected" class="control-btn emergency"
+                @click="updateDeviceOnlineStatus">
                 <el-icon>
                   <Refresh />
                 </el-icon>
                 获取状态
               </el-button>
 
-              <el-button
-                type="info"
-                :disabled="!isConnected"
-                class="control-btn"
-                @click="handleArm"
-              >
+              <el-button type="info" :disabled="!isConnected" class="control-btn" @click="handleArm">
                 <el-icon>
                   <Unlock />
                 </el-icon>
                 解锁
               </el-button>
-              <el-button
-                type="info"
-                class="control-btn"
-                :disabled="!isConnected || !canOperate"
-              >
-                <div
-                  class="lock-slider-container"
-                  :class="{ disabled: !isConnected }"
-                >
-                  <div
-                    class="lock-slider"
-                    :class="{
-                      locked: isLocked,
-                      'cursor-not-allowed': isLocked,
-                    }"
-                    @mousedown="startDrag"
-                    @touchstart="startDrag"
-                    ref="sliderContainer"
-                  >
-                    <div
-                      class="slider-thumb"
-                      :style="{ transform: `translateX(${thumbPosition}px)` }"
-                      ref="sliderThumb"
-                    >
+              <el-button type="info" class="control-btn" :disabled="!isConnected || !canOperate">
+                <div class="lock-slider-container" :class="{ disabled: !isConnected }">
+                  <div class="lock-slider" :class="{
+                    locked: isLocked,
+                    'cursor-not-allowed': isLocked,
+                  }" @mousedown="startDrag" @touchstart="startDrag" ref="sliderContainer">
+                    <div class="slider-thumb" :style="{ transform: `translateX(${thumbPosition}px)` }"
+                      ref="sliderThumb">
                       <el-icon>
                         <Right />
                       </el-icon>
@@ -604,47 +419,29 @@
                 </div>
               </el-button>
 
-              <el-button
-                type="info"
-                class="control-btn"
-                @click="handleTakeoff"
-                :disabled="!isConnected"
-              >
+              <el-button type="info" class="control-btn" @click="handleTakeoff" :disabled="!isConnected">
                 <el-icon>
                   <TopRight />
                 </el-icon>
                 一键起飞
               </el-button>
 
-              <el-button
-                type="info"
-                class="control-btn"
-                @click="handleReturnLand"
-                :disabled="!isConnected || !canOperate"
-              >
+              <el-button type="info" class="control-btn" @click="handleReturnLand"
+                :disabled="!isConnected || !canOperate">
                 <el-icon>
                   <Bottom />
                 </el-icon>
                 降落
               </el-button>
 
-              <el-button
-                type="info"
-                class="control-btn"
-                @click="handleReturn"
-                :disabled="!isConnected || !canOperate"
-              >
+              <el-button type="info" class="control-btn" @click="handleReturn" :disabled="!isConnected || !canOperate">
                 <el-icon>
                   <Back />
                 </el-icon>
                 一键返航
               </el-button>
-              <el-button
-                type="info"
-                class="control-btn"
-                @click="returnPointSettings"
-                :disabled="!isConnected || !canOperate"
-              >
+              <el-button type="info" class="control-btn" @click="returnPointSettings"
+                :disabled="!isConnected || !canOperate">
                 <el-icon>
                   <Sort />
                 </el-icon>
@@ -656,37 +453,24 @@
               <div class="direction-buttons bottom-buttons">
                 <div style="margin-bottom: 6px">
                   <div style="margin-bottom: 6px; text-align: center">上</div>
-                  <el-button
-                    :disabled="!isConnected || !canOperate"
-                    @click="handleVideoControl('up')"
-                  >
-                    <img :src="ICONS.forward" alt=""
-                  </el-button>
+                  <el-button :disabled="!isConnected || !canOperate" @click="handleVideoControl('up')">
+                    <img :src="ICONS.forward" alt="" </el-button>
                 </div>
                 <div style="display: flex">
                   <div style="text-align: center; margin-right: 6px">
-                    <el-button
-                      :disabled="!isConnected || !canOperate"
-                      @click="handleVideoControl('left')"
-                    >
+                    <el-button :disabled="!isConnected || !canOperate" @click="handleVideoControl('left')">
                       <img :src="ICONS.theLeft" alt="" />
                     </el-button>
                     <div style="margin-top: 6px">左</div>
                   </div>
                   <div style="text-align: center">
-                    <el-button
-                      :disabled="!isConnected || !canOperate"
-                      @click="handleVideoControl('down')"
-                    >
+                    <el-button :disabled="!isConnected || !canOperate" @click="handleVideoControl('down')">
                       <img :src="ICONS.backward" alt="" />
                     </el-button>
                     <div style="margin-top: 6px">下</div>
                   </div>
                   <div style="text-align: center; margin-left: 6px">
-                    <el-button
-                      :disabled="!isConnected || !canOperate"
-                      @click="handleVideoControl('right')"
-                    >
+                    <el-button :disabled="!isConnected || !canOperate" @click="handleVideoControl('right')">
                       <img :src="ICONS.theRight" alt="" />
                     </el-button>
                     <div style="margin-top: 6px">右</div>
@@ -696,37 +480,20 @@
             </div>
             <!-- 视频按钮 -->
             <div class="functionButtons">
-              <el-button
-                class="Button"
-                style="margin-left: 12px"
-                type="info"
-                @click="handleVideoControl('connect')"
-                :disabled="!isConnected || !canOperate"
-              >
+              <el-button class="Button" style="margin-left: 12px" type="info" @click="handleVideoControl('connect')"
+                :disabled="!isConnected || !canOperate">
                 <i class="el-icon-video-pause"></i> 连接
               </el-button>
-              <el-button
-                class="Button"
-                type="info"
-                @click="handleVideoControl('stop')"
-                :disabled="!isConnected || !canOperate"
-              >
+              <el-button class="Button" type="info" @click="handleVideoControl('stop')"
+                :disabled="!isConnected || !canOperate">
                 <i class="el-icon-video-pause"></i> 暂停
               </el-button>
-              <el-button
-                class="Button"
-                type="info"
-                @click="handleVideoControl('home')"
-                :disabled="!isConnected || !canOperate"
-              >
+              <el-button class="Button" type="info" @click="handleVideoControl('home')"
+                :disabled="!isConnected || !canOperate">
                 <i class="el-icon-location"></i> 归中
               </el-button>
-              <el-button
-                class="Button"
-                type="info"
-                @click="handleVideoControl('lowermost')"
-                :disabled="!isConnected || !canOperate"
-              >
+              <el-button class="Button" type="info" @click="handleVideoControl('lowermost')"
+                :disabled="!isConnected || !canOperate">
                 <i class="el-icon-location"></i> 最低
               </el-button>
             </div>
@@ -734,12 +501,7 @@
         </div>
 
         <!-- 查看详情弹窗  -->
-        <el-dialog
-          :modal="false"
-          v-model="isDetailDialogVisible"
-          ref="dialogRef"
-          :append-to-body="true"
-          width="40%"
+        <el-dialog :modal="false" v-model="isDetailDialogVisible" ref="dialogRef" :append-to-body="true" width="40%"
           style="
             height: 55%;
             overflow-y: auto;
@@ -748,11 +510,13 @@
             background: rgba(0, 40, 90, 0.7);
             color: #fff;
             border: 2px solid rgba(60, 127, 231, 0.7);
-          "
-          :before-close="handleClose"
-        >
+          " :before-close="handleClose">
           <div @click.stop.prevent>
             <el-descriptions :column="1" border>
+              <!-- 所属任务 -->
+              <el-descriptions-item label="所属任务">
+                {{ selectedMission?.missionName || selectedMission?.routeName || '--' }}
+              </el-descriptions-item>
               <!-- 顶层时间戳 -->
               <el-descriptions-item label="时间戳">
                 {{ uavStatusContent.timestamp }}
@@ -816,9 +580,7 @@
               <el-descriptions-item label="缩放惯性测量单元数据(IMU)-陀螺仪Y轴">
                 {{ uavStatusContent?.scaled_imu?.gyro_y }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="缩放惯性测量单元数据(IMU)-加速度计Z轴"
-              >
+              <el-descriptions-item label="缩放惯性测量单元数据(IMU)-加速度计Z轴">
                 {{ uavStatusContent?.scaled_imu?.acc_z }}
               </el-descriptions-item>
               <el-descriptions-item label="缩放惯性测量单元数据(IMU)-陀螺仪X轴">
@@ -827,14 +589,10 @@
               <el-descriptions-item label="缩放惯性测量单元数据(IMU)-陀螺仪Z轴">
                 {{ uavStatusContent?.scaled_imu?.gyro_z }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="缩放惯性测量单元数据(IMU)-加速度计Y轴"
-              >
+              <el-descriptions-item label="缩放惯性测量单元数据(IMU)-加速度计Y轴">
                 {{ uavStatusContent?.scaled_imu?.acc_y }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="缩放惯性测量单元数据(IMU)-加速度计X轴"
-              >
+              <el-descriptions-item label="缩放惯性测量单元数据(IMU)-加速度计X轴">
                 {{ uavStatusContent?.scaled_imu?.acc_x }}
               </el-descriptions-item>
 
@@ -977,96 +735,60 @@
               </el-descriptions-item>
 
               <!-- 第二缩放惯性测量单元数据(IMU2) -->
-              <el-descriptions-item
-                label="第二缩放惯性测量单元数据(IMU2)-磁力计Y轴"
-              >
+              <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-磁力计Y轴">
                 {{ uavStatusContent?.scaled_imu2?.mag_y }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第二缩放惯性测量单元数据(IMU2)-磁力计X轴"
-              >
+              <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-磁力计X轴">
                 {{ uavStatusContent?.scaled_imu2?.mag_x }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第二缩放惯性测量单元数据(IMU2)-磁力计Z轴"
-              >
+              <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-磁力计Z轴">
                 {{ uavStatusContent?.scaled_imu2?.mag_z }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第二缩放惯性测量单元数据(IMU2)-陀螺仪Y轴"
-              >
+              <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-陀螺仪Y轴">
                 {{ uavStatusContent?.scaled_imu2?.gyro_y }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第二缩放惯性测量单元数据(IMU2)-加速度计Z轴"
-              >
+              <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-加速度计Z轴">
                 {{ uavStatusContent?.scaled_imu2?.acc_z }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第二缩放惯性测量单元数据(IMU2)-陀螺仪X轴"
-              >
+              <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-陀螺仪X轴">
                 {{ uavStatusContent?.scaled_imu2?.gyro_x }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第二缩放惯性测量单元数据(IMU2)-陀螺仪Z轴"
-              >
+              <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-陀螺仪Z轴">
                 {{ uavStatusContent?.scaled_imu2?.gyro_z }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第二缩放惯性测量单元数据(IMU2)-加速度计Y轴"
-              >
+              <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-加速度计Y轴">
                 {{ uavStatusContent?.scaled_imu2?.acc_y }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第二缩放惯性测量单元数据(IMU2)-加速度计X轴"
-              >
+              <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-加速度计X轴">
                 {{ uavStatusContent?.scaled_imu2?.acc_x }}
               </el-descriptions-item>
 
               <!-- 第三缩放惯性测量单元数据(IMU3) -->
-              <el-descriptions-item
-                label="第三缩放惯性测量单元数据(IMU3)-磁力计Y轴"
-              >
+              <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-磁力计Y轴">
                 {{ uavStatusContent?.scaled_imu3?.mag_y }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第三缩放惯性测量单元数据(IMU3)-磁力计X轴"
-              >
+              <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-磁力计X轴">
                 {{ uavStatusContent?.scaled_imu3?.mag_x }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第三缩放惯性测量单元数据(IMU3)-磁力计Z轴"
-              >
+              <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-磁力计Z轴">
                 {{ uavStatusContent?.scaled_imu3?.mag_z }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第三缩放惯性测量单元数据(IMU3)-陀螺仪Y轴"
-              >
+              <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-陀螺仪Y轴">
                 {{ uavStatusContent?.scaled_imu3?.gyro_y }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第三缩放惯性测量单元数据(IMU3)-加速度计Z轴"
-              >
+              <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-加速度计Z轴">
                 {{ uavStatusContent?.scaled_imu3?.acc_z }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第三缩放惯性测量单元数据(IMU3)-陀螺仪X轴"
-              >
+              <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-陀螺仪X轴">
                 {{ uavStatusContent?.scaled_imu3?.gyro_x }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第三缩放惯性测量单元数据(IMU3)-陀螺仪Z轴"
-              >
+              <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-陀螺仪Z轴">
                 {{ uavStatusContent?.scaled_imu3?.gyro_z }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第三缩放惯性测量单元数据(IMU3)-加速度计Y轴"
-              >
+              <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-加速度计Y轴">
                 {{ uavStatusContent?.scaled_imu3?.acc_y }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="第三缩放惯性测量单元数据(IMU3)-加速度计X轴"
-              >
+              <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-加速度计X轴">
                 {{ uavStatusContent?.scaled_imu3?.acc_x }}
               </el-descriptions-item>
 
@@ -1186,9 +908,7 @@
               <el-descriptions-item label="虚拟飞行仪表数据(VFR HUD)-爬升率">
                 {{ uavStatusContent?.vfr_hud?.climb }}
               </el-descriptions-item>
-              <el-descriptions-item
-                label="虚拟飞行仪表数据(VFR HUD)-油门（百分比）"
-              >
+              <el-descriptions-item label="虚拟飞行仪表数据(VFR HUD)-油门（百分比）">
                 {{ uavStatusContent?.vfr_hud?.throttle }}
               </el-descriptions-item>
               <el-descriptions-item label="虚拟飞行仪表数据(VFR HUD)-航向">
@@ -1235,35 +955,16 @@
           </div>
         </el-dialog>
         <!--  返航点设置  -->
-        <el-dialog
-          title="返航点设置"
-          v-model="returnVoyageDialogVisible"
-          width="500px"
-          destroy-on-close
-        >
-          <el-form
-            ref="returnVoyageFormRef"
-            :model="returnVoyageForm"
-            :rules="returnVoyageRules"
-            label-width="100px"
-          >
+        <el-dialog title="返航点设置" v-model="returnVoyageDialogVisible" width="500px" destroy-on-close>
+          <el-form ref="returnVoyageFormRef" :model="returnVoyageForm" :rules="returnVoyageRules" label-width="100px">
             <el-form-item label="经度" prop="longitude">
-              <el-input
-                v-model="returnVoyageForm.longitude"
-                placeholder="请输入经度"
-              />
+              <el-input v-model="returnVoyageForm.longitude" placeholder="请输入经度" />
             </el-form-item>
             <el-form-item label="纬度" prop="latitude">
-              <el-input
-                v-model="returnVoyageForm.latitude"
-                placeholder="请输入纬度"
-              />
+              <el-input v-model="returnVoyageForm.latitude" placeholder="请输入纬度" />
             </el-form-item>
             <el-form-item label="高度" prop="height">
-              <el-input
-                v-model="returnVoyageForm.height"
-                placeholder="请输入高度"
-              >
+              <el-input v-model="returnVoyageForm.height" placeholder="请输入高度">
                 <template #suffix>m</template>
               </el-input>
             </el-form-item>
@@ -1276,11 +977,8 @@
           </template>
         </el-dialog>
         <!-- 上传航线 -->
-        <UploadRouteDialog
-          v-model="returnVoyageDialogVisibleUploadRoute"
-          @confirm="handleUploadRouteConfirm"
-          @cancel="handleUploadRouteCancel"
-        />
+        <UploadRouteDialog v-model="returnVoyageDialogVisibleUploadRoute" @confirm="handleUploadRouteConfirm"
+          @cancel="handleUploadRouteCancel" />
       </div>
     </div>
   </div>
@@ -1663,8 +1361,9 @@ const onMapLayerChange = (val) => {
 
 // 处理任务列表展开/收起状态变更
 const handleTaskListToggle = (status) => {
+  console.log(status, "====")
   showTaskList.value = status;
-  showTaskDetails.value = false; // 保持原有逻辑
+  // 不再改变 showTaskDetails，保持任务详情原有状态
 };
 
 // 处理任务列表状态更新（如总数、列表数据）
@@ -1687,7 +1386,7 @@ const selectTask = (value) => {
 };
 //鼠标移出任务
 const mouseleaveTask = () => {
-  // showTaskDetails.value = false;
+  showTaskDetails.value = false;
   console.log("鼠标移出任务");
 };
 const handleSizeChange = (val) => {
@@ -2680,8 +2379,8 @@ const submitForm = async () => {
             const markerElement = returnVoyageMarker.value._icon._element;
             markerElement.style.cursor = "default"; // 恢复默认光标
             // 移除拖拽事件监听
-            markerElement.removeEventListener("mousedown", () => {});
-            markerElement.removeEventListener("touchstart", () => {});
+            markerElement.removeEventListener("mousedown", () => { });
+            markerElement.removeEventListener("touchstart", () => { });
           }
         } else {
           ElMessage.error(res.message || "设置失败");
@@ -2793,7 +2492,7 @@ const taskManagement = async () => {
       total.value = res.data.total;
     }
     console.log(res, "qwefrfdg");
-  } catch (err) {}
+  } catch (err) { }
 };
 // 任务航线管理
 const handleRouteManage = async (row) => {
@@ -3083,9 +2782,9 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(degreesToRadians(lat1)) *
-      Math.cos(degreesToRadians(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(degreesToRadians(lat2)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return earthRadius * c; // 返回两点距离（米）
@@ -3260,7 +2959,7 @@ const uploadFile = async () => {
 //         console.log("开始调用 doMission 接口...");
 //         const response = await doMission(formData, searchQuery.value);
 //         console.log("doMission 接口响应:", response);
-        
+
 //         if (response.code === 200) {
 //           ElMessage.success("上传成功");
 //           fileName.value = "";
@@ -3887,7 +3586,6 @@ const handleClickOutside = (event) => {
   flex-direction: row;
   z-index: 1;
   background: transparent;
-  pointer-events: none !important;
 }
 
 /* 顶部区域 - 任务列表容器 */
@@ -3898,49 +3596,70 @@ const handleClickOutside = (event) => {
   padding: 20px;
   color: #fff;
   font-size: 16px;
-  overflow-y: auto; /* 仅保留垂直滚动（任务列表需要） */
-  overflow-x: hidden; /* 强制隐藏横向滚动条 */
+  overflow-y: auto;
+  /* 仅保留垂直滚动（任务列表需要） */
+  overflow-x: hidden;
+  /* 强制隐藏横向滚动条 */
   border-radius: 12px;
   border: 2px solid rgba(60, 127, 231, 0.7);
   /* margin: 20px 0 20px 20px; */
-  
-  scrollbar-width: thin; /* 火狐：窄滚动条 */
-  scrollbar-color: rgba(60, 127, 231, 0.7) transparent; /* 火狐：滚动条颜色 */
+
+  scrollbar-width: thin;
+  /* 火狐：窄滚动条 */
+  scrollbar-color: rgba(60, 127, 231, 0.7) transparent;
+  /* 火狐：滚动条颜色 */
 }
+
 .top-section2 {
   height: 100%;
 }
+
 /* 分页滚动容器核心样式 */
 .pagination-wrapper {
   background-color: #2e3649db;
   width: 100%;
-  overflow-x: auto; /* 超出宽度显示滚动条 */
+  overflow-x: auto;
+  /* 超出宽度显示滚动条 */
   -webkit-overflow-scrolling: touch;
   padding-bottom: 8px;
   border-radius: 12px;
 }
+
 /* 强制分页组件整体在一行 */
 :deep(.pagination-wrapper .el-pagination) {
-  display: flex !important; /* 强制flex布局 */
-  flex-wrap: nowrap !important; /* 禁止任何换行 */
-  align-items: center !important; /* 垂直居中 */
-  gap: 12px !important; /* 各模块之间保留间距 */
-  width: fit-content !important; /* 让分页宽度自适应内容（关键） */
+  display: flex !important;
+  /* 强制flex布局 */
+  flex-wrap: nowrap !important;
+  /* 禁止任何换行 */
+  align-items: center !important;
+  /* 垂直居中 */
+  gap: 12px !important;
+  /* 各模块之间保留间距 */
+  width: fit-content !important;
+  /* 让分页宽度自适应内容（关键） */
 }
+
 /* 可选：美化滚动条 */
 .pagination-wrapper::-webkit-scrollbar {
-  height: 6px; /* 滚动条高度 */
+  height: 6px;
+  /* 滚动条高度 */
 }
+
 .pagination-wrapper::-webkit-scrollbar-track {
-  background: rgba(0, 40, 90, 0.1); /* 滚动条轨道背景 */
+  background: rgba(0, 40, 90, 0.1);
+  /* 滚动条轨道背景 */
   border-radius: 3px;
 }
+
 .pagination-wrapper::-webkit-scrollbar-thumb {
-  background: rgba(60, 127, 231, 0.7); /* 滚动条滑块颜色 */
+  background: rgba(60, 127, 231, 0.7);
+  /* 滚动条滑块颜色 */
   border-radius: 3px;
 }
+
 .pagination-wrapper::-webkit-scrollbar-thumb:hover {
-  background: rgba(60, 127, 231, 0.9); /* 滑块hover状态 */
+  background: rgba(60, 127, 231, 0.9);
+  /* 滑块hover状态 */
 }
 
 /* 强制分页内部子元素（总条数、页码、跳转等）不换行 */
@@ -3949,9 +3668,11 @@ const handleClickOutside = (event) => {
   flex-wrap: nowrap !important;
   white-space: nowrap !important;
 }
+
 :deep(.el-pagination__classifier) {
   color: #fff;
 }
+
 :deep(.el-pagination > .is-first),
 :deep(.el-pagination > .is-last),
 :deep(.el-pagination > .el-icon svg) {
@@ -3961,13 +3682,42 @@ const handleClickOutside = (event) => {
 :deep(.route-search .el-input__inner) {
   color: #fff;
 }
+
 .bottom-section {
-  flex: 0 0 80%;
-  min-width: 80%;
+  width: 80%;
   position: relative;
   overflow: hidden;
   /* pointer-events: none; */
 }
+
+.bottom-section.full-width {
+  width: 100%;
+}
+
+/* 任务列表切换按钮 */
+.task-list-toggle {
+  position: absolute;
+  cursor: pointer;
+  pointer-events: auto !important;
+  left: 00px;
+  top: 0px;
+  z-index: 1000;
+  background: #fff;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.task-list-toggle:hover {
+  background: #f5f5f5;
+}
+
 .top-panel,
 .left-panel,
 .right-panel,
@@ -3976,6 +3726,7 @@ const handleClickOutside = (event) => {
 .task-details-card-wrapper {
   pointer-events: auto;
 }
+
 /* 顶部面板 */
 .top-panel {
   position: absolute;
@@ -4007,7 +3758,7 @@ const handleClickOutside = (event) => {
 .right-panel {
   position: absolute;
   top: 100px;
-  right: 40px;
+  right: 20px;
   bottom: 20px;
   width: 250px;
   z-index: 20;
@@ -4119,18 +3870,20 @@ const handleClickOutside = (event) => {
   justify-content: center; */
   position: absolute;
   bottom: 20px;
-  left: 315px;
-  right: 310px;
+  left: 316px;
+  right: 290px;
   height: 225px;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 .routeProgress {
   color: #fff;
   min-width: 80px;
 }
+
 .control-content {
   width: 100%;
   display: flex;
@@ -4310,25 +4063,35 @@ const handleClickOutside = (event) => {
   z-index: 1;
   left: -12px;
 }
+
 .draggable-marker {
-  cursor: move; /* 确保拖拽光标显示 */
-  user-select: none; /* 禁止文本选择 */
-  -webkit-user-drag: none; /* 禁用浏览器默认拖拽 */
+  cursor: move;
+  /* 确保拖拽光标显示 */
+  user-select: none;
+  /* 禁止文本选择 */
+  -webkit-user-drag: none;
+  /* 禁用浏览器默认拖拽 */
 }
+
 .draggable-marker:hover {
-  transform: scale(1.1); /* 悬停放大效果 */
-  z-index: 1001; /* 提升层级 */
+  transform: scale(1.1);
+  /* 悬停放大效果 */
+  z-index: 1001;
+  /* 提升层级 */
 }
+
 /* 任务详情Card容器 - 核心定位 */
 .task-details-card-wrapper {
   position: absolute;
-  top: 20px; /* 保持顶部与top-panel对齐 */
+
   z-index: 99;
 }
+
 /* 任务列表展开时：左侧 = 任务列表宽度(20%) + 任务列表的左margin(20px) */
 .task-details-card-wrapper.task-list-expanded {
-  left: calc(15% + 20px);
+  left: calc(20% + 20px);
 }
+
 
 /* 任务列表收起时：左侧与top-panel对齐（20px） */
 .task-details-card-wrapper:not(.task-list-expanded) {
@@ -4344,14 +4107,19 @@ const handleClickOutside = (event) => {
   color: #fff;
   border-radius: 12px;
 }
+
 /* 统一Card视觉风格（与其他面板一致） */
 :deep(.task-details-card-wrapper .el-card) {
   max-width: 480px;
   box-sizing: border-box;
-  background: rgba(0, 40, 90, 0.9); /* 与其他面板背景统一 */
-  border: 2px solid rgba(60, 127, 231, 0.7); /* 与其他面板边框统一 */
-  color: #fff; /* 文字颜色统一为白色 */
-  border-radius: 12px; /* 与其他面板圆角统一 */
+  background: rgba(0, 40, 90, 0.9);
+  /* 与其他面板背景统一 */
+  border: 2px solid rgba(60, 127, 231, 0.7);
+  /* 与其他面板边框统一 */
+  color: #fff;
+  /* 文字颜色统一为白色 */
+  border-radius: 12px;
+  /* 与其他面板圆角统一 */
 }
 
 /* 统一Card头部样式 */
@@ -4373,15 +4141,19 @@ const handleClickOutside = (event) => {
   border-color: rgba(60, 127, 231, 0.7);
   color: #fff;
 }
+
 :deep(.task-details-card-wrapper .el-button) {
   margin-right: 8px;
 }
+
 :deep(.uploadRoute) {
   max-height: 600px;
 }
+
 :deep(.el-dialog__body) {
   height: calc(100% - 56px);
 }
+
 :deep(.direction-buttons .el-button.is-disabled, .el-button.is-disabled:hover) {
   background: none;
   border: none;
@@ -4398,11 +4170,7 @@ const handleClickOutside = (event) => {
   color: #fff;
 }
 
-:deep(
-    .el-descriptions__body
-      .el-descriptions__table.is-bordered
-      .el-descriptions__cell
-  ) {
+:deep(.el-descriptions__body .el-descriptions__table.is-bordered .el-descriptions__cell) {
   padding: 6px 10px;
   width: 50%;
 }
@@ -4462,6 +4230,7 @@ const handleClickOutside = (event) => {
   background-color: #409eff !important;
   /* 中间点蓝色 */
 }
+
 :deep .route-marker {
   width: 40px;
   height: 40px;
@@ -4476,19 +4245,24 @@ const handleClickOutside = (event) => {
 }
 
 :deep .route-start {
-  background-color: #e74c3c; /* 红色起点 */
+  background-color: #e74c3c;
+  /* 红色起点 */
 }
 
 :deep .route-end {
-  background-color: #27ae60; /* 绿色终点 */
+  background-color: #27ae60;
+  /* 绿色终点 */
 }
 
 :deep .route-point {
-  background-color: #3498db; /* 蓝色中间点 */
+  background-color: #3498db;
+  /* 蓝色中间点 */
 }
+
 :deep(.el-progress__text) {
   color: white;
 }
+
 .route-marker:hover {
   transform: scale(1.1);
 }
@@ -4498,16 +4272,21 @@ const handleClickOutside = (event) => {
   .routeProgress {
     min-width: 80px;
   }
+
   .bottom-panel {
-    left: 305px;
-    right: 300px;
+    left: 306px;
+    right: 284px;
+    height: 240px;
+
   }
+
   .task-details-card-wrapper {
     left: 305px;
   }
 }
 
 @media (max-width: 1400px) {
+
   .left-panel,
   .top-panel {
     width: 250px;
@@ -4519,27 +4298,31 @@ const handleClickOutside = (event) => {
 
   .bottom-panel {
     left: 290px;
-    right: 290px;
+    right: 270px;
+    height: 240px;
+
   }
+
   .task-details-card-wrapper {
     left: 290px;
   }
 }
 
 @media (max-width: 1200px) {
+
   .left-panel,
   .top-panel {
-    width: 180px;
+    width: 120px;
   }
 
   .right-panel {
-    width: 200px;
+    width: 230px;
   }
 
   .bottom-panel {
-    left: 250px;
-    right: 260px;
-    height: 190px;
+    left: 156px;
+    right: 242px;
+    height: 240px;
   }
 
   .left-panel,
@@ -4547,26 +4330,53 @@ const handleClickOutside = (event) => {
     bottom: 20px;
     /* 对应底部面板高度调整 */
   }
+
   .routeProgress {
     min-width: 80px;
   }
+
   .task-details-card-wrapper {
     left: 250px;
   }
 }
 
 @media (max-width: 992px) {
+
   .left-panel,
   .right-panel {
-    width: 180px;
+    width: 120px;
     bottom: 20px;
   }
 
   .bottom-panel {
-    left: 210px;
-    right: 230px;
-    height: 190px;
+    left: 156px;
+    right: 156px;
+    height: 240px;
   }
+
+  .routeProgress {
+    min-width: 80px;
+  }
+
+  .task-details-card-wrapper {
+    left: 210px;
+  }
+}
+
+@media (max-width: 800px) {
+
+  .left-panel,
+  .right-panel {
+    width: 90px;
+    bottom: 20px;
+  }
+
+  .bottom-panel {
+    left: 120px;
+    right: 120px;
+    height: 240px;
+  }
+
   .routeProgress {
     min-width: 80px;
   }
