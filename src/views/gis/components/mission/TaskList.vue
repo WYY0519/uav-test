@@ -1,19 +1,16 @@
 <template>
   <div class="task-list-wrapper">
-    <!-- 面板收起/展开按钮 -->
     <div class="toggle-button-wrapper">
       <div class="toggle-button" @click.stop="handleToggleTaskList">
-        <el-icon :style="{ color: '#409eff !important' }">
+        <el-icon :style="{ color: '#409eff' }">
           <Fold v-if="!showTaskList" />
           <Expand v-else />
         </el-icon>
       </div>
     </div>
 
-    <!-- 任务列表主体 -->
     <div v-if="showTaskList" class="top-section">
       <div class="top-section2">
-        <!-- 搜索框区域 - 固定 -->
         <div style="margin-bottom: 12px">
           <el-input
             v-model="taskName"
@@ -37,22 +34,32 @@
           </el-input>
         </div>
 
-        <!-- 标题 - 固定 -->
         <div class="task-list-title">任务列表</div>
 
-        <!-- 任务项滚动容器 - 核心修改：独立滚动区域 -->
         <div class="task-items-scroll-container">
           <div
             v-for="item in taskAllList"
+            :key="item.missionId"
             class="task-item"
             @click.stop="handleSelectTask(item)"
-            @mouseleave="handleMouseleaveTask()"
+            :class="{ active: selectedTaskId === item.missionId }"
           >
-            {{ item.name }}
+            <div class="task-name">{{ item.name }}</div>
+            <div class="task-row">
+              <span class="label">所属项目：</span>
+              <span class="text">{{ item.projectName }}</span>
+            </div>
+            <div class="task-row">
+              <span class="label">创建时间：</span>
+              <span class="text">{{ formatTime(item.createdAt) }}</span>
+            </div>
+            <div class="task-row desc" v-if="item.description">
+              <span class="label">描述内容：</span>
+              <span class="text">{{ item.description }}</span>
+            </div>
           </div>
         </div>
 
-        <!-- 分页区域 - 固定在底部 -->
         <div class="pagination-wrapper">
           <el-pagination
             v-model:current-page="currentPage"
@@ -71,67 +78,59 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import { missionAllList } from "@/api/mission";
 import { Search, Fold, Expand } from "@element-plus/icons-vue";
 
-// 1. 定义Props：接收外部需要的参数（暂无外部传入依赖，可根据需求扩展）
 const props = defineProps({
-  // 可扩展：如需外部控制任务列表初始显示状态，可添加props
-  initialShowTaskList: {
-    type: Boolean,
-    default: true,
-  },
+  initialShowTaskList: { type: Boolean, default: true },
 });
 
-// 2. 定义Emits：向父组件传递事件
 const emit = defineEmits([
-  "toggle-task-list", // 任务列表展开/收起状态变更
-  "select-task", // 选中某个任务
-  "update-task-list-status", // 同步任务列表相关状态
+  "toggle-task-list",
+  "select-task",
+  "update-task-list-status",
+  "mouseleave-task",
 ]);
 
-// 响应式数据
 const showTaskList = ref(props.initialShowTaskList);
 const taskName = ref("");
 const taskAllList = ref([]);
 const currentPage = ref(1);
 const pageSize = ref(10);
 const total = ref(0);
+const selectedTaskId = ref(null);
 
-// 切换任务列表显示/隐藏
 const handleToggleTaskList = () => {
   showTaskList.value = !showTaskList.value;
-  // 向父组件发送状态变更事件
   emit("toggle-task-list", showTaskList.value);
 };
 
-// 选中任务
 const handleSelectTask = (item) => {
-  // 向父组件发送选中的任务数据
+  selectedTaskId.value = item.missionId;
   emit("select-task", item);
 };
 
-// 鼠标移出任务
 const handleMouseleaveTask = () => {
-  // 可向父组件发送鼠标移出事件（如需）
   emit("mouseleave-task");
 };
 
-// 分页尺寸变更
 const handleSizeChange = (val) => {
   pageSize.value = val;
   taskManagement();
 };
 
-// 当前页码变更
 const handleCurrentChange = (val) => {
   currentPage.value = val;
   taskManagement();
 };
 
-// 任务列表查询
+const formatTime = (time) => {
+  if (!time) return "无";
+  return time.replace("T", " ").substring(0, 19);
+};
+
 const taskManagement = async () => {
   try {
     let res = await missionAllList({
@@ -142,7 +141,6 @@ const taskManagement = async () => {
     if (res.code === 200) {
       taskAllList.value = res.data.list;
       total.value = res.data.total;
-      // 同步任务列表数据总数给父组件
       emit("update-task-list-status", {
         total: total.value,
         list: taskAllList.value,
@@ -154,24 +152,21 @@ const taskManagement = async () => {
   }
 };
 
-// 组件挂载时初始化任务列表
-import { onMounted } from "vue";
 onMounted(() => {
   taskManagement();
 });
 </script>
 
 <style scoped>
-/* 任务列表最外层容器，占满父容器高度 */
 .task-list-wrapper {
   position: relative;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+  min-width: 300px;
 }
 
-/* 切换按钮容器 */
 .toggle-button-wrapper {
   position: absolute;
   z-index: 1000;
@@ -180,7 +175,6 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-/* 切换按钮 */
 .toggle-button {
   background: #fff;
   border-radius: 50%;
@@ -195,48 +189,43 @@ onMounted(() => {
   pointer-events: auto !important;
 }
 
-/* 1. 确保搜索组件父级不阻断交互 */
 .top-section,
 .top-section2 {
   pointer-events: auto !important;
 }
 
-/* 2. 穿透修改 el-input 样式，强制开启交互+修复光标 */
 :deep(.search-input) {
   pointer-events: auto !important;
 }
-/* 穿透修改 el-input 输入框内部样式 */
+
 :deep(.search-input .el-input__inner) {
-  cursor: text !important; /* 输入框内显示文本光标 */
+  cursor: text !important;
   pointer-events: auto !important;
 }
-/* 输入框后缀按钮（搜索按钮容器） */
+
 :deep(.search-input .el-input__append) {
   pointer-events: auto !important;
 }
 
-/* 3. 穿透修改 el-button 样式，强制开启交互+修复光标 */
 :deep(.search-input .el-button) {
-  cursor: pointer !important; /* 按钮悬浮显示小手光标 */
+  cursor: pointer !important;
   pointer-events: auto !important;
   background-color: #409eff !important;
   color: white !important;
 }
-/* 按钮悬浮样式（增强交互反馈） */
+
 :deep(.search-input .el-button:hover) {
-  background-color: #66b1ff !important; /* 按钮悬浮变色 */
+  background-color: #66b1ff !important;
 }
 
-/* 任务列表主体样式 - 占满高度 */
 .top-section {
   width: 100%;
   height: 100%;
-  background: rgba(0, 40, 90, 0.7);
+  background: #00285a80;
   padding: 35px 12px 12px 12px;
   color: #fff;
   font-size: 16px;
-  overflow: hidden !important; /* 禁止整体滚动 */
-  border: 2px solid rgba(60, 127, 231, 0.7);
+  overflow: hidden !important;
   box-sizing: border-box;
 }
 
@@ -246,49 +235,83 @@ onMounted(() => {
   flex-direction: column;
 }
 
-/* 任务列表标题样式 */
 .task-list-title {
   margin-bottom: 12px;
 }
 
-/* 核心：任务项滚动容器 */
 .task-items-scroll-container {
-  flex: 1; /* 占满除了搜索、标题、分页外的所有空间 */
-  overflow-y: auto; /* 仅纵向滚动 */
+  flex: 1;
+  overflow-y: auto;
   overflow-x: hidden;
   margin-bottom: 12px;
-  /* 自定义滚动条样式 */
   scrollbar-width: thin;
   scrollbar-color: rgba(60, 127, 231, 0.7) transparent;
 }
 
-/* 任务项样式（提取内联样式到css） */
-.task-item {
-  background: #2e3649db;
-  padding: 12px;
-  margin: 12px 0;
-  border-radius: 12px;
-  cursor: pointer !important;
-  pointer-events: auto !important;
-}
-
-/* 滚动条样式 - Webkit浏览器 */
-:deep(.task-items-scroll-container::-webkit-scrollbar) {
+.task-items-scroll-container::-webkit-scrollbar {
   width: 6px;
 }
 
-:deep(.task-items-scroll-container::-webkit-scrollbar-track) {
-  background: transparent;
-  border-radius: 3px;
-}
-
-:deep(.task-items-scroll-container::-webkit-scrollbar-thumb) {
+.task-items-scroll-container::-webkit-scrollbar-thumb {
   background: rgba(60, 127, 231, 0.7);
   border-radius: 3px;
 }
 
-:deep(.task-items-scroll-container::-webkit-scrollbar-thumb:hover) {
-  background: rgba(60, 127, 231, 0.9);
+/* 任务卡片：无动画、无悬浮效果 */
+.task-item {
+  background: #2e3649db;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* 去掉悬浮效果 */
+.task-item:hover {
+}
+
+/* 选中只显示红色边框，无背景 */
+.task-item.active {
+  /* background: transparent !important;
+  border-color: #ff4d4f !important; */
+}
+
+.task-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 10px;
+  line-height: 1.3;
+}
+
+/* 核心修改：统一所有行的布局，标签固定宽度，内容自动换行 */
+.task-row {
+  display: flex;
+  align-items: flex-start; /* 顶部对齐，避免标签错位 */
+  font-size: 14px;
+  color: #f4f2f257;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.task-row .label {
+  color: #f4f2f257;
+  white-space: nowrap; /* 标签永远不换行 */
+  flex-shrink: 0; /* 禁止标签压缩 */
+  margin-right: 6px;
+}
+
+.task-row .text {
+  flex: 1; /* 内容占剩余宽度，自动换行 */
+  word-break: break-all; /* 长文本自动换行 */
+}
+
+/* 描述行继承统一布局，不再单独限制 */
+.task-row.desc {
+  color: #f4f2f257;
+  line-height: 1.4;
 }
 
 .pagination-wrapper {
@@ -298,7 +321,7 @@ onMounted(() => {
   -webkit-overflow-scrolling: touch;
   padding-bottom: 8px;
   border-radius: 12px;
-  margin-top: auto; /* 固定在底部 */
+  margin-top: auto;
 }
 
 :deep(.pagination-wrapper .el-pagination) {
@@ -313,24 +336,9 @@ onMounted(() => {
   height: 6px;
 }
 
-.pagination-wrapper::-webkit-scrollbar-track {
-  background: rgba(0, 40, 90, 0.1);
-  border-radius: 3px;
-}
-
 .pagination-wrapper::-webkit-scrollbar-thumb {
   background: rgba(60, 127, 231, 0.7);
   border-radius: 3px;
-}
-
-.pagination-wrapper::-webkit-scrollbar-thumb:hover {
-  background: rgba(60, 127, 231, 0.9);
-}
-
-:deep(.pagination-wrapper .el-pagination > *) {
-  display: inline-flex !important;
-  flex-wrap: nowrap !important;
-  white-space: nowrap !important;
 }
 
 :deep(.el-pagination__classifier) {
@@ -340,10 +348,6 @@ onMounted(() => {
 :deep(.el-pagination > .is-first),
 :deep(.el-pagination > .is-last),
 :deep(.el-pagination > .el-icon svg) {
-  color: #fff;
-}
-
-:deep(.route-search .el-input__inner) {
   color: #fff;
 }
 </style>
