@@ -682,13 +682,23 @@ const drawBotton = () => {
   clearRouteOverlaysOnly();
   isDrawing.value = true;
   drawingLine = new AMap.Polyline([], {
-    strokeColor: "##2C64A7#2C64A7", // 蓝色
-    strokeWeight: 4,
-    strokeOpacity: 0.8,
+    strokeColor: "#409eff",
+    strokeWeight: 5,
+    strokeOpacity: 1,
+    strokeStyle: "solid",
     lineJoin: "round",
+    zIndex: 999,
   });
   drawingLine._isRouteOverlay = true;
   map.value.add(drawingLine);
+  // 强制设置颜色
+  drawingLine.setOptions({
+    strokeColor: "#409eff",
+    strokeWeight: 5,
+    strokeOpacity: 1,
+    strokeStyle: "solid",
+    zIndex: 999,
+  });
 
   ElMessage.info("请在地图上点击添加航点（禁飞区内无法添加）");
   drawingClickHandler = (e) => {
@@ -975,23 +985,22 @@ const completeBotton = () => {
   // 创建新的航线折线
   console.log("开始创建航线折线...", "路径:", path);
   const polyline = new AMap.Polyline(path, {
-    strokeColor: "#409eff", // 蓝色
-    strokeWeight: 10,
+    strokeColor: "#409eff",
+    strokeWeight: 5,
     strokeOpacity: 1,
-    lineJoin: "round",
-    zIndex: 999, // 设置最高层级
     strokeStyle: "solid",
+    lineJoin: "round",
+    zIndex: 999,
   });
   polyline._isRouteOverlay = true;
   polyline._isRoutePolyline = true;
-
-  console.log("航线折线对象创建完成，准备添加到地图");
-  console.log("折线配置:", {
+  // 强制设置颜色
+  polyline.setOptions({
     strokeColor: "#409eff",
-    strokeWeight: 10,
+    strokeWeight: 5,
     strokeOpacity: 1,
+    strokeStyle: "solid",
     zIndex: 999,
-    path: path,
   });
 
   map.value.add(polyline);
@@ -1411,16 +1420,25 @@ const viewRoute = (route, isEditable = false) => {
     // ==============================================
     const polyline = new AMap.Polyline(path, {
       strokeColor: "#409eff",
-      strokeWeight: 4,
-      strokeOpacity: 0.8,
+      strokeWeight: 5,
+      strokeOpacity: 1,
+      strokeStyle: "solid",
       lineJoin: "round",
-      zIndex: 200,
+      zIndex: 999,
     });
     polyline._isRouteOverlay = true;
     polyline._isRoutePolyline = true;
     polyline._routeId = route.id;
     map.value.add(polyline);
     currentRoutePolyline.value = polyline;
+    // 强制设置颜色，确保不会被覆盖
+    polyline.setOptions({
+      strokeColor: "#409eff",
+      strokeWeight: 5,
+      strokeOpacity: 1,
+      strokeStyle: "solid",
+      zIndex: 999,
+    });
 
     // 双击编辑
     polyline.on("dblclick", () => {
