@@ -61,10 +61,10 @@
           <el-breadcrumb separator="/">
             <el-breadcrumb-item :to="{ path: '/home' }">{{
               texthome
-              }}</el-breadcrumb-item>
+            }}</el-breadcrumb-item>
             <el-breadcrumb-item v-if="parentMenu">{{
               parentMenu
-              }}</el-breadcrumb-item>
+            }}</el-breadcrumb-item>
             <el-breadcrumb-item>{{ currentPages }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -186,11 +186,11 @@ const passwordForm = ref({
 const passwordRules = {
   oldPassword: [
     { required: true, message: "请输入旧密码", trigger: "blur" },
-    { min: 6, message: "长度在最少6个字符", trigger: "blur" },
+    { min: 6, message: "长度至少6个字符", trigger: "blur" },
   ],
   newPassword: [
     { required: true, message: "请输入新密码", trigger: "blur" },
-    { min: 6, message: "长度在最少6个字符", trigger: "blur" },
+    { min: 6, message: "长度至少6个字符", trigger: "blur" },
   ],
 };
 // 菜单映射表
