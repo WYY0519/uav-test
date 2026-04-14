@@ -242,10 +242,11 @@ const isPointInPolygon = (point, polygon) => {
     const xj = polygon[j].lng;
     const yj = polygon[j].lat;
 
-    // 新增：检查点是否在边上（浮点精度容错）
-    if (isPointOnSegment(point, polygon[i], polygon[j])) {
-      return true;
-    }
+    // 🔥 移除边的检测，避免浮点精度导致的误判
+    // 只有当点真正在多边形内部时才判定为在禁飞区内
+    // if (isPointOnSegment(point, polygon[i], polygon[j])) {
+    //   return true;
+    // }
 
     const intersect =
       yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
@@ -351,70 +352,7 @@ const isPointOnSegment = (p, a, b) => {
   return Math.abs(cross) < 1e-10; // 浮点精度容错
 };
 
-// 辅助函数：计算点（圆心）到球面线段的最短距离（米）
-const calculateShortestDistanceFromPointToSegment = (
-  point,
-  segStart,
-  segEnd,
-) => {
-  // 步骤1：计算三个距离：点到起点、点到终点、起点到终点
-  const d1 = calculateDistance(point, segStart);
-  const d2 = calculateDistance(point, segEnd);
-  const dSeg = calculateDistance(segStart, segEnd);
 
-  // 如果线段长度为0，直接返回点到起点的距离
-  if (dSeg < 1e-6) return d1;
-
-  // 步骤2：计算点在segStart-segEnd线段上的投影比例（使用球面余弦定理）
-  // 转换为弧度
-  const radPointLat = (point.lat * Math.PI) / 180;
-  const radPointLng = (point.lng * Math.PI) / 180;
-  const radStartLat = (segStart.lat * Math.PI) / 180;
-  const radStartLng = (segStart.lng * Math.PI) / 180;
-  const radEndLat = (segEnd.lat * Math.PI) / 180;
-  const radEndLng = (segEnd.lng * Math.PI) / 180;
-
-  // 计算向量的点积（球面近似）
-  const vecStartX =
-    Math.cos(radPointLat) * Math.cos(radPointLng) -
-    Math.cos(radStartLat) * Math.cos(radStartLng);
-  const vecStartY =
-    Math.cos(radPointLat) * Math.sin(radPointLng) -
-    Math.cos(radStartLat) * Math.sin(radStartLng);
-  const vecStartZ = Math.sin(radPointLat) - Math.sin(radStartLat);
-
-  const vecSegX =
-    Math.cos(radEndLat) * Math.cos(radEndLng) -
-    Math.cos(radStartLat) * Math.cos(radStartLng);
-  const vecSegY =
-    Math.cos(radEndLat) * Math.sin(radEndLng) -
-    Math.cos(radStartLat) * Math.sin(radStartLng);
-  const vecSegZ = Math.sin(radEndLat) - Math.sin(radStartLat);
-
-  const dotProduct =
-    vecStartX * vecSegX + vecStartY * vecSegY + vecStartZ * vecSegZ;
-  const segLengthSq = vecSegX * vecSegX + vecSegY * vecSegY + vecSegZ * vecSegZ;
-
-  // 投影比例t（0≤t≤1表示投影点在线段上）
-  let t = dotProduct / segLengthSq;
-  t = Math.max(0, Math.min(1, t));
-
-  // 步骤3：计算最短距离
-  if (t === 0) {
-    return d1; // 投影点在起点
-  } else if (t === 1) {
-    return d2; // 投影点在终点
-  } else {
-    // 投影点在线段中间，使用余弦定理计算最短距离
-    // d² = d1² + (t*dSeg)² - 2*d1*t*dSeg*cos(theta)
-    // 简化：使用球面距离的近似值
-    return Math.sqrt(
-      d1 * d1 +
-        t * dSeg * (t * dSeg) -
-        2 * d1 * t * dSeg * Math.cos(dSeg / 6371000),
-    );
-  }
-};
 // 优化航线穿越检查：结合采样点+线段相交检测（强化圆形禁飞区逻辑）
 const isRouteCrossingNoFlyZone = (points) => {
   if (!points || points.length < 2) return false;
@@ -424,6 +362,16 @@ const isRouteCrossingNoFlyZone = (points) => {
     (zone) => zone.regionType === "jf",
   );
   if (noFlyZonesOnly.length === 0) return false;
+
+  // 🔥 调试日志：查看实际数据格式
+  console.log("=== 禁飞区检测调试 ===");
+  console.log("航点数据:", JSON.stringify(points));
+  console.log("禁飞区数量:", noFlyZonesOnly.length);
+  if (noFlyZonesOnly.length > 0) {
+    console.log("第一个禁飞区数据:", JSON.stringify(noFlyZonesOnly[0]));
+    console.log("禁飞区 coordinates:", noFlyZonesOnly[0]?.coordinates);
+  }
+  console.log("====================");
 
   // 1. 检查每个航点是否在禁飞区内（包括边上）
   for (const point of points) {
@@ -483,25 +431,32 @@ const isRouteCrossingNoFlyZone = (points) => {
         const center = zone.coordinates[0];
         const radius = zone.radius;
 
+        // 🔥 调试日志：显示当前检测的禁飞区信息
+        console.log(`[圆形禁飞区检测] zone.name=${zone.name}, 圆心=(${center.lng}, ${center.lat}), 半径=${radius.toFixed(2)}米`);
+        console.log(`  航点1: (${startPoint.lng}, ${startPoint.lat}), 航点2: (${endPoint.lng}, ${endPoint.lat})`);
+
         // 步骤1：检查端点是否在圆内
-        const startInCircle = isPointInCircle(startPoint, zone);
-        const endInCircle = isPointInCircle(endPoint, zone);
+        const distToStart = calculateDistance(startPoint, center);
+        const distToEnd = calculateDistance(endPoint, center);
+        console.log(`  航点1到圆心距离: ${distToStart.toFixed(2)}米, 航点2到圆心距离: ${distToEnd.toFixed(2)}米`);
+        
+        const startInCircle = distToStart <= radius;
+        const endInCircle = distToEnd <= radius;
         if (startInCircle || endInCircle) {
-          console.log(
-            `航线段 ${i}->${i + 1} 的端点在圆形禁飞区 ${zone.name} 内`,
-          );
+          console.log(`  ✅ 端点在圆内，判定为穿越`);
           return true;
         }
 
         // 步骤2：计算圆心到线段的最短距离，判断是否穿越圆
-        const shortestDistance = calculateShortestDistanceFromPointToSegment(
-          center,
-          startPoint,
-          endPoint,
-        );
-        if (shortestDistance <= radius + 1e-3) {
-          console.log(`航线段 ${i}->${i + 1} 穿越圆形禁飞区 ${zone.name}`);
+        // 使用球面距离计算（更精确）
+        const centerToSegDist = calculateDistanceFromPointToSegmentSphere(center, startPoint, endPoint);
+        console.log(`  圆心到线段的球面距离: ${centerToSegDist.toFixed(2)}米`);
+        
+        if (centerToSegDist <= radius) {
+          console.log(`  ✅ 穿越判定: 圆心到线段距离(${centerToSegDist.toFixed(2)}米) <= 半径(${radius.toFixed(2)}米)`);
           return true;
+        } else {
+          console.log(`  ❌ 未穿越: 圆心到线段距离(${centerToSegDist.toFixed(2)}米) > 半径(${radius.toFixed(2)}米)`);
         }
       }
     }
@@ -2534,6 +2489,80 @@ const calculateDistance = (p1, p2) => {
       Math.sin(deltaLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; // 米
+};
+
+// 辅助函数：计算点到球面线段的最短距离（米）- 使用投影法
+const calculateDistanceFromPointToSegmentSphere = (point, segStart, segEnd) => {
+  const R = 6371000; // 地球半径（米）
+  
+  // 转换为弧度
+  const lat = point.lat * Math.PI / 180;
+  const lng = point.lng * Math.PI / 180;
+  const lat1 = segStart.lat * Math.PI / 180;
+  const lng1 = segStart.lng * Math.PI / 180;
+  const lat2 = segEnd.lat * Math.PI / 180;
+  const lng2 = segEnd.lng * Math.PI / 180;
+  
+  // 计算三点到地心的向量
+  const vPoint = [
+    Math.cos(lat) * Math.cos(lng),
+    Math.cos(lat) * Math.sin(lng),
+    Math.sin(lat)
+  ];
+  const vStart = [
+    Math.cos(lat1) * Math.cos(lng1),
+    Math.cos(lat1) * Math.sin(lng1),
+    Math.sin(lat1)
+  ];
+  const vEnd = [
+    Math.cos(lat2) * Math.cos(lng2),
+    Math.cos(lat2) * Math.sin(lng2),
+    Math.sin(lat2)
+  ];
+  
+  // 线段方向向量
+  const segDir = [
+    vEnd[0] - vStart[0],
+    vEnd[1] - vStart[1],
+    vEnd[2] - vStart[2]
+  ];
+  
+  // 点到起点的向量
+  const toPoint = [
+    vPoint[0] - vStart[0],
+    vPoint[1] - vStart[1],
+    vPoint[2] - vStart[2]
+  ];
+  
+  // 计算投影比例 t
+  const segLenSq = segDir[0]*segDir[0] + segDir[1]*segDir[1] + segDir[2]*segDir[2];
+  if (segLenSq < 1e-12) {
+    // 线段退化为点
+    return calculateDistance(point, segStart);
+  }
+  
+  const dot = toPoint[0]*segDir[0] + toPoint[1]*segDir[1] + toPoint[2]*segDir[2];
+  let t = dot / segLenSq;
+  t = Math.max(0, Math.min(1, t));
+  
+  // 最近点的向量
+  const nearest = [
+    vStart[0] + t * segDir[0],
+    vStart[1] + t * segDir[1],
+    vStart[2] + t * segDir[2]
+  ];
+  
+  // 归一化
+  const norm = Math.sqrt(nearest[0]*nearest[0] + nearest[1]*nearest[1] + nearest[2]*nearest[2]);
+  nearest[0] /= norm;
+  nearest[1] /= norm;
+  nearest[2] /= norm;
+  
+  // 计算点与最近点之间的弧度距离
+  const dotProduct = vPoint[0]*nearest[0] + vPoint[1]*nearest[1] + vPoint[2]*nearest[2];
+  const arcDist = Math.acos(Math.max(-1, Math.min(1, dotProduct)));
+  
+  return R * arcDist;
 };
 const calculatePolygonArea = (coordinates) => {
   if (!coordinates || coordinates.length < 3) return 0;
