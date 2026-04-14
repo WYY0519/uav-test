@@ -147,7 +147,8 @@
                     margin: 5px 0 0 0;
                     background: #2c3d45;
                     color: #fff;
-                  " class="direction-btn right" @click.stop="uavViewDetails()" :disabled="!isConnected || !selectedDeviceId">
+                  " class="direction-btn right" @click.stop="uavViewDetails()"
+                  :disabled="!isConnected || !selectedDeviceId">
                   查看详情
                 </el-button>
               </div>
@@ -418,7 +419,7 @@
                     </div>
                     <span class="slider-text">{{
                       isLocked ? "已加锁" : "未加锁"
-                    }}</span>
+                      }}</span>
                   </div>
                 </div>
               </el-button>
@@ -3596,7 +3597,7 @@ const handleClickOutside = (event) => {
 
 .lock-slider.cursor-not-allowed {
   cursor: not-allowed;
-  pointer-events: none;
+  /* pointer-events: none; */
   /* 禁用鼠标和触摸事件 */
 }
 
