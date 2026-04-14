@@ -68,6 +68,7 @@
                 @waypoint-updated="handleWaypointUpdated"
                 @route-save="handleRouteSave"
                 @route-cancel-edit="handleRouteCancelEdit"
+                @route-saved-and-refresh-map="handleRouteCompleted"
               />
             </div>
           </el-card>
@@ -1349,20 +1350,21 @@ const debounceUpdatePolyline = debounce((polyline, newPath) => {
 }, 10);
 // 新增：处理取消编辑事件
 const handleRouteCancelEdit = (route) => {
-  console.log("取消编辑，恢复原始航线:", route);
-  // 从 routeInfo 中重新获取最新的航线数据，确保使用已恢复的数据
-  if (routeListRef.value && routeListRef.value.routeInfo) {
-    const currentRoute = routeListRef.value.routeInfo[0].find(
-      (item) => item.id === route.id,
-    );
-    if (currentRoute) {
-      // 使用最新的数据重新渲染，保持编辑模式（isEditable = true）
-      viewRoute(currentRoute, true);
-      return;
-    }
-  }
-  // 备用：使用传入的 route
-  viewRoute(route, true);
+  console.log("取消编辑，清除地图航线:", route);
+  // 清除地图上的航线覆盖物
+  clearRouteOverlaysOnly();
+  isEditingRoute.value = false;
+  activeRouteId.value = null;
+  currentRoutePolyline.value = null;
+};
+// 新增：处理完成编辑事件
+const handleRouteCompleted = (routeId) => {
+  console.log("完成编辑，清除地图航线:", routeId);
+  // 清除地图上的航线覆盖物
+  clearRouteOverlaysOnly();
+  isEditingRoute.value = false;
+  activeRouteId.value = null;
+  currentRoutePolyline.value = null;
 };
 const viewRoute = (route, isEditable = false) => {
   console.log("viewRoute1111", route, "是否可编辑:", isEditable);
@@ -1514,34 +1516,7 @@ const viewRoute = (route, isEditable = false) => {
             currentRoutePolyline.value.setPath(finalPath);
           }
 
-          // 校验禁飞区
-          const checkPoints = route.points.map((p) => ({
-            lng: Number(p.lng),
-            lat: Number(p.lat),
-          }));
-
-          const crossNoFly =
-            noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(checkPoints);
-          if (crossNoFly) {
-            ElMessage.error("❌ 禁止：航线/航点进入禁飞区！");
-            // 恢复航点位置和原始数据
-            marker.setPosition([marker.originalLng, marker.originalLat]);
-            route.points[marker.pointIndex].lng = marker.originalLng;
-            route.points[marker.pointIndex].lat = marker.originalLat;
-            const newPath = route.points.map((p) => [
-              Number(p.lng),
-              Number(p.lat),
-            ]);
-            currentRoutePolyline.value.setPath(newPath);
-            return;
-          }
-
-          // 禁高区仅提示
-          const crossWarning =
-            noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(checkPoints);
-          if (crossWarning) {
-            ElMessage.warning("⚠️ 提示：航线/航点经过禁高区");
-          }
+          // 禁飞区校验已移除：拖动航点时不校验，只在点击"完成"按钮时校验
         });
       }
     });

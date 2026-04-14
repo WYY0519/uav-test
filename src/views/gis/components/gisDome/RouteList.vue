@@ -850,7 +850,15 @@ const confirmDelete = async () => {
 
 // 完成航线编辑
 const completeRouteEdit = async (route) => {
-  const checkPoints = route.points.map((p) => ({
+  // 获取最终要保存的航点（优先使用拖动/编辑后的数据）
+  let pointsToCheck;
+  if (hasDragged.value[route.id] && dragTempPoints.value[route.id]) {
+    pointsToCheck = dragTempPoints.value[route.id];
+  } else {
+    pointsToCheck = route.points;
+  }
+
+  const checkPoints = pointsToCheck.map((p) => ({
     lng: Number(p.lng),
     lat: Number(p.lat),
   }));
@@ -979,18 +987,8 @@ const editAirline = (value, index) => {
   emit("waypoint-edit", { value, index });
 };
 
-// 保存编辑的航点
+// 保存编辑的航点（不校验禁飞区，只在点击"完成"按钮时校验）
 const editWaypoint = async () => {
-  if (!props.noFlyZoneManagerRef) {
-    ElMessage.warning("禁飞区数据未加载，无法进行校验");
-    return;
-  }
-
-  if (!props.noFlyZoneManagerRef.isZonesLoaded()) {
-    ElMessage.warning("禁飞区数据正在加载中，请稍后再试");
-    return;
-  }
-
   const newLng = parseFloat(formData.value.lon);
   const newLat = parseFloat(formData.value.lat);
   const waypointNum = parseInt(formData.value.waypointNumber);
@@ -998,20 +996,6 @@ const editWaypoint = async () => {
   if (isNaN(newLng) || isNaN(newLat) || isNaN(waypointNum)) {
     ElMessage.error("航点数据格式错误，请输入有效的数字");
     return;
-  }
-
-  const pointToCheck = { lng: newLng, lat: newLat };
-  const isPointInNoFlyZone =
-    props.noFlyZoneManagerRef.isPointInNoFlyZone(pointToCheck);
-  if (isPointInNoFlyZone) {
-    ElMessage.error("该航点位置在禁飞区内，无法保存");
-    return;
-  }
-
-  const isPointInWarningZone =
-    props.noFlyZoneManagerRef.isPointInWarningZone(pointToCheck);
-  if (isPointInWarningZone) {
-    ElMessage.warning("该航点位置在禁高区（警告区）内，请注意飞行安全");
   }
 
   try {
