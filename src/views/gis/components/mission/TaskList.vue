@@ -12,24 +12,14 @@
     <div v-if="showTaskList" class="top-section">
       <div class="top-section2">
         <div style="margin-bottom: 12px">
-          <el-input
-            v-model="taskName"
-            placeholder="输入任务名称搜索"
-            class="search-input"
-            clearable
-            @clear="taskManagement"
-            type="primary"
-          >
+          <el-input v-model="taskName" placeholder="输入任务名称搜索" class="search-input" clearable @clear="taskManagement"
+            type="primary">
             <template #append>
-              <el-button
-                style="
+              <el-button style="
                   background-color: #409eff;
                   color: white;
                   padding-left: 17px;
-                "
-                :icon="Search"
-                @click="taskManagement"
-              />
+                " :icon="Search" @click="taskManagement" />
             </template>
           </el-input>
         </div>
@@ -37,13 +27,8 @@
         <div class="task-list-title">任务列表</div>
 
         <div class="task-items-scroll-container">
-          <div
-            v-for="item in taskAllList"
-            :key="item.missionId"
-            class="task-item"
-            @click.stop="handleSelectTask(item)"
-            :class="{ active: selectedTaskId === item.missionId }"
-          >
+          <div v-for="item in taskAllList" :key="item.missionId" class="task-item" @click.stop="handleSelectTask(item)"
+            :class="{ active: selectedTaskId === item.missionId }">
             <div class="task-name">{{ item.name }}</div>
             <div class="task-row">
               <span class="label">所属项目：</span>
@@ -61,16 +46,10 @@
         </div>
 
         <div class="pagination-wrapper">
-          <el-pagination
-            v-model:current-page="currentPage"
-            v-model:page-size="pageSize"
-            :page-sizes="[5, 10, 20, 50, 100]"
-            :total="total"
-            layout="total, sizes, prev, pager, next, jumper"
-            style="--el-pagination-font-size: 12px; padding: 12px 12px 0 12px"
-            @size-change="handleSizeChange"
-            @current-change="handleCurrentChange"
-          />
+          <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
+            :page-sizes="[5, 10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
+            style="--el-pagination-font-size: 12px; padding: 12px 12px 0 12px" @size-change="handleSizeChange"
+            @current-change="handleCurrentChange" />
         </div>
       </div>
     </div>
@@ -164,7 +143,7 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  min-width: 300px;
+  width: 200px;
 }
 
 .toggle-button-wrapper {
@@ -269,8 +248,7 @@ onMounted(() => {
 }
 
 /* 去掉悬浮效果 */
-.task-item:hover {
-}
+.task-item:hover {}
 
 /* 选中只显示红色边框，无背景 */
 .task-item.active {
@@ -289,7 +267,8 @@ onMounted(() => {
 /* 核心修改：统一所有行的布局，标签固定宽度，内容自动换行 */
 .task-row {
   display: flex;
-  align-items: flex-start; /* 顶部对齐，避免标签错位 */
+  align-items: flex-start;
+  /* 顶部对齐，避免标签错位 */
   font-size: 14px;
   color: #f4f2f257;
   margin-bottom: 6px;
@@ -298,14 +277,18 @@ onMounted(() => {
 
 .task-row .label {
   color: #f4f2f257;
-  white-space: nowrap; /* 标签永远不换行 */
-  flex-shrink: 0; /* 禁止标签压缩 */
+  white-space: nowrap;
+  /* 标签永远不换行 */
+  flex-shrink: 0;
+  /* 禁止标签压缩 */
   margin-right: 6px;
 }
 
 .task-row .text {
-  flex: 1; /* 内容占剩余宽度，自动换行 */
-  word-break: break-all; /* 长文本自动换行 */
+  flex: 1;
+  /* 内容占剩余宽度，自动换行 */
+  word-break: break-all;
+  /* 长文本自动换行 */
 }
 
 /* 描述行继承统一布局，不再单独限制 */
