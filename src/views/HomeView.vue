@@ -61,10 +61,10 @@
           <el-breadcrumb separator="/">
             <el-breadcrumb-item :to="{ path: '/home' }">{{
               texthome
-            }}</el-breadcrumb-item>
+              }}</el-breadcrumb-item>
             <el-breadcrumb-item v-if="parentMenu">{{
               parentMenu
-            }}</el-breadcrumb-item>
+              }}</el-breadcrumb-item>
             <el-breadcrumb-item>{{ currentPages }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -114,10 +114,10 @@
   <el-dialog title="修改密码" v-model="changePasswordVisible" width="500px" destroy-on-close>
     <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-width="100px">
       <el-form-item label="旧密码" prop="oldPassword">
-        <el-input v-model="passwordForm.oldPassword" placeholder="请输入旧密码" maxlength="10" show-word-limit />
+        <el-input v-model="passwordForm.oldPassword" placeholder="请输入旧密码" show-word-limit />
       </el-form-item>
       <el-form-item label="新密码" prop="newPassword">
-        <el-input v-model="passwordForm.newPassword" placeholder="请输入新密码" maxlength="10" show-word-limit />
+        <el-input v-model="passwordForm.newPassword" placeholder="请输入新密码" show-word-limit />
       </el-form-item>
     </el-form>
     <template #footer>
