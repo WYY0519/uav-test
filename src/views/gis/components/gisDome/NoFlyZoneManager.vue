@@ -2,32 +2,22 @@
   <!-- 区域操作工具栏 toolbarVisible  -->
   <div class="control-toolbar" v-show="toolbarVisible">
     <h3>区域管理</h3>
-    <button
-      @click="startDrawNoFlyPolygon"
-      :class="{
-        btn: true,
-        primary: selectedRegion === 'jf',
-        warningArea: selectedRegion === 'jg',
-      }"
-    >
+    <button @click="startDrawNoFlyPolygon" :class="{
+      btn: true,
+      primary: selectedRegion === 'jf',
+      warningArea: selectedRegion === 'jg',
+    }">
       <i class="icon-polygon"></i> 绘制多边形区域
     </button>
-    <button
-      @click="startDrawNoFlyCircle"
-      :class="{
-        btn: true,
-        primary: selectedRegion === 'jf',
-        warningArea: selectedRegion === 'jg',
-      }"
-    >
+    <button @click="startDrawNoFlyCircle" :class="{
+      btn: true,
+      primary: selectedRegion === 'jf',
+      warningArea: selectedRegion === 'jg',
+    }">
       <i class="circle"></i> 绘制圆形区域
     </button>
     <div style="display: flex">
-      <button
-        @click="confirmDraw"
-        style="margin-right: 8px"
-        class="btn secondary"
-      >
+      <button @click="confirmDraw" style="margin-right: 8px" class="btn secondary">
         <i class="confirm"></i> 确认绘制
       </button>
       <button @click="cancelDraw" :disabled="isEditing" class="btn secondary">
@@ -35,37 +25,20 @@
       </button>
     </div>
     <div style="display: flex">
-      <button
-        @click="enterEditMode"
-        style="margin-right: 8px"
-        class="btn secondary"
-        :disabled="isEditing || isDrawing"
-      >
+      <button @click="enterEditMode" style="margin-right: 8px" class="btn secondary" :disabled="isEditing || isDrawing">
         <i class="edit"></i> 编辑{{ regionName }}
       </button>
-      <button
-        @click="finishEditMode"
-        class="btn secondary"
-        :disabled="!isEditing || isDrawing"
-      >
+      <button @click="finishEditMode" class="btn secondary" :disabled="!isEditing || isDrawing">
         <i class="save"></i> 完成编辑
       </button>
     </div>
     <div style="display: flex" v-if="isEditing">
-      <button
-        @click="cancelEditMode"
-        style="margin-right: 8px"
-        class="btn secondary"
-      >
+      <button @click="cancelEditMode" style="margin-right: 8px" class="btn secondary">
         <i class="cancel"></i> 取消编辑
       </button>
     </div>
-    <button
-      @click="toggleEditMode"
-      style="margin-right: 8px"
-      class="btn secondary"
-      :class="{ 'delete-mode-active': isDeleteModeActive }"
-    >
+    <button @click="toggleEditMode" style="margin-right: 8px" class="btn secondary"
+      :class="{ 'delete-mode-active': isDeleteModeActive }">
       <i class="delete"></i>
       {{ isDeleteModeActive ? "退出删除" : "删除" }}{{ regionName }}
     </button>
@@ -85,33 +58,14 @@
   </div>
 
   <!-- 禁飞区信息输入弹窗  -->
-  <el-dialog
-    v-model="dialogVisible"
-    :title="`完善${regionName}信息`"
-    width="400px"
-    :before-close="handleDialogClose"
-  >
-    <el-form
-      :model="formData"
-      :rules="formRules"
-      ref="formRef"
-      label-width="80px"
-    >
+  <el-dialog v-model="dialogVisible" :title="`完善${regionName}信息`" width="400px" :before-close="handleDialogClose">
+    <el-form :model="formData" :rules="formRules" ref="formRef" label-width="80px">
       <el-form-item label="区域名称" prop="name">
-        <el-input
-          v-model="formData.name"
-          :placeholder="`请输入${regionName}名称`"
-          maxlength="50"
-        />
+        <el-input v-model="formData.name" :placeholder="`请输入${regionName}名称`" maxlength="50" />
       </el-form-item>
       <el-form-item label="区域描述" prop="description">
-        <el-input
-          v-model="formData.description"
-          :placeholder="`请输入${regionName}描述（可选）`"
-          type="textarea"
-          :rows="3"
-          maxlength="200"
-        />
+        <el-input v-model="formData.description" :placeholder="`请输入${regionName}描述（可选）`" type="textarea" :rows="3"
+          maxlength="200" />
       </el-form-item>
     </el-form>
 
@@ -121,11 +75,7 @@
     </template>
   </el-dialog>
   <!-- 使用独立的禁飞区悬浮详情组件 -->
-  <NoFlyZoneTooltip
-    :visible="showTooltip"
-    :position="tooltipPosition"
-    :data="tooltipData"
-  />
+  <NoFlyZoneTooltip :visible="showTooltip" :position="tooltipPosition" :data="tooltipData" />
 </template>
 
 <script setup>
@@ -242,11 +192,10 @@ const isPointInPolygon = (point, polygon) => {
     const xj = polygon[j].lng;
     const yj = polygon[j].lat;
 
-    // 🔥 移除边的检测，避免浮点精度导致的误判
-    // 只有当点真正在多边形内部时才判定为在禁飞区内
-    // if (isPointOnSegment(point, polygon[i], polygon[j])) {
-    //   return true;
-    // }
+    // 新增：检查点是否在边上（浮点精度容错）
+    if (isPointOnSegment(point, polygon[i], polygon[j])) {
+      return true;
+    }
 
     const intersect =
       yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
@@ -261,10 +210,11 @@ const isPointInCircle = (point, circle) => {
   const center = circle.coordinates[0];
   const radius = circle.radius || 0;
   if (radius <= 0) return false;
-  // 计算两点间的球面距离（米），这里改用更精准的球面距离计算，而非平面距离
+  // 计算两点间的球面距离（米）
   const distance = calculateDistance(point, center);
-  // 扩大容错范围的反向逻辑：只要距离≤半径+极小值，就判定在圆内（包括边界）
-  return distance <= radius + 1e-3; // 从1e-5调整为1e-3，提升边界判定的灵敏度
+  console.log(`[DEBUG] isPointInCircle: 点(${point.lng}, ${point.lat}), 圆心(${center.lng}, ${center.lat}), 半径${radius}m, 距离${distance}m, 结果:${distance <= radius}`);
+  // 判定：在圆内（包括边界）如果距离小于等于半径
+  return distance <= radius;
 };
 
 // 禁飞区检查函数
@@ -288,10 +238,14 @@ const isPointInNoFlyZone = (point) => {
     } else if (zone.type === "circle") {
       if (zone.coordinates && zone.coordinates.length > 0 && zone.radius > 0) {
         isInZone = isPointInCircle(point, zone);
+        if (isInZone) {
+          console.log(`[DEBUG] 点在圆形禁飞区 "${zone.name}" 内, 半径=${zone.radius}m`);
+        }
       }
     }
 
     if (isInZone) {
+      console.log(`[DEBUG] 禁飞区检查结果: true (区域: ${zone.name}, 类型: ${zone.type})`);
       return true;
     }
   }
@@ -352,7 +306,44 @@ const isPointOnSegment = (p, a, b) => {
   return Math.abs(cross) < 1e-10; // 浮点精度容错
 };
 
+// 辅助函数：计算点（圆心）到球面线段的最短距离（米）
+const calculateShortestDistanceFromPointToSegment = (
+  point,
+  segStart,
+  segEnd,
+) => {
+  // 步骤1：计算三个距离：点到起点、点到终点
+  const d1 = calculateDistance(point, segStart);
+  const d2 = calculateDistance(point, segEnd);
 
+  // 步骤2：计算点在segStart-segEnd线段上的投影比例
+  // 使用简化的平面近似（对于几百米到几十公里的距离足够准确）
+  const dx = segEnd.lng - segStart.lng;
+  const dy = segEnd.lat - segStart.lat;
+
+  // 处理线段长度接近0的情况
+  const segLengthSq = dx * dx + dy * dy;
+  if (segLengthSq < 1e-12) {
+    return d1; // 线段退化为点
+  }
+
+  // 计算投影比例 t
+  const t = ((point.lng - segStart.lng) * dx + (point.lat - segStart.lat) * dy) / segLengthSq;
+
+  // 限制 t 在 [0, 1] 范围内
+  const clampedT = Math.max(0, Math.min(1, t));
+
+  // 步骤3：计算垂点坐标
+  const footLng = segStart.lng + clampedT * dx;
+  const footLat = segStart.lat + clampedT * dy;
+
+  // 步骤4：计算从点到垂点的距离
+  const distanceToFoot = calculateDistance(point, { lng: footLng, lat: footLat });
+
+  console.log(`[DEBUG] calculateShortestDistanceFromPointToSegment: 点(${point.lng}, ${point.lat}), 线段(${segStart.lng},${segStart.lat})->(${segEnd.lng},${segEnd.lat}), t=${clampedT.toFixed(4)}, 垂点(${footLng.toFixed(6)},${footLat.toFixed(6)}), 最短距离=${distanceToFoot.toFixed(2)}m`);
+
+  return distanceToFoot;
+};
 // 优化航线穿越检查：结合采样点+线段相交检测（强化圆形禁飞区逻辑）
 const isRouteCrossingNoFlyZone = (points) => {
   if (!points || points.length < 2) return false;
@@ -362,16 +353,6 @@ const isRouteCrossingNoFlyZone = (points) => {
     (zone) => zone.regionType === "jf",
   );
   if (noFlyZonesOnly.length === 0) return false;
-
-  // 🔥 调试日志：查看实际数据格式
-  console.log("=== 禁飞区检测调试 ===");
-  console.log("航点数据:", JSON.stringify(points));
-  console.log("禁飞区数量:", noFlyZonesOnly.length);
-  if (noFlyZonesOnly.length > 0) {
-    console.log("第一个禁飞区数据:", JSON.stringify(noFlyZonesOnly[0]));
-    console.log("禁飞区 coordinates:", noFlyZonesOnly[0]?.coordinates);
-  }
-  console.log("====================");
 
   // 1. 检查每个航点是否在禁飞区内（包括边上）
   for (const point of points) {
@@ -431,32 +412,26 @@ const isRouteCrossingNoFlyZone = (points) => {
         const center = zone.coordinates[0];
         const radius = zone.radius;
 
-        // 🔥 调试日志：显示当前检测的禁飞区信息
-        console.log(`[圆形禁飞区检测] zone.name=${zone.name}, 圆心=(${center.lng}, ${center.lat}), 半径=${radius.toFixed(2)}米`);
-        console.log(`  航点1: (${startPoint.lng}, ${startPoint.lat}), 航点2: (${endPoint.lng}, ${endPoint.lat})`);
-
         // 步骤1：检查端点是否在圆内
-        const distToStart = calculateDistance(startPoint, center);
-        const distToEnd = calculateDistance(endPoint, center);
-        console.log(`  航点1到圆心距离: ${distToStart.toFixed(2)}米, 航点2到圆心距离: ${distToEnd.toFixed(2)}米`);
-        
-        const startInCircle = distToStart <= radius;
-        const endInCircle = distToEnd <= radius;
+        const startInCircle = isPointInCircle(startPoint, zone);
+        const endInCircle = isPointInCircle(endPoint, zone);
         if (startInCircle || endInCircle) {
-          console.log(`  ✅ 端点在圆内，判定为穿越`);
+          console.log(
+            `航线段 ${i}->${i + 1} 的端点在圆形禁飞区 ${zone.name} 内`,
+          );
           return true;
         }
 
         // 步骤2：计算圆心到线段的最短距离，判断是否穿越圆
-        // 使用球面距离计算（更精确）
-        const centerToSegDist = calculateDistanceFromPointToSegmentSphere(center, startPoint, endPoint);
-        console.log(`  圆心到线段的球面距离: ${centerToSegDist.toFixed(2)}米`);
-        
-        if (centerToSegDist <= radius) {
-          console.log(`  ✅ 穿越判定: 圆心到线段距离(${centerToSegDist.toFixed(2)}米) <= 半径(${radius.toFixed(2)}米)`);
+        const shortestDistance = calculateShortestDistanceFromPointToSegment(
+          center,
+          startPoint,
+          endPoint,
+        );
+        console.log(`[DEBUG] 穿越检测: 圆心(${center.lng}, ${center.lat}), 半径${radius}m, 最短距离${shortestDistance}m, 线段(${startPoint.lng},${startPoint.lat})->(${endPoint.lng},${endPoint.lat})`);
+        if (shortestDistance <= radius) {
+          console.log(`❌ 航线段 ${i}->${i + 1} 穿越圆形禁飞区 ${zone.name} (距离${shortestDistance}m <= 半径${radius}m)`);
           return true;
-        } else {
-          console.log(`  ❌ 未穿越: 圆心到线段距离(${centerToSegDist.toFixed(2)}米) > 半径(${radius.toFixed(2)}米)`);
         }
       }
     }
@@ -2484,85 +2459,11 @@ const calculateDistance = (p1, p2) => {
   const a =
     Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
     Math.cos(lat1) *
-      Math.cos(lat2) *
-      Math.sin(deltaLng / 2) *
-      Math.sin(deltaLng / 2);
+    Math.cos(lat2) *
+    Math.sin(deltaLng / 2) *
+    Math.sin(deltaLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; // 米
-};
-
-// 辅助函数：计算点到球面线段的最短距离（米）- 使用投影法
-const calculateDistanceFromPointToSegmentSphere = (point, segStart, segEnd) => {
-  const R = 6371000; // 地球半径（米）
-  
-  // 转换为弧度
-  const lat = point.lat * Math.PI / 180;
-  const lng = point.lng * Math.PI / 180;
-  const lat1 = segStart.lat * Math.PI / 180;
-  const lng1 = segStart.lng * Math.PI / 180;
-  const lat2 = segEnd.lat * Math.PI / 180;
-  const lng2 = segEnd.lng * Math.PI / 180;
-  
-  // 计算三点到地心的向量
-  const vPoint = [
-    Math.cos(lat) * Math.cos(lng),
-    Math.cos(lat) * Math.sin(lng),
-    Math.sin(lat)
-  ];
-  const vStart = [
-    Math.cos(lat1) * Math.cos(lng1),
-    Math.cos(lat1) * Math.sin(lng1),
-    Math.sin(lat1)
-  ];
-  const vEnd = [
-    Math.cos(lat2) * Math.cos(lng2),
-    Math.cos(lat2) * Math.sin(lng2),
-    Math.sin(lat2)
-  ];
-  
-  // 线段方向向量
-  const segDir = [
-    vEnd[0] - vStart[0],
-    vEnd[1] - vStart[1],
-    vEnd[2] - vStart[2]
-  ];
-  
-  // 点到起点的向量
-  const toPoint = [
-    vPoint[0] - vStart[0],
-    vPoint[1] - vStart[1],
-    vPoint[2] - vStart[2]
-  ];
-  
-  // 计算投影比例 t
-  const segLenSq = segDir[0]*segDir[0] + segDir[1]*segDir[1] + segDir[2]*segDir[2];
-  if (segLenSq < 1e-12) {
-    // 线段退化为点
-    return calculateDistance(point, segStart);
-  }
-  
-  const dot = toPoint[0]*segDir[0] + toPoint[1]*segDir[1] + toPoint[2]*segDir[2];
-  let t = dot / segLenSq;
-  t = Math.max(0, Math.min(1, t));
-  
-  // 最近点的向量
-  const nearest = [
-    vStart[0] + t * segDir[0],
-    vStart[1] + t * segDir[1],
-    vStart[2] + t * segDir[2]
-  ];
-  
-  // 归一化
-  const norm = Math.sqrt(nearest[0]*nearest[0] + nearest[1]*nearest[1] + nearest[2]*nearest[2]);
-  nearest[0] /= norm;
-  nearest[1] /= norm;
-  nearest[2] /= norm;
-  
-  // 计算点与最近点之间的弧度距离
-  const dotProduct = vPoint[0]*nearest[0] + vPoint[1]*nearest[1] + vPoint[2]*nearest[2];
-  const arcDist = Math.acos(Math.max(-1, Math.min(1, dotProduct)));
-  
-  return R * arcDist;
 };
 const calculatePolygonArea = (coordinates) => {
   if (!coordinates || coordinates.length < 3) return 0;
@@ -2737,10 +2638,12 @@ h3 {
   background-color: #e74c3c;
   color: white;
 }
+
 .warningArea {
   background-color: #ffa500;
   color: white;
 }
+
 .secondary {
   background-color: #f5f5f5;
   color: #333;
@@ -2804,9 +2707,11 @@ h3 {
 /* 图例样式 */
 .legend {
   margin-top: 15px;
-  margin-bottom: 15px; /* 添加底部间距 */
+  margin-bottom: 15px;
+  /* 添加底部间距 */
   padding: 10px;
-  background: #f8f9fa; /* 添加背景色 */
+  background: #f8f9fa;
+  /* 添加背景色 */
   border-radius: 4px;
 }
 
@@ -2816,17 +2721,21 @@ h3 {
   margin-bottom: 5px;
   font-size: 13px;
   color: #666;
-  cursor: pointer; /* 添加手型光标 */
+  cursor: pointer;
+  /* 添加手型光标 */
   padding: 4px 8px;
   border-radius: 4px;
   transition: background-color 0.2s;
 }
+
 .legend-item:hover {
-  background-color: #e9ecef; /* 悬停效果 */
+  background-color: #e9ecef;
+  /* 悬停效果 */
 }
 
 .legend-item.active {
-  background-color: #e7f3ff; /* 激活状态 */
+  background-color: #e7f3ff;
+  /* 激活状态 */
   font-weight: bold;
 }
 
@@ -2841,6 +2750,7 @@ h3 {
 .red {
   background-color: rgba(231, 76, 60, 0.6);
 }
+
 .orange {
   background-color: rgba(255, 165, 0, 0.6);
 }
@@ -2856,19 +2766,23 @@ h3 {
   max-width: 300px;
   word-wrap: break-word;
 }
+
 /* 原有样式不变，添加以下样式 */
 .draw-tooltip {
   animation: fadeIn 0.3s ease;
 }
+
 /* 原有样式不变，添加以下样式 */
 .draw-tooltip {
   animation: fadeIn 0.3s ease;
 }
+
 @keyframes fadeIn {
   from {
     opacity: 0;
     transform: translateY(5px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2879,9 +2793,11 @@ h3 {
   0% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.2);
   }
+
   100% {
     transform: scale(1);
   }
@@ -2891,9 +2807,11 @@ h3 {
   0% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.2);
   }
+
   100% {
     transform: scale(1);
   }
