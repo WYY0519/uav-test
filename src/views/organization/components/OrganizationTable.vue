@@ -1,35 +1,23 @@
 <template>
-  <CommonTable
-    width="100%"
-    title="组织列表"
-    :table-data="tableData"
-    :columns="columns"
-    :total="total"
-    :loading="loading"
-    row-key="organizationId"
-    :show-selection="true"
-    :action-width="200"
-    @row-click="handleRowClick"
-    @selection-change="handleSelectionChange"
-  >
+  <CommonTable width="100%" title="组织列表" :table-data="tableData" :columns="columns" :total="total" :loading="loading"
+    row-key="organizationId" :show-selection="true" :action-width="200" @row-click="handleRowClick"
+    @selection-change="handleSelectionChange">
     <template #header-actions>
-      <el-input
-        v-model="searchQuery"
-        placeholder="搜索组织名称"
-        class="search-input"
-        clearable
-        @clear="handleSearchClear"
-        @input="handleInputSearch"
-      >
+      <el-input v-model="searchQuery" placeholder="搜索组织名称" class="search-input" clearable @clear="handleSearchClear"
+        @input="handleInputSearch">
         <template #prefix>
-          <el-icon><Search /></el-icon>
+          <el-icon>
+            <Search />
+          </el-icon>
         </template>
       </el-input>
       <!-- <el-button type="primary" :icon="Search" @click="handleSearch">
         搜索
       </el-button> -->
       <el-button type="primary" @click="refreshList" :loading="loading">
-        <el-icon><Refresh /></el-icon>
+        <el-icon>
+          <Refresh />
+        </el-icon>
         刷新
       </el-button>
     </template>
@@ -43,84 +31,69 @@
     <template #action="{ row }">
       <el-tooltip content="编辑" placement="top">
         <el-button type="primary" link @click="handleEdit(row)">
-          <el-icon><Edit /></el-icon>
+          <el-icon>
+            <Edit />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="成员管理" placement="top">
         <el-button type="success" link @click="handleMembers(row)">
-          <el-icon><User /></el-icon>
+          <el-icon>
+            <User />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="详情" placement="top">
         <el-button type="info" link @click="handleDetail(row)">
-          <el-icon><InfoFilled /></el-icon>
+          <el-icon>
+            <InfoFilled />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="设备管理" placement="top">
         <el-button type="warning" link @click="handleUavList(row)">
-          <el-icon><Suitcase /></el-icon>
+          <el-icon>
+            <Suitcase />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="删除" placement="top">
         <el-button type="danger" link @click="handleDelete(row)">
-          <el-icon><Delete /></el-icon>
+          <el-icon>
+            <Delete />
+          </el-icon>
         </el-button>
       </el-tooltip>
     </template>
 
     <template #pagination>
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[5, 10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
+      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[5, 10, 20, 50, 100]"
+        :total="total" layout="total, sizes, prev, pager, next, jumper" @size-change="handleSizeChange"
+        @current-change="handleCurrentChange" />
     </template>
   </CommonTable>
 
   <!-- 编辑组织弹窗 -->
-  <CommonFormDialog
-    v-model="editDialogVisible"
-    form-dialog-title="编辑组织"
-    :form-items="editFormItems"
-    :rules="editFormRules"
-    :initial-data="editFormInitialData"
-    :is-edit="true"
-    dialog-width="500px"
-    label-width="100px"
-    @submit="handleEditSubmit"
-    @cancel="editDialogVisible = false"
-    @close="editDialogVisible = false"
-  />
+  <CommonFormDialog v-model="editDialogVisible" form-dialog-title="编辑组织" :form-items="editFormItems"
+    :form-rules="editFormRules" :form-model-value="editFormInitialData" :is-edit="true" dialog-width="500px" label-width="100px"
+    @submit="handleEditSubmit" @cancel="editDialogVisible = false" @close="editDialogVisible = false" />
 
   <!-- 成员管理弹窗 -->
-  <el-dialog
-    v-model="membersDialogVisible"
-    width="50%"
-    @close="membersDialogVisible = false"
-  >
+  <el-dialog v-model="membersDialogVisible" width="50%" @close="membersDialogVisible = false">
     <template #header>
       <div class="members-dialog-header">
         <span>组织成员管理</span>
       </div>
     </template>
     <div class="members-table-container">
-      <CommonTable
-        :title="`${currentOrganization?.name || ''} - 成员列表`"
-        :table-data="membersTableData"
-        :columns="membersColumns"
-        :total="membersTableData.length"
-        :loading="membersLoading"
-        :show-selection="false"
-        row-key="userId"
-        :action-width="120"
-      >
+      <CommonTable :title="`${currentOrganization?.name || ''} - 成员列表`" :table-data="membersTableData"
+        :columns="membersColumns" :total="membersTableData.length" :loading="membersLoading" :show-selection="false"
+        row-key="userId" :action-width="120">
         <template #header-actions>
           <el-button type="success" @click="handleAddMember">
-            <el-icon><Plus /></el-icon>
+            <el-icon>
+              <Plus />
+            </el-icon>
             添加成员
           </el-button>
         </template>
@@ -131,7 +104,9 @@
         <template #action="{ row }">
           <el-tooltip content="移除成员" placement="top">
             <el-button type="danger" link @click="handleDeleteMember(row)">
-              <el-icon><Delete /></el-icon>
+              <el-icon>
+                <Delete />
+              </el-icon>
             </el-button>
           </el-tooltip>
         </template>
@@ -140,25 +115,11 @@
   </el-dialog>
 
   <!-- 添加成员弹窗 -->
-  <el-dialog
-    v-model="addMemberDialogVisible"
-    title="添加成员"
-    width="50%"
-    @close="addMemberDialogVisible = false"
-  >
+  <el-dialog v-model="addMemberDialogVisible" title="添加成员" width="50%" @close="addMemberDialogVisible = false">
     <div class="add-member-table-container">
-      <CommonTable
-        title="可添加的用户列表"
-        :table-data="addMemberTableData"
-        :columns="addMemberColumns"
-        :total="addMemberTableData.length"
-        :loading="addMemberLoading"
-        :show-selection="true"
-        row-key="userId"
-        :action-width="0"
-        :show-action="false"
-        @selection-change="handleAddMemberSelectionChange"
-      />
+      <CommonTable title="可添加的用户列表" :table-data="addMemberTableData" :columns="addMemberColumns"
+        :total="addMemberTableData.length" :loading="addMemberLoading" :show-selection="true" row-key="userId"
+        :action-width="0" :show-action="false" @selection-change="handleAddMemberSelectionChange" />
     </div>
     <template #footer>
       <el-button @click="addMemberDialogVisible = false">取消</el-button>
@@ -169,58 +130,41 @@
   </el-dialog>
 
   <!-- 设备管理弹窗 -->
-  <el-dialog
-    v-model="devicesDialogVisible"
-    width="50%"
-    @close="devicesDialogVisible = false"
-  >
+  <el-dialog v-model="devicesDialogVisible" width="50%" @close="devicesDialogVisible = false">
     <template #header>
       <div class="members-dialog-header">
         <span>组织无人机列表</span>
       </div>
     </template>
     <div class="devices-table-container">
-      <CommonTable
-        :title="`${currentOrganization?.name || ''} - 设备列表`"
-        :table-data="devicesTableDataWithIndex"
-        :columns="devicesColumns"
-        :total="devicesTableData.length"
-        :loading="devicesLoading"
-        :show-selection="false"
-        row-key="deviceNumber"
-        :action-width="0"
-        :show-action="false"
-      >
+      <CommonTable :title="`${currentOrganization?.name || ''} - 设备列表`" :table-data="devicesTableDataWithIndex"
+        :columns="devicesColumns" :total="devicesTableData.length" :loading="devicesLoading" :show-selection="false"
+        row-key="deviceNumber" :action-width="0" :show-action="true">
         <template #header-actions>
           <el-button type="success" @click="handleAddDevice">
-            <el-icon><Plus /></el-icon>
+            <el-icon>
+              <Plus />
+            </el-icon>
             添加设备
           </el-button>
+        </template>
+        <template #action="{ row }">
+          <el-button-group>
+            <el-tooltip content="删除设备" placement="top">
+              <el-button type="danger" :icon="Delete" link @click="handleDeleteeQuipment(row)" />
+            </el-tooltip>
+          </el-button-group>
         </template>
       </CommonTable>
     </div>
   </el-dialog>
 
   <!-- 添加设备弹窗 -->
-  <el-dialog
-    v-model="addDeviceDialogVisible"
-    title="添加设备"
-    width="50%"
-    @close="addDeviceDialogVisible = false"
-  >
+  <el-dialog v-model="addDeviceDialogVisible" title="添加设备" width="50%" @close="addDeviceDialogVisible = false">
     <div class="add-device-dialog-content">
-      <CommonTable
-        title="可添加的设备列表"
-        :table-data="addDeviceTableData"
-        :columns="addDeviceColumns"
-        :total="addDeviceTableData.length"
-        :loading="addDeviceLoading"
-        :show-selection="true"
-        row-key="deviceNumber"
-        :action-width="0"
-        :show-action="false"
-        @selection-change="handleAddDeviceSelectionChange"
-      />
+      <CommonTable title="可添加的设备列表" :table-data="addDeviceTableData" :columns="addDeviceColumns"
+        :total="addDeviceTableData.length" :loading="addDeviceLoading" :show-selection="true" row-key="deviceNumber"
+        :action-width="0" :show-action="false" @selection-change="handleAddDeviceSelectionChange" />
     </div>
     <template #footer>
       <el-button @click="addDeviceDialogVisible = false">取消</el-button>
@@ -231,13 +175,8 @@
   </el-dialog>
 
   <!-- 组织详情抽屉 -->
-  <el-drawer
-    v-model="detailDialogVisible"
-    title="组织管理 - 详情"
-    direction="rtl"
-    size="500px"
-    @close="detailDialogVisible = false"
-  >
+  <el-drawer v-model="detailDialogVisible" title="组织管理 - 详情" direction="rtl" size="500px"
+    @close="detailDialogVisible = false">
     <div v-if="currentOrganization" class="org-detail">
       <div class="detail-header">
         <div class="org-avatar">
@@ -272,9 +211,7 @@
 
       <div class="drawer-footer">
         <el-button @click="detailDialogVisible = false">关闭</el-button>
-        <el-button type="primary" @click="handleEdit(currentOrganization)"
-          >编辑组织</el-button
-        >
+        <el-button type="primary" @click="handleEdit(currentOrganization)">编辑组织</el-button>
       </div>
     </div>
   </el-drawer>
@@ -304,6 +241,7 @@ import {
   getOrganizationUavs,
   organizationListdevices,
   organizationManage,
+  deleteManageDevices
 } from "@/api/organization";
 import { ElMessage, ElMessageBox } from "element-plus";
 import CommonTable from "@/components/CommonTable.vue";
@@ -843,7 +781,6 @@ const handleAddDeviceSubmit = async () => {
     ElMessage.error("添加设备失败，请重试");
   }
 };
-
 // 提交添加成员
 const handleAddMemberSubmit = async () => {
   if (addMemberSelectedUsers.value.length === 0) {
@@ -900,7 +837,7 @@ const handleDeleteMember = async (member) => {
         ElMessage.error("移除成员失败，请重试");
       }
     })
-    .catch(() => {});
+    .catch(() => { });
 };
 
 // 详情弹窗状态
@@ -943,9 +880,35 @@ const handleDelete = async (row) => {
         ElMessage.error("删除组织失败，请重试");
       }
     })
-    .catch(() => {});
+    .catch(() => { });
 };
-
+//删除组织管理--设备管理的设备 
+const handleDeleteeQuipment = async (row) => {
+  ElMessageBox.confirm(
+    `确定要删除设备 【${row.name}】 吗？删除后无法恢复！`,
+    "警告",
+    {
+      confirmButtonText: "确定删除",
+      cancelButtonText: "取消",
+      type: "warning",
+    },
+  )
+    .then(async () => {
+      try {
+        const res = await deleteManageDevices(currentOrganization.value.organizationId, row.id);
+        if (res && res.code === 200) {
+          ElMessage.success("删除成功");
+          getOrganizationList();
+        } else {
+          ElMessage.error(res?.message || "删除失败");
+        }
+      } catch (error) {
+        console.error("删除组织失败:", error);
+        ElMessage.error("删除组织失败，请重试");
+      }
+    })
+    .catch(() => { });
+};
 // 点击组织名称跳转到项目管理
 const handleOrgClick = (row) => {
   console.log(row, "asdfgbv");

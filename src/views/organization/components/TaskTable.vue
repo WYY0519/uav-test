@@ -1,32 +1,22 @@
 <template>
-  <CommonTable
-    title="任务列表"
-    :table-data="tableData"
-    :columns="columns"
-    :total="total"
-    :loading="loading"
-    row-key="taskId"
-    :show-selection="false"
-    :action-width="300"
-  >
+  <CommonTable title="任务列表" :table-data="tableData" :columns="columns" :total="total" :loading="loading"
+    row-key="taskId" :show-selection="false" :action-width="300">
     <template #org-header>
       <div class="org-header-wrapper">所属项目：{{ projectName }}</div>
     </template>
     <template #header-actions>
-      <el-input
-        v-model="searchQuery"
-        placeholder="搜索任务名称"
-        class="search-input"
-        clearable
-        @clear="handleSearchClear"
-        @input="handleInputSearch"
-      >
+      <el-input v-model="searchQuery" placeholder="搜索任务名称" class="search-input" clearable @clear="handleSearchClear"
+        @input="handleInputSearch">
         <template #prefix>
-          <el-icon><Search /></el-icon>
+          <el-icon>
+            <Search />
+          </el-icon>
         </template>
       </el-input>
       <el-button type="primary" @click="refreshList" :loading="loading">
-        <el-icon><Refresh /></el-icon>
+        <el-icon>
+          <Refresh />
+        </el-icon>
         刷新
       </el-button>
       <el-button type="success" :icon="Plus" @click="handleAddTask">
@@ -42,27 +32,37 @@
     <template #action="{ row }">
       <el-tooltip content="编辑" placement="top">
         <el-button type="primary" link @click="handleEdit(row)">
-          <el-icon><Edit /></el-icon>
+          <el-icon>
+            <Edit />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="成员管理" placement="top">
         <el-button type="warning" link @click="handleMembers(row)">
-          <el-icon><User /></el-icon>
+          <el-icon>
+            <User />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="无人机管理" placement="top">
         <el-button type="success" link @click="handleUavManage(row)">
-          <el-icon><List /></el-icon>
+          <el-icon>
+            <List />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="航线管理" placement="top">
         <el-button type="info" link @click="handleRouteManage(row)">
-          <el-icon><DataLine /></el-icon>
+          <el-icon>
+            <DataLine />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="删除" placement="top">
         <el-button type="danger" link @click="handleDelete(row)">
-          <el-icon><Delete /></el-icon>
+          <el-icon>
+            <Delete />
+          </el-icon>
         </el-button>
       </el-tooltip>
     </template>
@@ -78,54 +78,29 @@
     </template>
 
     <template #pagination>
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[5, 10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
+      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[5, 10, 20, 50, 100]"
+        :total="total" layout="total, sizes, prev, pager, next, jumper" @size-change="handleSizeChange"
+        @current-change="handleCurrentChange" />
     </template>
   </CommonTable>
 
   <!-- 编辑任务弹窗 -->
-  <CommonFormDialog
-    ref="editFormDialogRef"
-    :form-dialog-title="editDialogTitle"
-    :model-value="editDialogVisible"
-    @update:model-value="editDialogVisible = $event"
-    :form-items="editFormItems"
-    :initial-data="editFormData"
-    :form-rules="editFormRules"
-    :validate-before-submit="true"
-    @submit="handleEditSubmit"
-  />
+  <CommonFormDialog ref="editFormDialogRef" :form-dialog-title="editDialogTitle" :model-value="editDialogVisible"
+    @update:model-value="editDialogVisible = $event" :form-items="editFormItems" :form-model-value="editFormData"
+    :form-rules="editFormRules" :validate-before-submit="true" @submit="handleEditSubmit" />
 
   <!-- 成员管理弹窗 -->
-  <el-dialog
-    v-model="membersDialogVisible"
-    title="成员管理"
-    width="50%"
-    @close="membersDialogVisible = false"
-  >
+  <el-dialog v-model="membersDialogVisible" title="成员管理" width="50%" @close="membersDialogVisible = false">
     <div class="members-table-container">
-      <CommonTable
-        ref="membersTableComponent"
-        :title="`所属任务-${currentMission?.name || ''}`"
-        :table-data="membersTableData"
-        :columns="memberColumns"
-        :total="membersTableData.length"
-        :loading="membersLoading"
-        :show-selection="false"
-        :show-action="true"
-        :action-width="100"
-        :row-key="(row) => row.userId"
-      >
+      <CommonTable ref="membersTableComponent" :title="`所属任务-${currentMission?.name || ''}`"
+        :table-data="membersTableData" :columns="memberColumns" :total="membersTableData.length"
+        :loading="membersLoading" :show-selection="false" :show-action="true" :action-width="100"
+        :row-key="(row) => row.userId">
         <template #action="{ row }">
           <el-button type="danger" link @click="handleDeleteMember(row)">
-            <el-icon><Delete /></el-icon>
+            <el-icon>
+              <Delete />
+            </el-icon>
           </el-button>
         </template>
         <template #header-actions>
@@ -138,26 +113,12 @@
   </el-dialog>
 
   <!-- 添加成员弹窗 -->
-  <el-dialog
-    v-model="addMemberDialogVisible"
-    title="添加成员"
-    width="50%"
-    @close="addMemberDialogVisible = false"
-  >
+  <el-dialog v-model="addMemberDialogVisible" title="添加成员" width="50%" @close="addMemberDialogVisible = false">
     <div class="add-member-table-container">
-      <CommonTable
-        ref="addMemberTableComponent"
-        title="可添加的成员列表"
-        :table-data="addMemberTableData"
-        :columns="availableMemberColumns"
-        :total="addMemberTableData.length"
-        :loading="addMemberLoading"
-        :show-selection="true"
-        :show-action="false"
-        :row-key="(row) => row.userId"
-        :reserve-selection="false"
-        @selection-change="handleAddMemberSelectionChange"
-      />
+      <CommonTable ref="addMemberTableComponent" title="可添加的成员列表" :table-data="addMemberTableData"
+        :columns="availableMemberColumns" :total="addMemberTableData.length" :loading="addMemberLoading"
+        :show-selection="true" :show-action="false" :row-key="(row) => row.userId" :reserve-selection="false"
+        @selection-change="handleAddMemberSelectionChange" />
     </div>
     <template #footer>
       <el-button @click="addMemberDialogVisible = false">取消</el-button>
@@ -168,28 +129,16 @@
   </el-dialog>
 
   <!-- 无人机管理弹窗 -->
-  <el-dialog
-    v-model="uavManageDialogVisible"
-    title="无人机管理"
-    width="50%"
-    @close="uavManageDialogVisible = false"
-  >
+  <el-dialog v-model="uavManageDialogVisible" title="无人机管理" width="50%" @close="uavManageDialogVisible = false">
     <div class="uav-table-container">
-      <CommonTable
-        ref="uavTableComponent"
-        :title="`所属任务-${currentMission?.name || ''}`"
-        :table-data="uavTableData"
-        :columns="uavColumns"
-        :total="uavTableData.length"
-        :loading="uavLoading"
-        :show-selection="false"
-        :show-action="true"
-        :action-width="150"
-        :row-key="(row) => row.id"
-      >
+      <CommonTable ref="uavTableComponent" :title="`所属任务-${currentMission?.name || ''}`" :table-data="uavTableData"
+        :columns="uavColumns" :total="uavTableData.length" :loading="uavLoading" :show-selection="false"
+        :show-action="true" :action-width="150" :row-key="(row) => row.id">
         <template #action="{ row }">
           <el-button type="danger" link @click="handleDeleteUav(row)">
-            <el-icon><Delete /></el-icon>
+            <el-icon>
+              <Delete />
+            </el-icon>
           </el-button>
         </template>
         <template #header-actions>
@@ -202,26 +151,11 @@
   </el-dialog>
 
   <!-- 添加无人机弹窗 -->
-  <el-dialog
-    v-model="addUavDialogVisible"
-    title="添加无人机"
-    width="50%"
-    @close="addUavDialogVisible = false"
-  >
+  <el-dialog v-model="addUavDialogVisible" title="添加无人机" width="50%" @close="addUavDialogVisible = false">
     <div class="add-uav-table-container">
-      <CommonTable
-        ref="addUavTableComponent"
-        title="可添加的设备列表"
-        :table-data="addUavTableData"
-        :columns="addUavColumns"
-        :total="addUavTableData.length"
-        :loading="addUavLoading"
-        :show-selection="true"
-        :show-action="false"
-        :row-key="(row) => row.id"
-        :reserve-selection="false"
-        @selection-change="handleAddUavSelectionChange"
-      />
+      <CommonTable ref="addUavTableComponent" title="可添加的设备列表" :table-data="addUavTableData" :columns="addUavColumns"
+        :total="addUavTableData.length" :loading="addUavLoading" :show-selection="true" :show-action="false"
+        :row-key="(row) => row.id" :reserve-selection="false" @selection-change="handleAddUavSelectionChange" />
     </div>
     <template #footer>
       <el-button @click="addUavDialogVisible = false">取消</el-button>
@@ -230,28 +164,16 @@
   </el-dialog>
 
   <!-- 航线管理弹窗 -->
-  <el-dialog
-    v-model="routeManageDialogVisible"
-    title="航线管理"
-    width="50%"
-    @close="routeManageDialogVisible = false"
-  >
+  <el-dialog v-model="routeManageDialogVisible" title="航线管理" width="50%" @close="routeManageDialogVisible = false">
     <div class="route-table-container">
-      <CommonTable
-        ref="routeTableComponent"
-        :title="`所属任务-${currentMission?.name || ''}`"
-        :table-data="routeTableData"
-        :columns="routeColumns"
-        :total="routeTableData.length"
-        :loading="routeLoading"
-        :show-selection="false"
-        :show-action="true"
-        :action-width="100"
-        :row-key="(row) => row.missionDataId"
-      >
+      <CommonTable ref="routeTableComponent" :title="`所属任务-${currentMission?.name || ''}`" :table-data="routeTableData"
+        :columns="routeColumns" :total="routeTableData.length" :loading="routeLoading" :show-selection="false"
+        :show-action="true" :action-width="100" :row-key="(row) => row.routeId">
         <template #action="{ row }">
           <el-button type="danger" link @click="handleDeleteRoute(row)">
-            <el-icon><Delete /></el-icon>
+            <el-icon>
+              <Delete />
+            </el-icon>
           </el-button>
         </template>
         <template #header-actions>
@@ -264,26 +186,12 @@
   </el-dialog>
 
   <!-- 添加航线弹窗 -->
-  <el-dialog
-    v-model="addRouteDialogVisible"
-    title="添加航线"
-    width="50%"
-    @close="addRouteDialogVisible = false"
-  >
+  <el-dialog v-model="addRouteDialogVisible" title="添加航线" width="50%" @close="addRouteDialogVisible = false">
     <div class="add-route-table-container">
-      <CommonTable
-        ref="addRouteTableComponent"
-        title="可添加的航线列表"
-        :table-data="addRouteTableData"
-        :columns="availableRouteColumns"
-        :total="addRouteTableData.length"
-        :loading="addRouteLoading"
-        :show-selection="true"
-        :show-action="false"
-        :row-key="(row) => row.id"
-        :reserve-selection="false"
-        @selection-change="handleAddRouteSelectionChange"
-      />
+      <CommonTable ref="addRouteTableComponent" title="可添加的航线列表" :table-data="addRouteTableData"
+        :columns="availableRouteColumns" :total="addRouteTableData.length" :loading="addRouteLoading"
+        :show-selection="true" :show-action="false" :row-key="(row) => row.id" :reserve-selection="false"
+        @selection-change="handleAddRouteSelectionChange" />
     </div>
     <template #footer>
       <el-button @click="addRouteDialogVisible = false">取消</el-button>
@@ -820,7 +728,7 @@ const getMembersList = async () => {
 
 // 删除任务成员
 const handleDeleteMember = (row) => {
-  ElMessageBox.confirm(`确定要删除成员 【${row.username}】 吗？`, "警告", {
+  ElMessageBox.confirm(`确定要删除成员 【${row.userName}】 吗？`, "警告", {
     confirmButtonText: "确定",
     cancelButtonText: "取消",
     type: "warning",
@@ -842,7 +750,7 @@ const handleDeleteMember = (row) => {
         ElMessage.error("删除成员失败，请重试");
       }
     })
-    .catch(() => {});
+    .catch(() => { });
 };
 
 // 打开添加成员弹窗
@@ -1053,7 +961,9 @@ const getRouteList = async () => {
 
 // 删除航线
 const handleDeleteRoute = async (row) => {
-  ElMessageBox.confirm(`确定要删除航线 【${row.name}】 吗？`, "提示", {
+  console.log(row, "row");
+
+  ElMessageBox.confirm(`确定要删除航线 【${row.routeName}】 吗？`, "提示", {
     type: "warning",
     confirmButtonText: "确定",
     cancelButtonText: "取消",
@@ -1062,7 +972,7 @@ const handleDeleteRoute = async (row) => {
       loading.value = true;
       const res = await missionRemoveRoute(
         currentMission.value.missionId,
-        row.missionDataId,
+        row.routeId,
       );
       if (res.code === 200) {
         ElMessage.success("航线已删除");
@@ -1160,7 +1070,7 @@ const handleDelete = (row) => {
         ElMessage.error("删除任务失败，请重试");
       }
     })
-    .catch(() => {});
+    .catch(() => { });
 };
 
 // 监听 projectId 变化
