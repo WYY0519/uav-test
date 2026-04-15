@@ -1,32 +1,17 @@
 <template>
   <div class="manage-container">
     <!-- 搜索组件 -->
-    <CommonSearch
-      :search-items="searchItems"
-      :initial-data="searchForm"
-      @search="handleSearch"
-      @reset="handleReset"
-    />
+    <CommonSearch :search-items="searchItems" :initial-data="searchForm" @search="handleSearch" @reset="handleReset" />
 
     <!-- 表格组件 -->
-    <CommonTable
-      title="无人机列表"
-      :table-data="filteredDeviceList"
-      :columns="columns"
-      :total="total"
-      :loading="loading"
-      :show-selection="true"
-      :show-action="true"
-      action-width="200"
-      @row-click="handleRowClick"
-      @selection-change="handleSelectionChange"
-      ref="tableRef"
-    >
+    <CommonTable title="无人机列表" :table-data="filteredDeviceList" :columns="columns" :total="total" :loading="loading"
+      :show-selection="true" :show-action="true" action-width="200" @row-click="handleRowClick"
+      @selection-change="handleSelectionChange" ref="tableRef">
       <template #header-actions>
         <el-button type="primary" :icon="Refresh" @click="refreshList">
           刷新
         </el-button>
-        <el-button type="success" :icon="Plus" @click="handleAdd">
+        <!-- <el-button type="success" :icon="Plus" @click="handleAdd">
           添加设备
         </el-button>
         <el-button type="success" @click="downloadTemplate">
@@ -52,7 +37,7 @@
         </el-upload>
         <el-button type="danger" @click="handleBatchDelete">
           <el-icon> <Delete /> </el-icon>批量删除
-        </el-button>
+        </el-button> -->
       </template>
 
       <!-- 设备状态列 -->
@@ -64,72 +49,41 @@
 
       <!-- 启用状态列 -->
       <template #disable="{ row }">
-        <el-switch
-          v-model="row.disable"
-          @change="() => handleDisableSwitchChange(row)"
-        />
+        <el-switch v-model="row.disable" @change="() => handleDisableSwitchChange(row)" />
       </template>
 
       <!-- 操作列 -->
       <template #action="{ row }">
         <el-button-group>
           <el-tooltip content="编辑设备" placement="top">
-            <el-button
-              type="primary"
-              :icon="Edit"
-              link
-              @click="handleEdit(row)"
-            />
+            <el-button type="primary" :icon="Edit" link @click="handleEdit(row)" />
           </el-tooltip>
-          <el-tooltip content="删除设备" placement="top">
-            <el-button
+          <!-- <el-tooltip content="删除设备" placement="top">
+            <el-button 
               type="danger"
               :icon="Delete"
               link
               @click="handleDelete(row)"
             />
-          </el-tooltip>
+          </el-tooltip> -->
         </el-button-group>
       </template>
 
       <!-- 分页 -->
       <template #pagination>
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[5, 10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="fetchDeviceList"
-          @current-change="fetchDeviceList"
-        />
+        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
+          :page-sizes="[5, 10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
+          @size-change="fetchDeviceList" @current-change="fetchDeviceList" />
       </template>
     </CommonTable>
 
     <!-- 新增/编辑弹窗 -->
-    <CommonFormDialog
-      ref="formRef"
-      v-model="deviceDialogVisible"
-      v-model:formModelValue="deviceFormData"
-      :form-dialog-title="dialogTitle"
-      :form-items="formItems"
-      :rules="deviceRules"
-      @submit="submitForm"
-    >
+    <CommonFormDialog ref="formRef" v-model="deviceDialogVisible" v-model:formModelValue="deviceFormData"
+      :form-dialog-title="dialogTitle" :form-items="formItems" :rules="deviceRules" @submit="submitForm">
       <template #form-videoIp>
         <div style="width: 100%">
-          <el-input
-            v-model="deviceFormData.videoIp"
-            placeholder="请输入视频流地址"
-            disabled
-            clearable
-            style="width: 100%"
-          />
-          <el-button
-            type="primary"
-            @click="videoStreamURL"
-            style="margin-top: 8px"
-          >
+          <el-input v-model="deviceFormData.videoIp" placeholder="请输入视频流地址" disabled clearable style="width: 100%" />
+          <el-button type="primary" @click="videoStreamURL" style="margin-top: 8px">
             申请视频流地址
           </el-button>
         </div>
