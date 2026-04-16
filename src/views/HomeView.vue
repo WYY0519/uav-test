@@ -2,35 +2,22 @@
   <div class="layout">
     <!-- 左侧侧边栏 -->
     <div class="sidebar" :class="{ collapsed: isCollapse }">
-      <el-menu
-        class="el-menu-vertical"
-        :default-active="getActiveMenuPath()"
-        router
-        :collapse="isCollapse"
-        background-color="#001529"
-        text-color="#a6adb4"
-        active-text-color="#409EFF"
-      >
+      <el-menu class="el-menu-vertical" :default-active="getActiveMenuPath()" router :collapse="isCollapse"
+        background-color="#001529" text-color="#a6adb4" active-text-color="#409EFF">
         <div class="logo-container">
           <img src="@/assets/wrj.png" alt="Logo" class="logo" />
           <span v-if="!isCollapse" class="title">无人机管理系统</span>
         </div>
-        <el-menu-item
-          class="menu-item"
-          index="/gis/weatherInquiry"
-          @click="handleMenuClick('/gis/weatherInquiry')"
-        >
-          <el-icon><MostlyCloudy /></el-icon>
+        <el-menu-item class="menu-item" index="/gis/weatherInquiry" @click="handleMenuClick('/gis/weatherInquiry')">
+          <el-icon>
+            <MostlyCloudy />
+          </el-icon>
           <template #title>气象查询</template>
         </el-menu-item>
         <!-- 替换原有的el-sub-menu循环部分 -->
         <template v-for="item in meunList" :key="item.id">
           <!-- 有子菜单的情况 - 使用el-sub-menu -->
-          <el-sub-menu
-            class="menu-item"
-            v-if="item.children && item.children.length > 0"
-            :index="item.id"
-          >
+          <el-sub-menu class="menu-item" v-if="item.children && item.children.length > 0" :index="item.id">
             <template #title>
               <el-icon>
                 <component :is="getIconComponent(item.icon)" />
@@ -38,12 +25,8 @@
               <span>{{ item.title }}</span>
             </template>
             <!-- 子菜单项 -->
-            <el-menu-item
-              v-for="itemChildren in item.children"
-              :key="itemChildren?.id"
-              :index="itemChildren?.name"
-              @click="handleMenuClick(itemChildren.name)"
-            >
+            <el-menu-item v-for="itemChildren in item.children" :key="itemChildren?.id" :index="itemChildren?.name"
+              @click="handleMenuClick(itemChildren.name)">
               <el-icon>
                 <component :is="getIconComponent(itemChildren.icon)" />
               </el-icon>
@@ -51,12 +34,7 @@
             </el-menu-item>
           </el-sub-menu>
           <!-- 无子菜单的一级菜单 - 直接使用el-menu-item -->
-          <el-menu-item
-            class="menu-item"
-            v-else
-            :index="item.name"
-            @click="handleMenuClick(item.name)"
-          >
+          <el-menu-item class="menu-item" v-else :index="item.name" @click="handleMenuClick(item.name)">
             <el-icon>
               <component :is="getIconComponent(item.icon)" />
             </el-icon>
@@ -81,10 +59,10 @@
           <el-breadcrumb separator="/">
             <el-breadcrumb-item :to="{ path: '/home' }">{{
               texthome
-            }}</el-breadcrumb-item>
+              }}</el-breadcrumb-item>
             <el-breadcrumb-item v-if="parentMenu">{{
               parentMenu
-            }}</el-breadcrumb-item>
+              }}</el-breadcrumb-item>
             <el-breadcrumb-item>{{ currentPages }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -106,10 +84,14 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item divided @click="logoutOrLogin">
-                    <el-icon> <SwitchButton /> </el-icon>退出登录
+                    <el-icon>
+                      <SwitchButton />
+                    </el-icon>退出登录
                   </el-dropdown-item>
                   <el-dropdown-item divided @click="changePassword">
-                    <el-icon> <Compass /> </el-icon>修改密码
+                    <el-icon>
+                      <Compass />
+                    </el-icon>修改密码
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -119,11 +101,7 @@
       </div>
       <!-- 主要内容区域 -->
       <div class="page-content">
-        <router-view
-          v-slot="{ Component }"
-          v-if="!isShow"
-          :key="$route.fullPath"
-        >
+        <router-view v-slot="{ Component }" v-if="!isShow" :key="$route.fullPath">
           <transition name="fade" mode="out-in">
             <component :is="Component" />
           </transition>
@@ -131,33 +109,13 @@
       </div>
     </div>
   </div>
-  <el-dialog
-    title="修改密码"
-    v-model="changePasswordVisible"
-    width="500px"
-    destroy-on-close
-  >
-    <el-form
-      ref="passwordFormRef"
-      :model="passwordForm"
-      :rules="passwordRules"
-      label-width="100px"
-    >
+  <el-dialog title="修改密码" v-model="changePasswordVisible" width="500px" destroy-on-close>
+    <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-width="100px">
       <el-form-item label="旧密码" prop="oldPassword">
-        <el-input
-          v-model="passwordForm.oldPassword"
-          placeholder="请输入旧密码"
-          maxlength="10"
-          show-word-limit
-        />
+        <el-input v-model="passwordForm.oldPassword" placeholder="请输入旧密码" show-word-limit />
       </el-form-item>
       <el-form-item label="新密码" prop="newPassword">
-        <el-input
-          v-model="passwordForm.newPassword"
-          placeholder="请输入新密码"
-          maxlength="10"
-          show-word-limit
-        />
+        <el-input v-model="passwordForm.newPassword" placeholder="请输入新密码" show-word-limit />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -226,11 +184,11 @@ const passwordForm = ref({
 const passwordRules = {
   oldPassword: [
     { required: true, message: "请输入旧密码", trigger: "blur" },
-    { min: 8, max: 10, message: "长度在 8 到 10 个字符", trigger: "blur" },
+    { min: 6, message: "长度至少6个字符", trigger: "blur" },
   ],
   newPassword: [
     { required: true, message: "请输入新密码", trigger: "blur" },
-    { min: 8, max: 10, message: "长度在 8 到 10 个字符", trigger: "blur" },
+    { min: 6, message: "长度至少6个字符", trigger: "blur" },
   ],
 };
 // 菜单映射表
@@ -257,6 +215,7 @@ const menuMap = {
   "/project/create": { parent: " 项目管理", text: "创建项目" },
   "/project/object": { parent: " 项目管理", text: "项目设备管理" },
   "/log/list": { parent: " 日志管理", text: "日志列表" },
+  "/illustration": { parent: " 日志管理", text: "日志图解" },
   "/route": { text: "航线管理" },
   "/gis/weatherInquiry": { text: "气象查询" }, //后面再修改，飞行任务 -- 气象查询
   "/strategicManagement": { parent: " 策略管理", text: "策略管理" },
@@ -318,13 +277,13 @@ const changePassword = async () => {
 };
 //修改密码
 const submitPsaawordForm = () => {
-  passwordFormRef.value.validate((valid) => {
+  passwordFormRef.value.validate(async (valid) => {
     if (valid) {
       let data = {
         oldPassword: passwordForm.value.oldPassword,
         newPassword: passwordForm.value.newPassword,
       };
-      let res = updatePassword(data);
+      let res = await updatePassword(data);
       if (res.code === 200) {
         ElMessage({
           message: "密码修改成功",
@@ -335,6 +294,9 @@ const submitPsaawordForm = () => {
           oldPassword: "",
           newPassword: "",
         };
+        localStorage.clear(); // 清除所有localStorage数据
+        sessionStorage.clear(); // 清除所有sessionStorage数据
+        router.push("/login");
       } else {
         passwordForm.value = {
           oldPassword: "",
@@ -472,7 +434,7 @@ onMounted(async () => {
   userMenu();
 });
 // 卸载
-onUnmounted(() => {});
+onUnmounted(() => { });
 </script>
 
 <style scoped>
@@ -659,6 +621,7 @@ onUnmounted(() => {});
   padding: 4px 12px;
   border-radius: 24px;
   transition: all 0.3s;
+
   &:hover {
     background-color: #f5f7fa;
   }
@@ -730,9 +693,11 @@ onUnmounted(() => {});
 :deep(.el-button .el-icon) {
   margin-right: 4px;
 }
+
 :deep(.el-table .cell) {
   text-align: center;
 }
+
 /* 响应式调整 */
 @media (max-width: 768px) {
   .card-header {

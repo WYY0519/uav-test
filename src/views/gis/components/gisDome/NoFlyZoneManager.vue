@@ -260,10 +260,11 @@ const isPointInCircle = (point, circle) => {
   const center = circle.coordinates[0];
   const radius = circle.radius || 0;
   if (radius <= 0) return false;
-  // 计算两点间的球面距离（米），这里改用更精准的球面距离计算，而非平面距离
+  // 计算两点间的球面距离（米）
   const distance = calculateDistance(point, center);
-  // 扩大容错范围的反向逻辑：只要距离≤半径+极小值，就判定在圆内（包括边界）
-  return distance <= radius + 1e-3; // 从1e-5调整为1e-3，提升边界判定的灵敏度
+  console.log(`[DEBUG] isPointInCircle: 点(${point.lng}, ${point.lat}), 圆心(${center.lng}, ${center.lat}), 半径${radius}m, 距离${distance}m, 结果:${distance <= radius}`);
+  // 判定：在圆内（包括边界）如果距离小于等于半径
+  return distance <= radius;
 };
 
 // 禁飞区检查函数
@@ -287,10 +288,14 @@ const isPointInNoFlyZone = (point) => {
     } else if (zone.type === "circle") {
       if (zone.coordinates && zone.coordinates.length > 0 && zone.radius > 0) {
         isInZone = isPointInCircle(point, zone);
+        if (isInZone) {
+          console.log(`[DEBUG] 点在圆形禁飞区 "${zone.name}" 内, 半径=${zone.radius}m`);
+        }
       }
     }
 
     if (isInZone) {
+      console.log(`[DEBUG] 禁飞区检查结果: true (区域: ${zone.name}, 类型: ${zone.type})`);
       return true;
     }
   }
@@ -357,63 +362,37 @@ const calculateShortestDistanceFromPointToSegment = (
   segStart,
   segEnd,
 ) => {
-  // 步骤1：计算三个距离：点到起点、点到终点、起点到终点
+  // 步骤1：计算三个距离：点到起点、点到终点
   const d1 = calculateDistance(point, segStart);
   const d2 = calculateDistance(point, segEnd);
-  const dSeg = calculateDistance(segStart, segEnd);
 
-  // 如果线段长度为0，直接返回点到起点的距离
-  if (dSeg < 1e-6) return d1;
+  // 步骤2：计算点在segStart-segEnd线段上的投影比例
+  // 使用简化的平面近似（对于几百米到几十公里的距离足够准确）
+  const dx = segEnd.lng - segStart.lng;
+  const dy = segEnd.lat - segStart.lat;
 
-  // 步骤2：计算点在segStart-segEnd线段上的投影比例（使用球面余弦定理）
-  // 转换为弧度
-  const radPointLat = (point.lat * Math.PI) / 180;
-  const radPointLng = (point.lng * Math.PI) / 180;
-  const radStartLat = (segStart.lat * Math.PI) / 180;
-  const radStartLng = (segStart.lng * Math.PI) / 180;
-  const radEndLat = (segEnd.lat * Math.PI) / 180;
-  const radEndLng = (segEnd.lng * Math.PI) / 180;
-
-  // 计算向量的点积（球面近似）
-  const vecStartX =
-    Math.cos(radPointLat) * Math.cos(radPointLng) -
-    Math.cos(radStartLat) * Math.cos(radStartLng);
-  const vecStartY =
-    Math.cos(radPointLat) * Math.sin(radPointLng) -
-    Math.cos(radStartLat) * Math.sin(radStartLng);
-  const vecStartZ = Math.sin(radPointLat) - Math.sin(radStartLat);
-
-  const vecSegX =
-    Math.cos(radEndLat) * Math.cos(radEndLng) -
-    Math.cos(radStartLat) * Math.cos(radStartLng);
-  const vecSegY =
-    Math.cos(radEndLat) * Math.sin(radEndLng) -
-    Math.cos(radStartLat) * Math.sin(radStartLng);
-  const vecSegZ = Math.sin(radEndLat) - Math.sin(radStartLat);
-
-  const dotProduct =
-    vecStartX * vecSegX + vecStartY * vecSegY + vecStartZ * vecSegZ;
-  const segLengthSq = vecSegX * vecSegX + vecSegY * vecSegY + vecSegZ * vecSegZ;
-
-  // 投影比例t（0≤t≤1表示投影点在线段上）
-  let t = dotProduct / segLengthSq;
-  t = Math.max(0, Math.min(1, t));
-
-  // 步骤3：计算最短距离
-  if (t === 0) {
-    return d1; // 投影点在起点
-  } else if (t === 1) {
-    return d2; // 投影点在终点
-  } else {
-    // 投影点在线段中间，使用余弦定理计算最短距离
-    // d² = d1² + (t*dSeg)² - 2*d1*t*dSeg*cos(theta)
-    // 简化：使用球面距离的近似值
-    return Math.sqrt(
-      d1 * d1 +
-        t * dSeg * (t * dSeg) -
-        2 * d1 * t * dSeg * Math.cos(dSeg / 6371000),
-    );
+  // 处理线段长度接近0的情况
+  const segLengthSq = dx * dx + dy * dy;
+  if (segLengthSq < 1e-12) {
+    return d1; // 线段退化为点
   }
+
+  // 计算投影比例 t
+  const t = ((point.lng - segStart.lng) * dx + (point.lat - segStart.lat) * dy) / segLengthSq;
+
+  // 限制 t 在 [0, 1] 范围内
+  const clampedT = Math.max(0, Math.min(1, t));
+
+  // 步骤3：计算垂点坐标
+  const footLng = segStart.lng + clampedT * dx;
+  const footLat = segStart.lat + clampedT * dy;
+
+  // 步骤4：计算从点到垂点的距离
+  const distanceToFoot = calculateDistance(point, { lng: footLng, lat: footLat });
+
+  console.log(`[DEBUG] calculateShortestDistanceFromPointToSegment: 点(${point.lng}, ${point.lat}), 线段(${segStart.lng},${segStart.lat})->(${segEnd.lng},${segEnd.lat}), t=${clampedT.toFixed(4)}, 垂点(${footLng.toFixed(6)},${footLat.toFixed(6)}), 最短距离=${distanceToFoot.toFixed(2)}m`);
+
+  return distanceToFoot;
 };
 // 优化航线穿越检查：结合采样点+线段相交检测（强化圆形禁飞区逻辑）
 const isRouteCrossingNoFlyZone = (points) => {
@@ -499,8 +478,9 @@ const isRouteCrossingNoFlyZone = (points) => {
           startPoint,
           endPoint,
         );
-        if (shortestDistance <= radius + 1e-3) {
-          console.log(`航线段 ${i}->${i + 1} 穿越圆形禁飞区 ${zone.name}`);
+        console.log(`[DEBUG] 穿越检测: 圆心(${center.lng}, ${center.lat}), 半径${radius}m, 最短距离${shortestDistance}m, 线段(${startPoint.lng},${startPoint.lat})->(${endPoint.lng},${endPoint.lat})`);
+        if (shortestDistance <= radius) {
+          console.log(`❌ 航线段 ${i}->${i + 1} 穿越圆形禁飞区 ${zone.name} (距离${shortestDistance}m <= 半径${radius}m)`);
           return true;
         }
       }
