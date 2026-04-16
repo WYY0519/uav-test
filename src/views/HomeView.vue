@@ -59,10 +59,10 @@
           <el-breadcrumb separator="/">
             <el-breadcrumb-item :to="{ path: '/home' }">{{
               texthome
-              }}</el-breadcrumb-item>
+            }}</el-breadcrumb-item>
             <el-breadcrumb-item v-if="parentMenu">{{
               parentMenu
-              }}</el-breadcrumb-item>
+            }}</el-breadcrumb-item>
             <el-breadcrumb-item>{{ currentPages }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -215,7 +215,7 @@ const menuMap = {
   "/project/create": { parent: " 项目管理", text: "创建项目" },
   "/project/object": { parent: " 项目管理", text: "项目设备管理" },
   "/log/list": { parent: " 日志管理", text: "日志列表" },
-  "/illustration": { parent: " 日志管理", text: "日志图解" },
+  "/Illustration": { parent: " 日志管理", text: "日志图解" },
   "/route": { text: "航线管理" },
   "/gis/weatherInquiry": { text: "气象查询" }, //后面再修改，飞行任务 -- 气象查询
   "/strategicManagement": { parent: " 策略管理", text: "策略管理" },
