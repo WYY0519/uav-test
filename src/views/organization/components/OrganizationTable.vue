@@ -87,7 +87,7 @@
     form-dialog-title="编辑组织"
     :form-items="editFormItems"
     :rules="editFormRules"
-    :initial-data="editFormInitialData"
+    :form-model-value="editFormInitialData"
     :is-edit="true"
     dialog-width="500px"
     label-width="100px"

@@ -59,10 +59,10 @@
           <el-breadcrumb separator="/">
             <el-breadcrumb-item :to="{ path: '/home' }">{{
               texthome
-            }}</el-breadcrumb-item>
+              }}</el-breadcrumb-item>
             <el-breadcrumb-item v-if="parentMenu">{{
               parentMenu
-            }}</el-breadcrumb-item>
+              }}</el-breadcrumb-item>
             <el-breadcrumb-item>{{ currentPages }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -286,7 +286,7 @@ const submitPsaawordForm = () => {
       let res = await updatePassword(data);
       if (res.code === 200) {
         ElMessage({
-          message: "密码修改成功",
+          message: "密码修改成功,请重新登录！",
           type: "success",
         });
         changePasswordVisible.value = false;

@@ -106,7 +106,7 @@
     :form-dialog-title="editDialogTitle"
     :form-items="editFormItems"
     :rules="editFormRules"
-    :initial-data="editFormData"
+    :form-model-value="editFormData"
     :is-edit="true"
     dialog-width="500px"
     @submit="handleEditSubmit"

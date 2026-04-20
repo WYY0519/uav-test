@@ -94,11 +94,10 @@
   <CommonFormDialog
     ref="editFormDialogRef"
     :form-dialog-title="editDialogTitle"
-    :model-value="editDialogVisible"
-    @update:model-value="editDialogVisible = $event"
+    v-model="editDialogVisible"
     :form-items="editFormItems"
-    :initial-data="editFormData"
-    :form-rules="editFormRules"
+    :rules="editFormRules"
+    :form-model-value="editFormData"
     :validate-before-submit="true"
     @submit="handleEditSubmit"
   />
