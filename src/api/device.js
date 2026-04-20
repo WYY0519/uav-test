@@ -1,17 +1,17 @@
-import service from "@/utils/request";
+import service from '@/utils/request';
 //发送无人机指令
 export const sendDroneCommand = (data) => {
   return service({
-    url: "/api/device/manage/send-command-connect", //send-command-connect
-    method: "POST",
+    url: '/api/device/manage/send-command-connect', //send-command-connect
+    method: 'POST',
     data,
   });
 };
 //设备信息循环获取
 export const sendDroneCommandGet = (data) => {
   return service({
-    url: "/api/device/manage/send-command-get", //manage/send-command-get
-    method: "POST",
+    url: '/api/device/manage/send-command-get', //manage/send-command-get
+    method: 'POST',
     data,
   });
 };
@@ -19,11 +19,11 @@ export const sendDroneCommandGet = (data) => {
 //发送无人机指令
 export const sendMoveCommand = (data) => {
   return service({
-    url: "/api/monitor/send-move-command",
-    method: "POST",
+    url: '/api/monitor/send-move-command',
+    method: 'POST',
     data,
   }).catch((error) => {
-    console.error("Error in sendDroneCommand:", error);
+    console.error('Error in sendDroneCommand:', error);
     throw error; // 确保错误被抛出，以便上层捕获
   });
 };
@@ -32,7 +32,7 @@ export const sendMoveCommand = (data) => {
 export const getDroneList = (projectId) => {
   return service({
     url: `/api/device/project-devices/${projectId}`,
-    method: "GET",
+    method: 'GET',
   });
 };
 
@@ -40,7 +40,7 @@ export const getDroneList = (projectId) => {
 export const deleteDevice = (deviceId) => {
   return service({
     url: `/api/device/delete/${deviceId}`,
-    method: "DELETE",
+    method: 'DELETE',
   });
 };
 
@@ -48,7 +48,7 @@ export const deleteDevice = (deviceId) => {
 export const addDeviceToProject = (projectId, data) => {
   return service({
     url: `/api/device/${projectId}/addDevices`,
-    method: "POST",
+    method: 'POST',
     data,
   });
 };
@@ -56,8 +56,8 @@ export const addDeviceToProject = (projectId, data) => {
 //显示公司账户设备
 export const getCompanyDevices = (params) => {
   return service({
-    url: "/api/device/basic/company_devices",
-    method: "GET",
+    url: '/api/device/basic/company_devices',
+    method: 'GET',
     params,
   });
 };
@@ -65,8 +65,8 @@ export const getCompanyDevices = (params) => {
 //启动视频流
 export const startVideoStream = (params) => {
   return service({
-    url: "/api/video/start",
-    method: "GET",
+    url: '/api/video/start',
+    method: 'GET',
     params,
   });
 };
@@ -74,8 +74,8 @@ export const startVideoStream = (params) => {
 //根据设备编号查询设备信息
 export const getDeviceDetails = (params) => {
   return service({
-    url: "/api/device/device-details",
-    method: "GET",
+    url: '/api/device/device-details',
+    method: 'GET',
     params, // 这会作为查询参数传递 ?deviceNumber=xxx
   });
 };
@@ -83,16 +83,16 @@ export const getDeviceDetails = (params) => {
 //下载设备模板
 export const downloadDeviceTemplate = () => {
   return service({
-    url: "/api/device/downloadDeviceTemplate",
-    method: "GET",
+    url: '/api/device/downloadDeviceTemplate',
+    method: 'GET',
   });
 };
 
 //添加设备
 export const createDevice = (params) => {
   return service({
-    url: "/api/device/manage/company_devices/createDevice",
-    method: "POST",
+    url: '/api/device/manage/company_devices/createDevice',
+    method: 'POST',
     params,
   });
 };
@@ -100,7 +100,7 @@ export const createDevice = (params) => {
 export const updateCompanyDevice = (params, id) => {
   return service({
     url: `/api/device/manage/updateCompanyDevice/${id}`,
-    method: "PUT",
+    method: 'PUT',
     params,
   });
 };
@@ -108,7 +108,7 @@ export const updateCompanyDevice = (params, id) => {
 export const addDeviceToExcel = (params) => {
   return service({
     url: `/api/device/addDeviceToExcel`,
-    method: "POST",
+    method: 'POST',
     params,
   });
 };
@@ -116,7 +116,7 @@ export const addDeviceToExcel = (params) => {
 export const deleteCompanyDevice = (id) => {
   return service({
     url: `/api/device/manage/deleteCompanyDevice/${id}`,
-    method: "DELETE",
+    method: 'DELETE',
   });
 };
 
@@ -124,7 +124,7 @@ export const deleteCompanyDevice = (id) => {
 export const updateDisable = (id, params) => {
   return service({
     url: `/api/device/manage/updateDisable/${id}`,
-    method: "PUT",
+    method: 'PUT',
     params,
   });
 };
@@ -132,7 +132,7 @@ export const updateDisable = (id, params) => {
 export const getVideoStreamAddress = () => {
   return service({
     url: `api/device/manage/getVideoStreamAddress`,
-    method: "GET",
+    method: 'GET',
   });
 };
 
@@ -140,8 +140,8 @@ export const getVideoStreamAddress = () => {
 export const deviceManageDownloadDeviceTemplate = () => {
   return service({
     url: `/api/device/manage/downloadDeviceTemplate`,
-    method: "GET",
-    responseType: "blob",
+    method: 'GET',
+    responseType: 'blob',
     transformResponse: [(data) => data],
     skipCodeCheck: true, // 自定义标识：跳过响应拦截器的code校验
   });
@@ -149,11 +149,11 @@ export const deviceManageDownloadDeviceTemplate = () => {
 // 导入用户模板
 export const deviceManageaddDeviceToExcel = (formData) => {
   return service({
-    url: "/api/device/manage/addDeviceToExcel", // 接口路径（无需硬编码IP+端口，service已配baseURL）
-    method: "POST",
+    url: '/api/device/manage/addDeviceToExcel', // 接口路径（无需硬编码IP+端口，service已配baseURL）
+    method: 'POST',
     data: formData,
     headers: {
-      "Content-Type": "multipart/form-data", // 表单上传必须的头
+      'Content-Type': 'multipart/form-data', // 表单上传必须的头
     },
     // 无需手动加token：service的请求拦截器会自动添加
   });
@@ -162,7 +162,15 @@ export const deviceManageaddDeviceToExcel = (formData) => {
 export const deviceDeleteCompanyDeviceByIds = (ids) => {
   return service({
     url: `/api/device/manage/deleteCompanyDeviceByIds`,
-    method: "DELETE",
+    method: 'DELETE',
     data: ids,
+  });
+};
+
+// 拆除设备
+export const dronesCommMode = (droneId) => {
+  return service({
+    url: `/api/drones/${droneId}/commMode`,
+    method: 'GET',
   });
 };

@@ -1,27 +1,12 @@
 <template>
   <div class="manage-container">
     <!-- 搜索组件 -->
-    <CommonSearch
-      :search-items="searchItems"
-      :initial-data="searchForm"
-      @search="handleSearch"
-      @reset="handleReset"
-    />
+    <CommonSearch :search-items="searchItems" :initial-data="searchForm" @search="handleSearch" @reset="handleReset" />
 
     <!-- 表格组件 -->
-    <CommonTable
-      title="无人机列表"
-      :table-data="filteredDeviceList"
-      :columns="columns"
-      :total="total"
-      :loading="loading"
-      :show-selection="true"
-      :show-action="true"
-      action-width="200"
-      @row-click="handleRowClick"
-      @selection-change="handleSelectionChange"
-      ref="tableRef"
-    >
+    <CommonTable title="无人机列表" :table-data="filteredDeviceList" :columns="columns" :total="total" :loading="loading"
+      :show-selection="true" :show-action="true" action-width="200" @row-click="handleRowClick"
+      @selection-change="handleSelectionChange" ref="tableRef">
       <template #header-actions>
         <el-button type="primary" :icon="Refresh" @click="refreshList">
           刷新
@@ -35,14 +20,8 @@
           </el-icon>
           下载模版
         </el-button>
-        <el-upload
-          class="upload-btn"
-          action="#"
-          :auto-upload="false"
-          :on-change="validateImportFile"
-          ref="uploadRef"
-          :show-file-list="false"
-        >
+        <el-upload class="upload-btn" action="#" :auto-upload="false" :on-change="validateImportFile" ref="uploadRef"
+          :show-file-list="false">
           <el-button type="success">
             <el-icon>
               <DocumentAdd />
@@ -51,7 +30,9 @@
           </el-button>
         </el-upload>
         <el-button type="danger" @click="handleBatchDelete">
-          <el-icon> <Delete /> </el-icon>批量删除
+          <el-icon>
+            <Delete />
+          </el-icon>批量删除
         </el-button>
       </template>
 
@@ -64,72 +45,39 @@
 
       <!-- 启用状态列 -->
       <template #disable="{ row }">
-        <el-switch
-          v-model="row.disable"
-          @change="() => handleDisableSwitchChange(row)"
-        />
+        <el-switch v-model="row.disable" @change="() => handleDisableSwitchChange(row)" />
       </template>
 
       <!-- 操作列 -->
       <template #action="{ row }">
         <el-button-group>
           <el-tooltip content="编辑设备" placement="top">
-            <el-button
-              type="primary"
-              :icon="Edit"
-              link
-              @click="handleEdit(row)"
-            />
+            <el-button type="primary" :icon="Edit" link @click="handleEdit(row)" />
           </el-tooltip>
           <el-tooltip content="删除设备" placement="top">
-            <el-button
-              type="danger"
-              :icon="Delete"
-              link
-              @click="handleDelete(row)"
-            />
+            <el-button type="danger" :icon="Delete" link @click="handleDelete(row)" />
+          </el-tooltip>
+          <el-tooltip content="拆除设备" placement="top">
+            <el-button type="warning" :icon="PriceTag" link @click="handleDelete2(row)" />
           </el-tooltip>
         </el-button-group>
       </template>
 
       <!-- 分页 -->
       <template #pagination>
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[5, 10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="fetchDeviceList"
-          @current-change="fetchDeviceList"
-        />
+        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
+          :page-sizes="[5, 10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
+          @size-change="fetchDeviceList" @current-change="fetchDeviceList" />
       </template>
     </CommonTable>
 
     <!-- 新增/编辑弹窗 -->
-    <CommonFormDialog
-      ref="formRef"
-      v-model="deviceDialogVisible"
-      v-model:formModelValue="deviceFormData"
-      :form-dialog-title="dialogTitle"
-      :form-items="formItems"
-      :rules="deviceRules"
-      @submit="submitForm"
-    >
+    <CommonFormDialog ref="formRef" v-model="deviceDialogVisible" v-model:formModelValue="deviceFormData"
+      :form-dialog-title="dialogTitle" :form-items="formItems" :rules="deviceRules" @submit="submitForm">
       <template #form-videoIp>
         <div style="width: 100%">
-          <el-input
-            v-model="deviceFormData.videoIp"
-            placeholder="请输入视频流地址"
-            disabled
-            clearable
-            style="width: 100%"
-          />
-          <el-button
-            type="primary"
-            @click="videoStreamURL"
-            style="margin-top: 8px"
-          >
+          <el-input v-model="deviceFormData.videoIp" placeholder="请输入视频流地址" disabled clearable style="width: 100%" />
+          <el-button type="primary" @click="videoStreamURL" style="margin-top: 8px">
             申请视频流地址
           </el-button>
         </div>
@@ -140,7 +88,7 @@
 <script setup>
 import { ref, onUnmounted, onMounted, computed, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Search, Refresh, Plus, Edit, Delete } from "@element-plus/icons-vue";
+import { Search, Refresh, Plus, Edit, Delete, PriceTag } from "@element-plus/icons-vue";
 import {
   getCompanyDevices,
   deleteCompanyDevice,
@@ -151,6 +99,7 @@ import {
   createDevice,
   updateCompanyDevice,
   getVideoStreamAddress,
+  dronesCommMode
 } from "@/api/device";
 import { Download, DocumentAdd } from "@element-plus/icons-vue";
 import { droneIdStatus } from "../../api/drones";
@@ -422,7 +371,6 @@ const handleEdit = (row) => {
 // 删除设备
 const handleDelete = (row) => {
   const originalSelected = [...selectedRows.value];
-
   ElMessageBox.confirm(`确定要删除设备【${row.name}】`, "提示", {
     type: "warning",
     confirmButtonText: "确定",
@@ -443,6 +391,19 @@ const handleDelete = (row) => {
     .catch(() => {
       restoreSelection(originalSelected);
     });
+};
+const handleDelete2 = async (row) => {
+  console.log(row, "=");
+  try {
+    const res = await dronesCommMode(row.deviceNumber);
+    if (res.code === 200) {
+      ElMessage.success("拆除设备成功");
+      await fetchDeviceList();
+    }
+  } catch (error) {
+    ElMessage.error("拆除设备失败");
+    // restoreSelection(originalSelected);
+  }
 };
 
 // 恢复选中状态的方法
