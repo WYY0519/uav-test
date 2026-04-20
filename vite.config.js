@@ -45,9 +45,10 @@ export default defineConfig({
         // target: "http://192.168.1.213:9090/api", // 小汪
         // target: "http://192.168.1.179:8081", // 小崔
         // target: "http://192.168.1.252:9090", // 小陶
-        target: "http://192.168.1.29:9090", // 张
+        // target: "http://192.168.1.29:9090", // 张
         // target: "http://192.168.1.29:33333", // 张
         // target: "http://127.0.0.1:8080/api", //服务器
+        target: "http://127.0.0.1:34557/api", //华启-服务器
         changeOrigin: true, // 是否改变源
         // rewrite: (path) => path.replace(/^\/api/, ''),
         rewrite: (path) => path.replace(/^\/api/, ""),

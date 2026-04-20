@@ -5,8 +5,9 @@ import router from "@/router";
 // 创建 axios 实例
 const service = axios.create({
   // baseURL: "http://121.41.60.99:9090", //服务器
+  baseURL: "http://121.41.60.99:34557", //华启-服务器
   // baseURL: "http://192.168.1.29:33333", // 张
-  baseURL: "http://192.168.1.29:9090", // 张
+  // baseURL: "http://192.168.1.29:9090", // 张
   timeout: 15000, // 请求超时时间
   headers: {
     "Content-Type": "application/json;charset=utf-8",
@@ -129,7 +130,7 @@ service.interceptors.response.use(
 // 文件下载方法（修复 URL 拼接问题）
 export const downloadFile = async (url, filename) => {
   const token = localStorage.getItem("authToken");
-  const baseURL = "http://192.168.1.29:9090"; // 和 axios 保持一致
+  const baseURL = "http://121.41.60.99:34557"; // 和 axios 保持一致
 
   if (!token) {
     throw new Error("未获取到认证信息，请重新登录");

@@ -63,7 +63,7 @@
               type="danger"
               :icon="Delete"
               link
-              @click="handleDelete(row)"
+              @click="handleDelete(row)" 
             />
           </el-tooltip> -->
         </el-button-group>

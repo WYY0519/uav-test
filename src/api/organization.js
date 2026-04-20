@@ -1,11 +1,11 @@
-import service from "@/utils/request";
+import service from '@/utils/request';
 // import { pa } from 'element-plus/es/locale';
 
 //删除组织成员
 export const deleteOrganization = (organizationId, userId) => {
   return service({
     url: `/api/organization/${organizationId}/members/${userId}`,
-    method: "DELETE",
+    method: 'DELETE',
   });
 };
 
@@ -14,7 +14,7 @@ export const updateOrganization = (organizationld, data) => {
   return service({
     // url: `/api/organization/update-role${organizationld}`,
     url: `/api/organization/update-role/${organizationld}`,
-    method: "PUT",
+    method: 'PUT',
     data: data,
   });
 };
@@ -23,7 +23,7 @@ export const updateOrganization = (organizationld, data) => {
 export const getOrganizationMembers = (organizationId, projectId) => {
   return service({
     url: `/api/organization/manage/${organizationId}/${projectId}`,
-    method: "GET",
+    method: 'GET',
   });
 };
 
@@ -31,7 +31,7 @@ export const getOrganizationMembers = (organizationId, projectId) => {
 export const updateOrganizationDetail = (organizationId, data) => {
   return service({
     url: `/api/organization/manage/update/${organizationId}`,
-    method: "PUT",
+    method: 'PUT',
     data: data,
   });
 };
@@ -40,15 +40,15 @@ export const updateOrganizationDetail = (organizationId, data) => {
 export const getOrganizationDetail = (organizationId) => {
   return service({
     url: `/api/organization/detail/${organizationId}`,
-    method: "GET",
+    method: 'GET',
   });
 };
 
 //分页查询用户组织列表（支持按角色过滤）
 export const getOrganizationLists = (params) => {
   return service({
-    url: "/api/organization/list",
-    method: "GET",
+    url: '/api/organization/list',
+    method: 'GET',
     params: params,
   });
 };
@@ -56,16 +56,16 @@ export const getOrganizationLists = (params) => {
 //获取用户所属组织列表
 export const getUserOrganizationList = (params) => {
   return service({
-    url: "/api/organization/basic/list",
-    method: "GET",
+    url: '/api/organization/basic/list',
+    method: 'GET',
     params,
   });
 };
 //创建组织
 export const createOrganization = (data) => {
   return service({
-    url: "/api/organization/manage/create",
-    method: "POST",
+    url: '/api/organization/manage/create',
+    method: 'POST',
     data,
   });
 };
@@ -73,8 +73,8 @@ export const createOrganization = (data) => {
 //查询用户是否加入组织
 export const checkMembership = () => {
   return service({
-    url: "/api/organization/check-membership",
-    method: "GET",
+    url: '/api/organization/check-membership',
+    method: 'GET',
   });
 };
 
@@ -90,7 +90,7 @@ export const checkMembership = () => {
 export const addOrganizationMember = (organizationId, data) => {
   return service({
     url: `/api/organization/manage/${organizationId}/addmembers`,
-    method: "POST",
+    method: 'POST',
     data,
   });
 };
@@ -99,15 +99,15 @@ export const addOrganizationMember = (organizationId, data) => {
 export const deleteOrganizationMember = (organizationId, userId) => {
   return service({
     url: `/api/organization/manage/${organizationId}/deletemembers/${userId}`,
-    method: "DELETE",
+    method: 'DELETE',
   });
 };
 
 //用户加入组织
 export const joinOrganization = (data) => {
   return service({
-    url: "/api/organization/join",
-    method: "POST",
+    url: '/api/organization/join',
+    method: 'POST',
     data,
   });
 };
@@ -116,7 +116,7 @@ export const joinOrganization = (data) => {
 export const getOrganizationUavs = (organizationId) => {
   return service({
     url: `/api/organization/manage/devices/${organizationId}`,
-    method: "GET",
+    method: 'GET',
   });
 };
 
@@ -124,7 +124,7 @@ export const getOrganizationUavs = (organizationId) => {
 export const deleteOrganizationId = (organizationId) => {
   return service({
     url: `/api/organization/manage/delete/${organizationId}`,
-    method: "DELETE",
+    method: 'DELETE',
   });
 };
 
@@ -139,8 +139,8 @@ export const deleteOrganizationId = (organizationId) => {
 //获取所有没有被禁用的用户
 export const organizListuser = () => {
   return service({
-    url: "/api/organization/manage/listuser",
-    method: "GET",
+    url: '/api/organization/manage/listuser',
+    method: 'GET',
   });
 };
 
@@ -148,14 +148,22 @@ export const organizListuser = () => {
 export const organizationListdevices = (organizationId) => {
   return service({
     url: `/api/organization/manage/${organizationId}/listdevices`,
-    method: "GET",
+    method: 'GET',
   });
 };
 //确认添加设备
 export const organizationManage = (organizationId, data) => {
   return service({
     url: `api/organization/manage/${organizationId}/adddevices`,
-    method: "POST",
+    method: 'POST',
     data,
+  });
+};
+
+// 组织管理员删除组织成员
+export const deleteManageDevices = (organizationId, deviceId) => {
+  return service({
+    url: `/api/organization/manage/${organizationId}/devices/${deviceId}`,
+    method: 'DELETE',
   });
 };
