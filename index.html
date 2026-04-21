@@ -6,23 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>无人机管理平台-34557</title>
 
-    <!-- 1. 天地图相关资源（不影响Leaflet，可放前面） -->
-    <script
-      type="text/javascript"
-      src="http://api.tianditu.gov.cn/api?v=4.0&tk=69a5cdb2a588f9138791d3ec5136addc"
-    ></script>
-    <script
-      type="text/javascript"
-      src="http://api.tianditu.gov.cn/geocoder?v=4.0&tk=69a5cdb2a588f9138791d3ec5136addc"
-    ></script>
-    <script src="//lbs.tianditu.gov.cn/js/lib/d3/d3.min.js" charset="utf-8"></script>
-    <script src="//lbs.tianditu.gov.cn/api/js4.0/opensource/openlibrary/D3SvgOverlay.js"></script>
-    <script src="//lbs.tianditu.gov.cn/api/js4.0/opensource/openlibrary/CarTrack.js"></script>
-
-    <!-- 2. Leaflet 核心资源（必须先加载，暴露全局`L`） -->
-    <!-- 2.1 Leaflet核心样式 -->
+    <!-- Leaflet 核心资源（必须先加载，暴露全局`L`） -->
+    <!-- 1. Leaflet核心样式 -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <!-- 2.2 Leaflet核心JS（关键：这一步会在全局生成`L`对象） -->
+    <!-- 2. Leaflet核心JS（关键：这一步会在全局生成`L`对象） -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 
     <!-- 3. Leaflet.draw 插件（依赖全局`L`，必须在核心之后加载） -->
