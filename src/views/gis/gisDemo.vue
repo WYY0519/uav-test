@@ -22,182 +22,87 @@
                   </div>
                   <!-- 搜索区域 -->
                   <div>
-                    <el-select
-                      v-model="queryLocation"
-                      placeholder="请输入要搜索的位置"
-                      clearable
-                      filterable
-                      allow-create
-                      @change="handleSelectChange"
-                      @input="handleInput"
-                      :filter-method="() => true"
-                    >
-                      <el-option
-                        v-for="item in options"
-                        :key="item.value"
-                        :label="item.label"
-                        :value="item.value"
-                      />
+                    <el-select v-model="queryLocation" placeholder="请输入要搜索的位置" clearable filterable allow-create
+                      @change="handleSelectChange" @input="handleInput" :filter-method="() => true">
+                      <el-option v-for="item in options" :key="item.value" :label="item.label" :value="item.value" />
                     </el-select>
                   </div>
                 </template>
                 <!-- 使用绘制控制组件 -->
-                <DrawControl
-                  :is-drawing="isDrawing"
-                  :is-viewing="isViewing"
-                  :drawn-points="drawnPoints"
-                  :save-route-bot="saveRouteBot"
-                  :saving-route="savingRoute"
-                  @draw-start="drawBotton"
-                  @draw-complete="handleDrawComplete"
-                  @draw-cancel="cancelBotton"
-                  @route-save="saveRoute"
-                />
+                <DrawControl :is-drawing="isDrawing" :is-viewing="isViewing" :drawn-points="drawnPoints"
+                  :save-route-bot="saveRouteBot" :saving-route="savingRoute" @draw-start="drawBotton"
+                  @draw-complete="handleDrawComplete" @draw-cancel="cancelBotton" @route-save="saveRoute" />
               </el-card>
 
               <!-- 引入航线列表组件  v-if="isNoFlyZoneManagerMounted" -->
-              <RouteList
-                ref="routeListRef"
-                :map="map"
-                :no-fly-zone-manager-ref="noFlyZoneManagerRef"
-                @route-view="handleRouteView"
-                @route-retract="handleRouteRetract"
-                @route-edit="handleRouteEdit"
-                @route-delete="handleRouteDelete"
-                @waypoint-edit="handleWaypointEdit"
-                @waypoint-updated="handleWaypointUpdated"
-                @route-save="handleRouteSave"
-                @route-cancel-edit="handleRouteCancelEdit"
-              />
+              <RouteList ref="routeListRef" :map="map" :no-fly-zone-manager-ref="noFlyZoneManagerRef"
+                @route-view="handleRouteView" @route-retract="handleRouteRetract" @route-edit="handleRouteEdit"
+                @route-delete="handleRouteDelete" @waypoint-edit="handleWaypointEdit"
+                @waypoint-updated="handleWaypointUpdated" @route-save="handleRouteSave"
+                @route-cancel-edit="handleRouteCancelEdit" @route-saved-and-refresh-map="handleRouteCompleted" />
             </div>
           </el-card>
         </div>
 
         <!-- 保存路线弹窗 -->
-        <el-dialog
-          v-model="saveRouteDialogVisible"
-          :title="dialogTitle"
-          width="25%"
-          type="warning"
-          class="saveRouteDialog"
-        >
-          <el-form
-            ref="saveRouteFormRef"
-            :model="saveRouteForm"
-            :rules="saveRouteRules"
-            label-width="90px"
-          >
+        <el-dialog v-model="saveRouteDialogVisible" :title="dialogTitle" width="25%" type="warning"
+          class="saveRouteDialog">
+          <el-form ref="saveRouteFormRef" :model="saveRouteForm" :rules="saveRouteRules" label-width="90px">
             <el-form-item label="路线名称:" prop="name">
-              <el-input
-                maxlength="20"
-                show-word-limit
-                clearable
-                v-model="saveRouteForm.name"
-                placeholder="请输入路线名称"
-              />
+              <el-input maxlength="20" show-word-limit clearable v-model="saveRouteForm.name" placeholder="请输入路线名称" />
             </el-form-item>
             <el-form-item label="路线描述:" prop="description">
-              <el-input
-                v-model="saveRouteForm.description"
-                :rows="2"
-                type="textarea"
-                maxlength="200"
-                show-word-limit
-                clearable
-                placeholder="请输入路线描述"
-              />
+              <el-input v-model="saveRouteForm.description" :rows="2" type="textarea" maxlength="200" show-word-limit
+                clearable placeholder="请输入路线描述" />
             </el-form-item>
             <el-form-item label="航点策略:" prop="waypointStrategy">
-              <el-select
-                v-model="saveRouteForm.waypointStrategy"
-                placeholder="请选择航点策略"
-                :disabled="dialogTitle === '编辑路线'"
-                @change="handleSelectStrategyChange"
-              >
-                <el-option
-                  v-for="item in waypointOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
+              <el-select v-model="saveRouteForm.waypointStrategy" placeholder="请选择航点策略"
+                :disabled="dialogTitle === '编辑路线'" @change="handleSelectStrategyChange">
+                <el-option v-for="item in waypointOptions" :key="item.value" :label="item.label" :value="item.value" />
               </el-select>
             </el-form-item>
             <!-- 数据行 -->
-            <div
-              v-show="dialogTitle !== '保存路线'"
-              class="save-route"
-              v-for="(item, index) in saveRouteForm.points"
-              :key="index"
-              style="display: flex; align-items: center; margin-bottom: 10px"
-            >
-              <el-form-item
-                label="高度:"
-                :prop="`points[${index}].alt`"
-                :rules="[
-                  { required: true, message: '请输入高度', trigger: 'blur' },
-                ]"
-              >
+            <div v-show="dialogTitle !== '保存路线'" class="save-route" v-for="(item, index) in saveRouteForm.points"
+              :key="index" style="display: flex; align-items: center; margin-bottom: 10px">
+              <el-form-item label="高度:" :prop="`points[${index}].alt`" :rules="[
+                { required: true, message: '请输入高度', trigger: 'blur' },
+              ]">
                 <el-input v-model="item.alt" placeholder="高度" />
               </el-form-item>
-              <el-form-item
-                label="经度:"
-                :prop="`points.[${index}].lng`"
-                :rules="[
-                  { required: true, message: '请输入经度', trigger: 'blur' },
-                ]"
-              >
+              <el-form-item label="经度:" :prop="`points.[${index}].lng`" :rules="[
+                { required: true, message: '请输入经度', trigger: 'blur' },
+              ]">
                 <el-input v-model="item.lng" placeholder="经度" />
               </el-form-item>
-              <el-form-item
-                label="纬度:"
-                :prop="`points.[${index}].lat`"
-                :rules="[
-                  { required: true, message: '请输入纬度', trigger: 'blur' },
-                ]"
-              >
+              <el-form-item label="纬度:" :prop="`points.[${index}].lat`" :rules="[
+                { required: true, message: '请输入纬度', trigger: 'blur' },
+              ]">
                 <el-input v-model="item.lat" placeholder="纬度" />
               </el-form-item>
               <!-- 操作按钮 -->
-              <div
-                style="
+              <div style="
                   display: flex;
                   gap: 10px;
                   margin-left: 10px;
                   margin-bottom: 16px;
-                "
-              >
-                <span
-                  class="operation-btn add-btn"
-                  @click="handleAddRow(index, item)"
-                  title="添加行"
-                  >+</span
-                >
-                <span
-                  class="operation-btn delete-btn"
-                  @click="handleDeleteRow(index, item)"
-                  title="删除行"
-                  :disabled="saveRouteForm.points.length <= 1"
-                  >-</span
-                >
+                ">
+                <span class="operation-btn add-btn" @click="handleAddRow(index, item)" title="添加行">+</span>
+                <span class="operation-btn delete-btn" @click="handleDeleteRow(index, item)" title="删除行"
+                  :disabled="saveRouteForm.points.length <= 1">-</span>
               </div>
             </div>
           </el-form>
           <template #footer>
             <span class="dialog-footer">
-              <el-button @click="saveRouteDialogVisible = false"
-                >取消</el-button
-              >
-              <el-button type="primary" @click="confirmSaveRoute"
-                >确认</el-button
-              >
+              <el-button @click="saveRouteDialogVisible = false">取消</el-button>
+              <el-button type="primary" @click="confirmSaveRoute">确认</el-button>
             </span>
           </template>
         </el-dialog>
       </div>
 
       <!-- 面板收起/展开按钮 -->
-      <div
-        style="
+      <div style="
           position: absolute;
           top: 35px;
           left: 35px;
@@ -205,10 +110,8 @@
           display: flex;
           align-items: center;
           justify-content: flex-end;
-        "
-      >
-        <div
-          style="
+        ">
+        <div style="
             background: #fff;
             border-radius: 50%;
             width: 26px;
@@ -219,9 +122,7 @@
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             transition: all 0.3s ease;
-          "
-          @click="togglePanel"
-        >
+          " @click="togglePanel">
           <el-icon :style="{ color: '#409eff !important' }">
             <Fold v-if="!isPanelCollapsed" />
             <Expand v-else />
@@ -230,20 +131,14 @@
       </div>
       <!-- 3种地图图层下拉选择 -->
       <div style="position: absolute; top: 20px; right: 20px;">
-        <el-select
-          v-model="mapLayerType"
-          @change="onMapLayerChange"
-          style="width: 130px"
-          size="default"
-        >
+        <el-select v-model="mapLayerType" @change="onMapLayerChange" style="width: 130px" size="default">
           <el-option label="标准地图" value="normal" />
           <el-option label="卫星地图" value="satellite" />
           <el-option label="卫星混合" value="satelliteMix" />
         </el-select>
       </div>
       <!-- 测距 -->
-      <div
-        style="
+      <div style="
           position: absolute;
           top: 100px;
           right: 15px;
@@ -251,10 +146,8 @@
           display: flex;
           align-items: center;
           justify-content: flex-end;
-        "
-      >
-        <div
-          style="
+        ">
+        <div style="
             background-color: #fff;
             border-radius: 50%;
             width: 26px;
@@ -265,17 +158,8 @@
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             transition: all 0.3s ease;
-          "
-          @mouseenter="handleImgMouseEnter('distanceMeasuringTool')"
-          @mouseleave="handleImgMouseLeave()"
-        >
-          <img
-            @click="mapRanging"
-            class=""
-            style="width: 26px; object-fit: cover"
-            :src="ranging"
-            alt=""
-          />
+          " @mouseenter="handleImgMouseEnter('distanceMeasuringTool')" @mouseleave="handleImgMouseLeave()">
+          <img @click="mapRanging" class="" style="width: 26px; object-fit: cover" :src="ranging" alt="" />
         </div>
       </div>
 
@@ -318,10 +202,7 @@
       </div> -->
 
       <!-- 自定义悬浮提示框 -->
-      <div
-        class="image-tooltip"
-        v-show="showImgTooltip"
-        style="
+      <div class="image-tooltip" v-show="showImgTooltip" style="
           position: absolute;
           min-width: 50px;
           background: rgb(255, 255, 255);
@@ -331,22 +212,13 @@
           right: 10px;
           z-index: 1000;
           text-align: center;
-        "
-      >
+        ">
         <div style="font-size: 14px">{{ tooltipTile }}</div>
       </div>
       <!-- 引入禁飞区管理组件 -->
-      <NoFlyZoneManager
-        ref="noFlyZoneManagerRef"
-        :map="map"
-        :visible="noFlyZoneToolbar"
-        @update:visible="noFlyZoneToolbar = $event"
-        @zone-added="handleZoneAdded"
-        @zone-updated="handleZoneUpdated"
-        @zone-deleted="handleZoneDeleted"
-        @zones-cleared="handleZonesCleared"
-        @zone-click="handleNoFlyZoneClick"
-      />
+      <NoFlyZoneManager ref="noFlyZoneManagerRef" :map="map" :visible="noFlyZoneToolbar"
+        @update:visible="noFlyZoneToolbar = $event" @zone-added="handleZoneAdded" @zone-updated="handleZoneUpdated"
+        @zone-deleted="handleZoneDeleted" @zones-cleared="handleZonesCleared" @zone-click="handleNoFlyZoneClick" />
     </div>
   </div>
 </template>
@@ -681,13 +553,23 @@ const drawBotton = () => {
   clearRouteOverlaysOnly();
   isDrawing.value = true;
   drawingLine = new AMap.Polyline([], {
-    strokeColor: "##2C64A7#2C64A7", // 蓝色
-    strokeWeight: 4,
-    strokeOpacity: 0.8,
+    strokeColor: "#409eff",
+    strokeWeight: 5,
+    strokeOpacity: 1,
+    strokeStyle: "solid",
     lineJoin: "round",
+    zIndex: 999,
   });
   drawingLine._isRouteOverlay = true;
   map.value.add(drawingLine);
+  // 强制设置颜色
+  drawingLine.setOptions({
+    strokeColor: "#409eff",
+    strokeWeight: 5,
+    strokeOpacity: 1,
+    strokeStyle: "solid",
+    zIndex: 999,
+  });
 
   ElMessage.info("请在地图上点击添加航点（禁飞区内无法添加）");
   drawingClickHandler = (e) => {
@@ -974,23 +856,22 @@ const completeBotton = () => {
   // 创建新的航线折线
   console.log("开始创建航线折线...", "路径:", path);
   const polyline = new AMap.Polyline(path, {
-    strokeColor: "#409eff", // 蓝色
-    strokeWeight: 10,
+    strokeColor: "#409eff",
+    strokeWeight: 5,
     strokeOpacity: 1,
-    lineJoin: "round",
-    zIndex: 999, // 设置最高层级
     strokeStyle: "solid",
+    lineJoin: "round",
+    zIndex: 999,
   });
   polyline._isRouteOverlay = true;
   polyline._isRoutePolyline = true;
-
-  console.log("航线折线对象创建完成，准备添加到地图");
-  console.log("折线配置:", {
+  // 强制设置颜色
+  polyline.setOptions({
     strokeColor: "#409eff",
-    strokeWeight: 10,
+    strokeWeight: 5,
     strokeOpacity: 1,
+    strokeStyle: "solid",
     zIndex: 999,
-    path: path,
   });
 
   map.value.add(polyline);
@@ -1349,20 +1230,21 @@ const debounceUpdatePolyline = debounce((polyline, newPath) => {
 }, 10);
 // 新增：处理取消编辑事件
 const handleRouteCancelEdit = (route) => {
-  console.log("取消编辑，恢复原始航线:", route);
-  // 从 routeInfo 中重新获取最新的航线数据，确保使用已恢复的数据
-  if (routeListRef.value && routeListRef.value.routeInfo) {
-    const currentRoute = routeListRef.value.routeInfo[0].find(
-      (item) => item.id === route.id,
-    );
-    if (currentRoute) {
-      // 使用最新的数据重新渲染，保持编辑模式（isEditable = true）
-      viewRoute(currentRoute, true);
-      return;
-    }
-  }
-  // 备用：使用传入的 route
-  viewRoute(route, true);
+  console.log("取消编辑，清除地图航线:", route);
+  // 清除地图上的航线覆盖物
+  clearRouteOverlaysOnly();
+  isEditingRoute.value = false;
+  activeRouteId.value = null;
+  currentRoutePolyline.value = null;
+};
+// 新增：处理完成编辑事件
+const handleRouteCompleted = (routeId) => {
+  console.log("完成编辑，清除地图航线:", routeId);
+  // 清除地图上的航线覆盖物
+  clearRouteOverlaysOnly();
+  isEditingRoute.value = false;
+  activeRouteId.value = null;
+  currentRoutePolyline.value = null;
 };
 const viewRoute = (route, isEditable = false) => {
   console.log("viewRoute1111", route, "是否可编辑:", isEditable);
@@ -1409,16 +1291,25 @@ const viewRoute = (route, isEditable = false) => {
     // ==============================================
     const polyline = new AMap.Polyline(path, {
       strokeColor: "#409eff",
-      strokeWeight: 4,
-      strokeOpacity: 0.8,
+      strokeWeight: 5,
+      strokeOpacity: 1,
+      strokeStyle: "solid",
       lineJoin: "round",
-      zIndex: 200,
+      zIndex: 999,
     });
     polyline._isRouteOverlay = true;
     polyline._isRoutePolyline = true;
     polyline._routeId = route.id;
     map.value.add(polyline);
     currentRoutePolyline.value = polyline;
+    // 强制设置颜色，确保不会被覆盖
+    polyline.setOptions({
+      strokeColor: "#409eff",
+      strokeWeight: 5,
+      strokeOpacity: 1,
+      strokeStyle: "solid",
+      zIndex: 999,
+    });
 
     // 双击编辑
     polyline.on("dblclick", () => {
@@ -1514,34 +1405,7 @@ const viewRoute = (route, isEditable = false) => {
             currentRoutePolyline.value.setPath(finalPath);
           }
 
-          // 校验禁飞区
-          const checkPoints = route.points.map((p) => ({
-            lng: Number(p.lng),
-            lat: Number(p.lat),
-          }));
-
-          const crossNoFly =
-            noFlyZoneManagerRef.value?.isRouteCrossingNoFlyZone(checkPoints);
-          if (crossNoFly) {
-            ElMessage.error("❌ 禁止：航线/航点进入禁飞区！");
-            // 恢复航点位置和原始数据
-            marker.setPosition([marker.originalLng, marker.originalLat]);
-            route.points[marker.pointIndex].lng = marker.originalLng;
-            route.points[marker.pointIndex].lat = marker.originalLat;
-            const newPath = route.points.map((p) => [
-              Number(p.lng),
-              Number(p.lat),
-            ]);
-            currentRoutePolyline.value.setPath(newPath);
-            return;
-          }
-
-          // 禁高区仅提示
-          const crossWarning =
-            noFlyZoneManagerRef.value?.isRouteCrossingWarningZone(checkPoints);
-          if (crossWarning) {
-            ElMessage.warning("⚠️ 提示：航线/航点经过禁高区");
-          }
+          // 禁飞区校验已移除：拖动航点时不校验，只在点击"完成"按钮时校验
         });
       }
     });
@@ -2110,8 +1974,8 @@ onBeforeUnmount(() => {
   }
 
   if (map.value) {
-    map.value.off("complete", () => {});
-    map.value.off("error", () => {});
+    map.value.off("complete", () => { });
+    map.value.off("error", () => { });
     if (drawingClickHandler) {
       map.value.off("click", drawingClickHandler);
     }
@@ -2357,11 +2221,13 @@ onBeforeUnmount(() => {
 .control-card-box {
   height: 100%;
 }
+
 .control-card-box-card {
   background-color: #2e3649db;
   color: #fff;
   margin-bottom: 12px;
 }
+
 .routeOperation {
   background-color: #2e3649db;
   color: #fff;
@@ -2420,11 +2286,13 @@ onBeforeUnmount(() => {
   cursor: pointer;
   margin-right: 6px;
 }
+
 .routeOperation-box-foldUp {
   color: rgb(255 255 255 / 34%);
   cursor: pointer;
   margin-right: 6px;
 }
+
 .routeOperation-box-edit {
   color: #1677ff;
   cursor: pointer;
@@ -2622,13 +2490,16 @@ onBeforeUnmount(() => {
 :deep(.save-route .el-form-item__content) {
   margin-right: 12px !important;
 }
+
 :deep(.el-card__body) {
   height: calc(100% - 40px);
 }
+
 .saveRouteDialog {
   max-height: 70%;
   overflow-y: auto;
 }
+
 .operation-btn {
   width: 24px;
   height: 24px;
@@ -2741,27 +2612,32 @@ h3 {
   padding-bottom: 8px;
   margin-bottom: 10px;
 }
+
 .no-fly-tooltip .tooltip-title {
   font-weight: 600;
   color: #e74c3c;
   font-size: 15px;
 }
+
 .no-fly-tooltip .tooltip-content {
   font-size: 13px;
   line-height: 1.8;
   color: #333;
 }
+
 .no-fly-tooltip .label {
   color: #666;
   margin-right: 6px;
   display: inline-block;
   width: 50px;
 }
+
 /* 防止浮层超出视口 */
 .no-fly-tooltip {
   max-width: 300px;
   word-wrap: break-word;
 }
+
 @media (max-width: 1200px) {
   .floating-panel {
     width: 320px;
@@ -2797,18 +2673,15 @@ h3 {
   }
 
   /* 为每个按钮设置简化文字 */
-  .button-group-container
-    :deep(.el-button:nth-child(1) span:not(.el-icon))::after {
+  .button-group-container :deep(.el-button:nth-child(1) span:not(.el-icon))::after {
     content: "绘";
   }
 
-  .button-group-container
-    :deep(.el-button:nth-child(2) span:not(.el-icon))::after {
+  .button-group-container :deep(.el-button:nth-child(2) span:not(.el-icon))::after {
     content: "完";
   }
 
-  .button-group-container
-    :deep(.el-button:nth-child(3) span:not(.el-icon))::after {
+  .button-group-container :deep(.el-button:nth-child(3) span:not(.el-icon))::after {
     content: "取";
   }
 
@@ -2837,12 +2710,14 @@ h3 {
     font-size: 16px;
     /* 恢复字体大小 */
   }
+
   .routeOperation-box-foldUp::after {
     content: "收";
     /* 收起 -> 收 */
     font-size: 16px;
     /* 恢复字体大小 */
   }
+
   .routeOperation-box-edit::after {
     content: "编";
     /* 编辑 -> 编 */
