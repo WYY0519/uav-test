@@ -1,34 +1,26 @@
 <template>
   <div class="control-toolbar" v-show="toolbarVisible">
     <h3>
-      区域管理 <el-icon @click="regionClose"><Close /></el-icon>
+      区域管理 <el-icon @click="regionClose">
+        <Close />
+      </el-icon>
     </h3>
-    <button
-      @click="startDrawNoFlyPolygon"
-      :class="{
-        btn: true,
-        primary: selectedRegion === 'jf',
-        warningArea: selectedRegion === 'jg',
-      }"
-    >
+    <button @click="startDrawNoFlyPolygon" :class="{
+      btn: true,
+      primary: selectedRegion === 'jf',
+      warningArea: selectedRegion === 'jg',
+    }">
       <i class="icon-polygon"></i> 绘制多边形区域
     </button>
-    <button
-      @click="startDrawNoFlyCircle"
-      :class="{
-        btn: true,
-        primary: selectedRegion === 'jf',
-        warningArea: selectedRegion === 'jg',
-      }"
-    >
+    <button @click="startDrawNoFlyCircle" :class="{
+      btn: true,
+      primary: selectedRegion === 'jf',
+      warningArea: selectedRegion === 'jg',
+    }">
       <i class="circle"></i> 绘制圆形区域
     </button>
     <div style="display: flex">
-      <button
-        @click="confirmDraw"
-        style="margin-right: 8px"
-        class="btn secondary"
-      >
+      <button @click="confirmDraw" style="margin-right: 8px" class="btn secondary">
         <i class="confirm"></i> 确认绘制
       </button>
       <button @click="cancelDraw" :disabled="isEditing" class="btn secondary">
@@ -47,35 +39,14 @@
     </div>
   </div>
 
-  <el-dialog
-    v-model="dialogVisible"
-    :title="`完善${regionName}信息`"
-    width="400px"
-    :before-close="handleDialogClose"
-  >
-    <el-form
-      :model="formData"
-      :rules="formRules"
-      ref="formRef"
-      label-width="80px"
-    >
+  <el-dialog v-model="dialogVisible" :title="`完善${regionName}信息`" width="400px" :before-close="handleDialogClose">
+    <el-form :model="formData" :rules="formRules" ref="formRef" label-width="80px">
       <el-form-item label="区域名称" prop="name">
-        <el-input
-          v-model="formData.name"
-          :placeholder="`请输入${regionName}名称`"
-          maxlength="20"
-          show-word-limit
-        />
+        <el-input v-model="formData.name" :placeholder="`请输入${regionName}名称`" maxlength="20" show-word-limit />
       </el-form-item>
       <el-form-item label="区域描述" prop="description">
-        <el-input
-          v-model="formData.description"
-          :placeholder="`请输入${regionName}描述（可选）`"
-          type="textarea"
-          :rows="3"
-          maxlength="200"
-          show-word-limit
-        />
+        <el-input v-model="formData.description" :placeholder="`请输入${regionName}描述（可选）`" type="textarea" :rows="3"
+          maxlength="200" show-word-limit />
       </el-form-item>
     </el-form>
 
@@ -202,7 +173,7 @@ watch(
   },
 );
 
-onMounted(() => {});
+onMounted(() => { });
 onBeforeUnmount(() => cleanup());
 
 const initNoFlyZones = async () => {
@@ -306,13 +277,6 @@ const addZoneToMap = (zone) => {
 };
 
 const handlePolygonMouseMove = (e) => {
-  try {
-    if (tempLine.value && props.map) {
-      props.map.remove(tempLine.value);
-      tempLine.value = null;
-    }
-  } catch (err) {}
-
   if (
     !props.map ||
     !isDrawing.value ||
@@ -326,6 +290,16 @@ const handlePolygonMouseMove = (e) => {
   const lat = e.lnglat.getLat();
   const currentPoint = [lng, lat];
   const lastPoint = drawPoints.value[drawPoints.value.length - 1];
+
+  // 先清除所有旧的临时线条，确保没有残留
+  try {
+    const allPolylines = props.map.getAllOverlays("polyline");
+    allPolylines.forEach((polyline) => {
+      if (polyline._isTempPreviewLine) {
+        props.map.remove(polyline);
+      }
+    });
+  } catch (err) { }
 
   tempLine.value = new AMap.Polyline({
     path: [lastPoint, currentPoint],
@@ -399,13 +373,19 @@ const handlePolygonDrawClick = (e) => {
   props.map.add(marker);
   tempMarkers.value.push({ marker, isFirstPoint: firstFlag });
 
+  // 点击新顶点时，移除之前的临时线条
+  if (tempLine.value) {
+    props.map.remove(tempLine.value);
+    tempLine.value = null;
+  }
+
   if (firstFlag) {
     setTimeout(() => {
       try {
         const markerPx = marker.getPosition();
         const mapPx = props.map.lngLatToContainer(markerPx);
         firstMarkerPixel.value = { x: mapPx.x, y: mapPx.y };
-      } catch (err) {}
+      } catch (err) { }
     }, 100);
   }
 
@@ -520,10 +500,7 @@ const handleCircleDragMove = (e) => {
 };
 
 const resetDrawState = () => {
-  // 解锁地图
-  if (props.map)
-    props.map.setStatus({ dragEnable: true, keyboardEnable: true });
-
+  // 1. 重置绘制状态
   isDrawing.value = false;
   isDraggingRadius.value = false;
   currentDrawType.value = null;
@@ -531,56 +508,85 @@ const resetDrawState = () => {
   isHoveringFirstPoint.value = false;
   isPolygonClosed.value = false;
 
+  // 2. 移除临时提示框
   const existingTooltip = document.querySelector(".draw-tooltip");
   if (existingTooltip) document.body.removeChild(existingTooltip);
 
-  try {
-    if (tempLine.value && props.map) {
-      props.map.remove(tempLine.value);
+  // 3. 移除临时预览线（Polyline）
+  if (props.map) {
+    // 移除单个 tempLine
+    if (tempLine.value) {
+      try {
+        props.map.remove(tempLine.value);
+      } catch (err) { }
       tempLine.value = null;
     }
-    if (props.map) {
+    // 移除所有标记了 _isTempPreviewLine 的线
+    try {
       const allPolylines = props.map.getAllOverlays("polyline");
       allPolylines.forEach((polyline) => {
-        if (polyline._isTempPreviewLine) props.map.remove(polyline);
+        if (polyline._isTempPreviewLine) {
+          props.map.remove(polyline);
+        }
       });
-    }
-  } catch (err) {}
+    } catch (err) { }
+  }
 
-  try {
-    if (tempShape.value && props.map) {
-      props.map.remove(tempShape.value);
+  // 4. 移除临时绘制的图形（Polygon/Circle）
+  if (props.map) {
+    // 移除单个 tempShape
+    if (tempShape.value) {
+      try {
+        props.map.remove(tempShape.value);
+      } catch (err) { }
       tempShape.value = null;
     }
-    if (props.map) {
-      const allCircles = props.map.getAllOverlays("circle");
-      allCircles.forEach((circle) => {
-        if (circle._isTempDrawingShape) props.map.remove(circle);
-      });
+    // 移除所有标记了 _isTempDrawingShape 的图形
+    try {
       const allPolygons = props.map.getAllOverlays("polygon");
       allPolygons.forEach((polygon) => {
-        if (polygon._isTempDrawingShape) props.map.remove(polygon);
+        if (polygon._isTempDrawingShape) {
+          props.map.remove(polygon);
+        }
       });
-    }
-  } catch (err) {}
+      const allCircles = props.map.getAllOverlays("circle");
+      allCircles.forEach((circle) => {
+        if (circle._isTempDrawingShape) {
+          props.map.remove(circle);
+        }
+      });
+    } catch (err) { }
+  }
 
-  try {
-    if (props.map) {
-      tempMarkers.value.forEach((item) => {
-        const marker = item.marker || item;
-        if (marker) props.map.remove(marker);
-      });
-    }
+  // 5. 移除所有临时标记点（Marker）
+  if (props.map) {
+    tempMarkers.value.forEach((item) => {
+      const marker = item.marker || item;
+      if (marker) {
+        try {
+          props.map.remove(marker);
+        } catch (err) { }
+      }
+    });
     tempMarkers.value = [];
-    drawPoints.value = [];
-    firstMarkerPixel.value = { x: 0, y: 0 };
-  } catch (err) {}
+  }
 
+  // 6. 重置绘制数据
+  drawPoints.value = [];
+  firstMarkerPixel.value = { x: 0, y: 0 };
+
+  // 7. 解绑所有地图事件
   if (props.map) {
     props.map.off("click", handlePolygonDrawClick);
     props.map.off("mousemove", handlePolygonMouseMove);
     props.map.off("click", handleCircleDrawClick);
     props.map.off("mousemove", handleCircleDragMove);
+  }
+
+  // 8. 恢复地图默认状态
+  if (props.map) {
+    props.map.setStatus({ dragEnable: true, keyboardEnable: true });
+    props.map.setDefaultCursor("default");
   }
 };
 
@@ -683,6 +689,7 @@ const cleanup = () => {
 const regionSelection = (val) => {
   selectedRegion.value = val;
   regionName.value = regionColors[val].name;
+  ElMessage.success(regionName.value);
 };
 </script>
 
@@ -698,6 +705,7 @@ const regionSelection = (val) => {
   z-index: 1000;
   width: 220px;
 }
+
 h3 {
   margin: 0 0 15px 0;
   font-size: 16px;
@@ -706,6 +714,7 @@ h3 {
   display: flex;
   justify-content: space-between;
 }
+
 .btn {
   width: 100%;
   padding: 8px;
@@ -715,24 +724,29 @@ h3 {
   cursor: pointer;
   font-size: 13px;
 }
+
 .primary {
   background: #e74c3c;
   color: white;
 }
+
 .warningArea {
   background: #ffa500;
   color: white;
 }
+
 .secondary {
   background: #f5f5f5;
   color: #333;
 }
+
 .legend {
   margin-top: 15px;
   padding: 10px;
   background: #f8f9fa;
   border-radius: 4px;
 }
+
 .legend-item {
   display: flex;
   align-items: center;
@@ -740,14 +754,17 @@ h3 {
   font-size: 13px;
   cursor: pointer;
 }
+
 .legend-color {
   width: 12px;
   height: 12px;
   margin-right: 8px;
 }
+
 .red {
   background: rgba(231, 76, 60, 0.6);
 }
+
 .orange {
   background: rgba(255, 165, 0, 0.6);
 }

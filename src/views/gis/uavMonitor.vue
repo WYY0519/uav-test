@@ -3,20 +3,15 @@
   <div class="drone-monitor">
     <!-- 地图底层 -->
     <div class="map-container" ref="mapContainer"></div>
-<!-- 地图类型切换下拉框 -->
-        <!-- 3种地图图层下拉选择 -->
-      <div style="position: absolute; top: 20px; right: 20px; z-index: 9999">
-        <el-select
-          v-model="mapLayerType"
-          @change="onMapLayerChange"
-          style="width: 130px"
-          size="default"
-        >
-          <el-option label="标准地图" value="normal" />
-          <el-option label="卫星地图" value="satellite" />
-          <el-option label="卫星混合" value="satelliteMix" />
-        </el-select>
-      </div>
+    <!-- 地图类型切换下拉框 -->
+    <!-- 3种地图图层下拉选择 -->
+    <div style="position: absolute; top: 20px; right: 20px; z-index: 9999">
+      <el-select v-model="mapLayerType" @change="onMapLayerChange" style="width: 130px" size="default">
+        <el-option label="标准地图" value="normal" />
+        <el-option label="卫星地图" value="satellite" />
+        <el-option label="卫星混合" value="satelliteMix" />
+      </el-select>
+    </div>
     <!-- 顶部面板 -->
     <div class="top-panel">
       <el-input style="padding: 12px" v-model="searchQuery" placeholder="输入无人机编号搜索" class="search-input" clearable
@@ -125,42 +120,27 @@
     <!-- 右侧监控面板 -->
     <div class="right-panel">
       <div class="panel-content">
+        <div style='width:100%;margin-bottom:10px'>
+          <el-input v-model="testInput" placeholder="请输入数字" />
+          <el-button style="width:100%;color: #fff;margin-top:10px" type="primary" @click="testButton">测试按钮</el-button>
+        </div>
         <div class="monitor-section">
           <div style="
           padding-bottom: 6px;
           display: flex;
           justify-content: space-between;
-              align-items: center;" 
-          class="fontGradient">  
-          <span>无人机监控</span>
-          <div>
-              <img 
-            style="width: 16px; height: 16px; cursor: pointer;" 
-            :src="shareVideo" 
-            alt="分享视频" 
-             title="分享视频"
-            class="logo" 
-            @click="handleShareVideo"
-          /> 
-         <img 
-            style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" 
-            :src="shareVideo2" 
-            alt="开始录制" 
-            title="开始录制"
-            class="logo" 
-            @click="toggleRecording(0)"
-          />
-          <img 
-            style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" 
-            :src="shareVideo3" 
-            alt='停止录制' 
-            title='停止录制' 
-            class="logo" 
-            @click="toggleRecording(1)"
-          />
+              align-items: center;" class="fontGradient">
+            <span>无人机监控</span>
+            <div>
+              <img style="width: 16px; height: 16px; cursor: pointer;" :src="shareVideo" alt="分享视频" title="分享视频"
+                class="logo" @click="handleShareVideo" />
+              <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo2" alt="开始录制"
+                title="开始录制" class="logo" @click="toggleRecording(0)" />
+              <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo3" alt='停止录制'
+                title='停止录制' class="logo" @click="toggleRecording(1)" />
+            </div>
+
           </div>
-        
-        </div>
           <!-- 监控内容区域 -->
           <!-- <ShakaPlayer src="http://192.168.1.148:7080/stream/1/hls.m3u8" :config="playerConfig" /> -->
           <!-- hls视频流播放 -->
@@ -173,9 +153,9 @@
           <ShakaPlayer v-if="droneMonitoringShow" :src="`ws://121.41.60.99:8082/${droneMonitoringUrl}.live.flv`"
             :config="playerConfig" />
           <M3u8Player v-if="dronM3u8PlayerShow" :video-url="videoUrl" :width="1000" :height="600"
-            @error="handleError" /> 
+            @error="handleError" />
         </div>
-         
+
         <div class="device-info">
           <h4 class="fontGradient">无人机信息</h4>
           <p>设备编号: {{ selectedDeviceInfo?.deviceId }}</p>
@@ -579,7 +559,8 @@ import {
   droneRtl,
   droneMode,
   droneJoystick,
-  uploadRouteFile
+  uploadRouteFile,
+  dronesSetServo
 } from "@/api/drones";
 import { liveStreamShare } from "@/api/liveStream";
 import {
@@ -606,7 +587,7 @@ import ShakaPlayer from "../component/ShakaPlayer.vue";
 import M3u8Player from "../component/M3u8Player.vue";
 import UavMonitorVisible from "./components/uavMonitor/uavMonitorVisible.vue";
 import { dronePolicyList } from "@/api/dronePolicy.js";
-import { videoStartRecording ,videoStopRecording} from "@/api/video.js";
+import { videoStartRecording, videoStopRecording } from "@/api/video.js";
 // 
 import { getRouteList } from "@/api/route";
 // import droneIconUrl from "@/assets/mti-无人机.png";
@@ -649,7 +630,7 @@ const returnVoyageForm = ref({
 });
 // 视频录制状态
 const currentRecordId = ref(''); // 👈 加上这个
-const isRecording = ref(false); 
+const isRecording = ref(false);
 // 表单验证规则
 const returnVoyageRules = {
   longitude: [{ required: true, message: "请输入经度", trigger: "blur" }],
@@ -831,6 +812,7 @@ const selectedRouteId = ref("");
 const videoUrl = ref(
   "http://121.41.60.99:8082/live/2A00283233510834373435/hls.m3u8"
 );
+const testInput = ref('')
 const initMap = () => {
   if (!window.AMap) {
     ElMessage.error("高德地图API未加载");
@@ -933,7 +915,7 @@ const onMapLayerChange = (val) => {
 };
 // 切换录制状态
 const toggleRecording = async (value) => {
-  console.log(isRecording.value,"=====")
+  console.log(isRecording.value, "=====")
   if (!selectedDeviceInfo.value || !selectedDeviceInfo.value.videoIp) {
     ElMessage.warning("请先选择无人机设备");
     return;
@@ -1608,6 +1590,21 @@ const handleUploadMission = () => {
   returnVoyageDialogVisibleUploadRoute.value = true;
   fetchRoutes();
 };
+//测试按钮
+const testButton = async () => {
+  console.log("searchQuery.value:", searchQuery.value);
+  try {
+    let data = {
+      droneId: searchQuery.value,
+      servo: Number(testInput.value),
+    };
+    console.log("发送数据:", data);
+    let res = await dronesSetServo(data);
+    console.log("后端返回：", res);
+  } catch (err) {
+    console.error("请求失败：", err);
+  }
+}
 const fetchRoutes = async () => {
   try {
     const res = await getRouteList({
@@ -2392,7 +2389,7 @@ const markRouteOnMap = (routeData) => {
         console.warn(`忽略无效坐标: 纬度=${point.lat}, 经度=${point.lon}`);
         return null;
       }
-      
+
       return {
         lat,
         lon,
@@ -2801,14 +2798,14 @@ const handleShareVideo = async () => {
   try {
     // 生成视频分享URL
     const videoUrl = selectedDeviceInfo.value.videoIp;
-    
+
     // 调用后端API获取二维码
     const data = {
       streamUrl: videoUrl,
       title: selectedDeviceInfo.value.deviceName || '',
     };
-    
-    let res = await liveStreamShare(data);   
+
+    let res = await liveStreamShare(data);
     if (res.code === 200 && res.data) {
       // 显示二维码
       qrCodeUrl.value = res.data.qrCode;
@@ -2817,7 +2814,7 @@ const handleShareVideo = async () => {
     } else {
       ElMessage.error(res.message || "二维码生成失败");
     }
-    
+
     console.log(data, "data", res);
   } catch (error) {
     console.error("分享视频失败:", error);
@@ -3318,6 +3315,7 @@ const handleShareVideo = async () => {
 .route-marker:hover {
   transform: scale(1.1);
 }
+
 /* 地图类型切换控件 */
 .map-type-selector {
   position: absolute;
