@@ -2773,6 +2773,18 @@ const fitMapToRoute = (routePoints) => {
   if (!map || routePoints.length === 0) return;
 
   try {
+    // 提取所有点的经纬度（兼容LngLat对象和普通对象）
+    const extractLngLat = (point) => {
+      // 如果是LngLat对象，使用getLng()和getLat()
+      if (typeof point.getLng === 'function') {
+        return { lng: point.getLng(), lat: point.getLat() };
+      }
+      // 否则直接使用lng/lat属性
+      return { lng: point.lng, lat: point.lat };
+    };
+
+    const firstPoint = extractLngLat(routePoints[0]);
+
     if (routePoints.length === 1) {
       // 只有一个点时，直接定位到该点
       map.panTo(routePoints[0]); // 使用panTo替代setCenter
@@ -2781,14 +2793,13 @@ const fitMapToRoute = (routePoints) => {
     }
 
     // 计算所有点的经纬度范围（优化版）
-    let minLng = routePoints[0].lng;
-    let maxLng = routePoints[0].lng;
-    let minLat = routePoints[0].lat;
-    let maxLat = routePoints[0].lat;
+    let minLng = firstPoint.lng;
+    let maxLng = firstPoint.lng;
+    let minLat = firstPoint.lat;
+    let maxLat = firstPoint.lat;
 
     routePoints.forEach((point) => {
-      const lng = point.lng;
-      const lat = point.lat;
+      const { lng, lat } = extractLngLat(point);
 
       minLng = Math.min(minLng, lng);
       maxLng = Math.max(maxLng, lng);
@@ -3139,6 +3150,7 @@ const handleClickOutside = (event) => {
   flex-direction: row;
   z-index: 1;
   background: transparent;
+  pointer-events: none;
 
   /* 关键修复：让子元素自动撑满 */
   align-items: stretch;
@@ -3770,8 +3782,8 @@ const handleClickOutside = (event) => {
 
 /* 标记点样式（深度选择器确保生效） */
 :deep(.tdt-div-icon .route-marker) {
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   border-radius: 50% !important;
   display: flex;
   justify-content: center;
@@ -3799,8 +3811,8 @@ const handleClickOutside = (event) => {
 }
 
 :deep .route-marker {
-  width: 40px;
-  height: 40px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   justify-content: center;

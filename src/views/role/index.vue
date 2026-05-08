@@ -58,7 +58,10 @@
             <el-button type="danger" :icon="Delete" link @click="handleDelete(row)" />
           </el-tooltip>
           <el-tooltip content="拆除设备" placement="top">
-            <el-button type="warning" :icon="PriceTag" link @click="handleDelete2(row)" />
+            <el-button type="warning" :icon="PriceTag" link @click="dismantleEquipment(row)" />
+          </el-tooltip>
+          <el-tooltip content="重置时间" placement="top">
+            <el-button type="info" :icon="Timer" link @click="resetTime(row)" />
           </el-tooltip>
         </el-button-group>
       </template>
@@ -88,7 +91,7 @@
 <script setup>
 import { ref, onUnmounted, onMounted, computed, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Search, Refresh, Plus, Edit, Delete, PriceTag } from "@element-plus/icons-vue";
+import { Search, Refresh, Plus, Edit, Delete, PriceTag, Timer } from "@element-plus/icons-vue";
 import {
   getCompanyDevices,
   deleteCompanyDevice,
@@ -99,7 +102,8 @@ import {
   createDevice,
   updateCompanyDevice,
   getVideoStreamAddress,
-  dronesCommMode
+  dronesCommMode,
+  dronesSetRTCTime
 } from "@/api/device";
 import { Download, DocumentAdd } from "@element-plus/icons-vue";
 import { droneIdStatus } from "../../api/drones";
@@ -392,8 +396,8 @@ const handleDelete = (row) => {
       restoreSelection(originalSelected);
     });
 };
-const handleDelete2 = async (row) => {
-  console.log(row, "=");
+//拆除设备
+const dismantleEquipment = async (row) => {
   try {
     const res = await dronesCommMode(row.deviceNumber);
     if (res.code === 200) {
@@ -402,7 +406,21 @@ const handleDelete2 = async (row) => {
     }
   } catch (error) {
     ElMessage.error("拆除设备失败");
-    // restoreSelection(originalSelected);
+  }
+};
+//重置时间
+const resetTime = async (row) => {
+  try {
+    let data = {
+      droneId: row.deviceNumber
+    }
+    const res = await dronesSetRTCTime(data);
+    if (res.code === 200) {
+      ElMessage.success("重置时间成功");
+      await fetchDeviceList();
+    }
+  } catch (error) {
+    ElMessage.error("重置时间失败");
   }
 };
 

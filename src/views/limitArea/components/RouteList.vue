@@ -336,9 +336,10 @@ const handleCurrentChange = (val) => {
 const viewRoute = (itemInfo) => {
   if (!itemInfo || !itemInfo.id) return;
 
-  // 如果正在编辑其他禁飞区，先取消编辑（不调用接口）
-  if (editingZoneId.value && editingZoneId.value !== itemInfo.id) {
-    cancelEdit();
+  // 如果正在编辑，先取消编辑（不调用接口，只清除状态）
+  if (editingZoneId.value) {
+    editingZoneId.value = null;
+    isEditing.value = false;
   }
 
   // 如果当前已经查看此禁飞区，则收起
@@ -391,15 +392,22 @@ const retractRoute = () => {
 const editRoute = async (itemInfo) => {
   if (!itemInfo || !itemInfo.id) return;
 
-  // 如果正在编辑其他禁飞区，先完成编辑
+  // 如果正在编辑其他禁飞区，直接取消编辑（不调用接口），切换到新项目
   if (editingZoneId.value && editingZoneId.value !== itemInfo.id) {
-    await completeEdit();
+    editingZoneId.value = null;
+    isEditing.value = false;
   }
 
   // 如果是完成编辑（点击的是当前正在编辑的项）
   if (editingZoneId.value === itemInfo.id) {
     await completeEdit();
     return;
+  }
+
+  // 如果当前正在查看，先取消查看状态（确保互斥）
+  if (activeRouteId.value !== null) {
+    activeRouteId.value = null;
+    emit("route-retract");
   }
 
   console.log("开始编辑禁飞区:", itemInfo);
@@ -448,15 +456,14 @@ const cancelEdit = () => {
   editingZoneId.value = null;
   isEditing.value = false;
 
-  // 注意：不主动清除 activeRouteId，让查看状态独立存在
-  // 如果用户取消编辑，仍然可以保持查看状态
+  // 注意：取消编辑时不清除 activeRouteId，因为查看和编辑互斥
+  // 取消编辑后查看状态可以保留
 
   // 通知父组件取消编辑
   emit("route-edit-complete", currentEditingId);
 
   // 显示提示消息
   ElMessage.info("已取消编辑");
-  activeRouteId.value = null;
 };
 
 //完成编辑
@@ -512,17 +519,16 @@ const completeEdit = async () => {
 
     if (res.code === 200) {
       emit("route-edit-complete", currentZone.id);
+      editingZoneId.value = null;
+      isEditing.value = false;
+      await routeList(searchKeyword.value);
     } else {
       ElMessage.error("禁飞区编辑失败：" + (res.msg || "未知错误"));
     }
   } catch (error) {
     console.error("编辑提交失败:", error);
     ElMessage.error("禁飞区编辑失败，请重试");
-  } finally {
-    editingZoneId.value = null;
-    isEditing.value = false;
-    await routeList(searchKeyword.value);
-  }
+  }   
 };
 let updatesDate = ref("");
 // 更新区域数据（在编辑时被父组件调用）
@@ -568,15 +574,6 @@ const updateZoneData = (id, updates) => {
 // 删除禁飞区
 const deleteRoute = (noFlyZone) => {
   if (!noFlyZone || !noFlyZone.id) return;
-
-  // 如果正在编辑或查看该禁飞区，先退出
-  if (editingZoneId.value === noFlyZone.id) {
-    completeEdit();
-  }
-  if (activeRouteId.value === noFlyZone.id) {
-    retractRoute();
-  }
-
   deletingRouteIndex.value = noFlyZone;
   deleteDialogVisible.value = true;
 };

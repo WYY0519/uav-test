@@ -2,16 +2,10 @@
   <div class="login-page">
     <div class="login-container">
       <div class="tabs">
-        <div
-          :class="['tab-item', { active: activeTab === 'phone' }]"
-          @click="activeTab = 'phone'"
-        >
+        <div :class="['tab-item', { active: activeTab === 'phone' }]" @click="activeTab = 'phone'">
           手机号登录
         </div>
-        <div
-          :class="['tab-item', { active: activeTab === 'account' }]"
-          @click="activeTab = 'account'"
-        >
+        <div :class="['tab-item', { active: activeTab === 'account' }]" @click="activeTab = 'account'">
           账号登录
         </div>
       </div>
@@ -20,15 +14,9 @@
       <div v-if="activeTab === 'phone'" class="form-content">
         <div class="form-item">
           <div class="label">手机号</div>
-          <el-input
-            v-model="formData.mobile"
-            placeholder="请输入手机号"
-            maxlength="11"
-          >
+          <el-input v-model="formData.mobile" placeholder="请输入手机号" maxlength="11">
             <template #suffix>
-              <span class="input-counter"
-                >{{ formData.mobile.length }} / 11</span
-              >
+              <span class="input-counter">{{ formData.mobile.length }} / 11</span>
             </template>
           </el-input>
         </div>
@@ -36,10 +24,7 @@
         <div class="form-item">
           <div class="label">图形验证码</div>
           <div class="verification-code">
-            <el-input
-              v-model="formData.field105"
-              placeholder="请输入图形验证码"
-            />
+            <el-input v-model="formData.field105" placeholder="请输入图形验证码" />
             <div class="captcha-wrapper">
               <Captcha v-model="captcha1" :width="100" :height="38" />
             </div>
@@ -49,16 +34,8 @@
         <div class="form-item">
           <div class="label">短信验证码</div>
           <div class="verification-code">
-            <el-input
-              v-model="formData.field124"
-              placeholder="请输入短信验证码"
-            />
-            <el-button
-              type="primary"
-              :disabled="isCounting"
-              @click="getCode"
-              class="verify-btn"
-            >
+            <el-input v-model="formData.field124" placeholder="请输入短信验证码" />
+            <el-button type="primary" :disabled="isCounting" @click="getCode" class="verify-btn">
               {{ buttonText }}
             </el-button>
           </div>
@@ -78,22 +55,13 @@
       <div v-if="activeTab === 'account'" class="form-content">
         <div class="form-item">
           <div class="label">账号</div>
-          <el-input
-            v-model.trim="formData.field100"
-            placeholder="请输入账号"
-            @keydown.enter="submitForm"
-          />
+          <el-input v-model.trim="formData.field100" placeholder="请输入账号" @keydown.enter="submitForm" />
         </div>
 
         <div class="form-item">
           <div class="label">密码</div>
-          <el-input
-            v-model="formData.field101"
-            type="password"
-            placeholder="请输入密码"
-            show-password
-            @keydown.enter="submitForm"
-          />
+          <el-input v-model="formData.field101" type="password" placeholder="请输入密码" show-password
+            @keydown.enter="submitForm" />
         </div>
 
         <div class="forgot-password">
@@ -121,76 +89,35 @@
       </div>
     </div>
   </div>
-  <div
-    class="versionInfo"
-    :style="{ color: bgColor }"
-    @click.stop="versionInfor"
-  >
+  <div class="versionInfo" :style="{ color: bgColor }" @click.stop="versionInfor">
     版本信息
   </div>
   <!-- 展示版本的内容 -->
-  <VersionModal
-    :show="showVersionList"
-    :versionList="versionList"
-    @close="handleVersionClose"
-  />
+  <VersionModal :show="showVersionList" :versionList="versionList" @close="handleVersionClose" />
 
   <!-- 忘记密码弹窗 -->
-  <el-dialog
-    v-model="showForgotDialog"
-    title="忘记密码"
-    width="500px"
-    :close-on-click-modal="false"
-  >
-    <el-form
-      ref="forgotFormRef"
-      :model="forgotForm"
-      :rules="forgotRules"
-      label-width="80px"
-    >
+  <el-dialog v-model="showForgotDialog" title="忘记密码" width="500px" :close-on-click-modal="false">
+    <el-form ref="forgotFormRef" :model="forgotForm" :rules="forgotRules" label-width="80px">
       <el-form-item label="邮箱" prop="email">
-        <el-input
-          v-model="forgotForm.email"
-          placeholder="请输入邮箱"
-          maxlength="50"
-          clearable
-          autocomplete="off"
-        />
+        <el-input v-model="forgotForm.email" placeholder="请输入邮箱" maxlength="50" clearable autocomplete="off" />
       </el-form-item>
       <el-form-item label="验证码" prop="code" required>
         <div style="display: flex; gap: 8px; width: 100%">
-          <el-input
-            v-model="forgotForm.code"
-            placeholder="请输入验证码"
-            maxlength="6"
-            autocomplete="off"
-          />
-          <el-button
-            type="primary"
-            :disabled="isForgotCounting"
-            @click="handleSendForgotPasswordCode(forgotForm)"
-            style="width: 120px; flex-shrink: 0"
-          >
+          <el-input v-model="forgotForm.code" placeholder="请输入验证码" maxlength="6" autocomplete="off" />
+          <el-button type="primary" :disabled="isForgotCounting" @click="handleSendForgotPasswordCode(forgotForm)"
+            style="width: 120px; flex-shrink: 0">
             {{ forgotButtonText }}
           </el-button>
         </div>
       </el-form-item>
       <el-form-item label="新密码" prop="newPassword">
-        <el-input
-          v-model="forgotForm.newPassword"
-          type="password"
-          placeholder="请输入新密码"
-          maxlength="20"
-          show-password
-          autocomplete="new-password"
-        />
+        <el-input v-model="forgotForm.newPassword" type="password" placeholder="请输入新密码" maxlength="20" show-password
+          autocomplete="new-password" />
       </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="showForgotDialog = false">取消</el-button>
-      <el-button type="primary" @click="submitForgotPasswordWithValidation"
-        >确定</el-button
-      >
+      <el-button type="primary" @click="submitForgotPasswordWithValidation">确定</el-button>
     </template>
   </el-dialog>
 </template>
@@ -439,7 +366,7 @@ const handleSendForgotPasswordCode = async (formData) => {
       startForgotPasswordCountdown();
     } else {
       ElMessage.error(response.message || "验证码发送失败");
-    }
+    } 
   } catch (error) {
     ElMessage.error("验证码发送失败，请稍后再试");
   }
@@ -490,9 +417,17 @@ const submitForgotPasswordWithValidation = async () => {
   }
 };
 // 生命周期钩子
-onMounted(() => {});
+onMounted(() => {
+  console.log(router.currentRoute.value, "router");
+  if (router.currentRoute.value.path === "/login") {
+    {
+      localStorage.clear(); // 清除所有localStorage数据 
+      sessionStorage.clear(); // 清除所有sessionStorage数据
+    }
+  }
+});
 
-onBeforeUnmount(() => {});
+onBeforeUnmount(() => { });
 </script>
 
 <style scoped>

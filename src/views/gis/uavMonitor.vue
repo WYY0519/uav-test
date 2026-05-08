@@ -4,7 +4,6 @@
     <!-- 地图底层 -->
     <div class="map-container" ref="mapContainer"></div>
     <!-- 地图类型切换下拉框 -->
-    <!-- 3种地图图层下拉选择 -->
     <div style="position: absolute; top: 20px; right: 20px; z-index: 9999">
       <el-select v-model="mapLayerType" @change="onMapLayerChange" style="width: 130px" size="default">
         <el-option label="标准地图" value="normal" />
@@ -120,10 +119,6 @@
     <!-- 右侧监控面板 -->
     <div class="right-panel">
       <div class="panel-content">
-        <div style='width:100%;margin-bottom:10px'>
-          <el-input v-model="testInput" placeholder="请输入数字" />
-          <el-button style="width:100%;color: #fff;margin-top:10px" type="primary" @click="testButton">测试按钮</el-button>
-        </div>
         <div class="monitor-section">
           <div style="
           padding-bottom: 6px;
@@ -152,6 +147,7 @@
           <!-- <ShakaPlayer :src="videoStream" :config="playerConfig" /> rtsp://121.41.60.99:7896/stream_from_yunxiang/1F00263233510834373435  -->
           <ShakaPlayer v-if="droneMonitoringShow" :src="`ws://121.41.60.99:8082/${droneMonitoringUrl}.live.flv`"
             :config="playerConfig" />
+          <!-- <ShakaPlayer src="ws://121.41.60.99:8082/live/stream_key.live.flv" /> -->
           <M3u8Player v-if="dronM3u8PlayerShow" :video-url="videoUrl" :width="1000" :height="600"
             @error="handleError" />
         </div>
@@ -212,14 +208,6 @@
               </el-icon>
               暂停
             </el-button>
-            <!-- <div>
-              <span style="color: #fff">航线进度</span>
-              <el-progress
-                :percentage="percentage"
-                :stroke-width="15"
-                striped
-              />
-            </div> -->
           </div>
         </div>
       </div>
@@ -408,6 +396,53 @@
             返航点设置
           </el-button>
         </div>
+        <!-- 通道--舵机 -->
+        <div style="
+    margin-right: 12px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    justify-content: space-around;
+">
+          <div style="display: flex; gap: 6px; justify-content: start">
+            <el-button type="info" class="control-btn" @click="current = 1" :disabled="!searchQuery">
+              通道1
+            </el-button>
+            <el-button type="info" class="control-btn" @click="current = 2" :disabled="!searchQuery">
+              通道2
+            </el-button>
+          </div>
+
+          <!-- 通道1：显示 左中右 按钮 -->
+          <div v-if="current === 1" style="display: flex; gap: 6px; flex-direction: column;">
+            <div style="display: flex; gap: 6px; justify-content: space-between;">
+              <el-button type="info" class="control-btn" @click="setServoPosition(1)"
+                :disabled="stepDisabled.left || !searchQuery">
+                左边
+              </el-button>
+              <el-button type="info" class="control-btn" @click="setServoPosition(2)"
+                :disabled="stepDisabled.middle || !searchQuery">
+                中间
+              </el-button>
+              <el-button type="info" class="control-btn" @click="setServoPosition(3)"
+                :disabled="stepDisabled.right || !searchQuery">
+                右边
+              </el-button>
+            </div>
+            <p style="color: #fff;font-size:12px;margin-top:2px">
+              <span>*</span> 按顺序切换状态，点击后自动锁定
+            </p>
+          </div>
+
+          <!-- 通道2：显示输入框（失去焦点自动发送） -->
+          <div v-else-if="current === 2">
+            <el-input class="servoNum" style="width: 220px;" v-model="inputServo" placeholder="请输入数字"
+              @input="inputServo = inputServo.replace(/[^\d]/g, '')" @blur="handleServoBlur" clearable />
+            <p style="color: #fff;font-size:12px;margin-top:4px">
+              <span>*</span> 输入限制：1050 ~ 1950
+            </p>
+          </div>
+        </div>
         <!-- 方向控制区域3 -->
         <div class="direction-controls">
           <div class="direction-buttons bottom-buttons">
@@ -548,7 +583,6 @@ import {
 } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { sendMoveCommand } from "@/api/device";
-import axios from "axios";
 import { deviceDetails } from "@/api/monitor";
 import { ICONS } from "@/assets/icons.js";
 import {
@@ -629,7 +663,7 @@ const returnVoyageForm = ref({
   height: "",
 });
 // 视频录制状态
-const currentRecordId = ref(''); // 👈 加上这个
+const currentRecordId = ref('');
 const isRecording = ref(false);
 // 表单验证规则
 const returnVoyageRules = {
@@ -812,7 +846,9 @@ const selectedRouteId = ref("");
 const videoUrl = ref(
   "http://121.41.60.99:8082/live/2A00283233510834373435/hls.m3u8"
 );
-const testInput = ref('')
+const inputServo = ref('')
+// 1=通道1  2=通道2
+const current = ref(0)
 const initMap = () => {
   if (!window.AMap) {
     ElMessage.error("高德地图API未加载");
@@ -911,7 +947,7 @@ const onMapLayerChange = (val) => {
   }
 
   map.setLayers(layers);
-  ElMessage.success("已切换 → " + label);
+  ElMessage.success("已切换  " + label);
 };
 // 切换录制状态
 const toggleRecording = async (value) => {
@@ -967,79 +1003,6 @@ const toggleRecording = async (value) => {
     console.error(err);
     ElMessage.error("开始录制异常");
     isRecording.value = false;
-  }
-};
-// 添加标记点（强制最后一个点为终点）
-const addMarker = (point, index, isFinalPoint = false) => {
-  let markerLabel, markerClass;
-
-  if (index === 0) {
-    // 起点：显示"S"，红色
-    markerLabel = "S";
-    markerClass = "start";
-  } else if (isFinalPoint) {
-    // 终点：显示"E"，绿色
-    markerLabel = "E";
-    markerClass = "end";
-  } else {
-    // 中间点：显示数字，蓝色
-    markerLabel = index.toString();
-    markerClass = "middle";
-  }
-
-  try {
-    const markerHtml = `
-      <div class="route-marker ${markerClass}">
-        ${markerLabel}
-      </div>
-    `;
-
-    const marker = new AMap.Marker({
-      position: new AMap.LngLat(point.lon, point.lat),
-      content: markerHtml,
-      anchor: "center",
-      zIndex: 9000,
-    });
-
-    map.add(marker);
-    routeMarkers.value.push(marker);
-
-    console.log(
-      `成功添加航线标记点 ${index}: ${markerLabel} - ${point.lon.toFixed(
-        6
-      )}, ${point.lat.toFixed(6)}`
-    );
-  } catch (error) {
-    console.error(`添加航线标记点失败 ${index}:`, error);
-  }
-};
-
-// 添加线段
-const addLineSegment = (fromPoint, toPoint) => {
-  try {
-    const path = [
-      new AMap.LngLat(fromPoint.lon, fromPoint.lat),
-      new AMap.LngLat(toPoint.lon, toPoint.lat),
-    ];
-
-    const line = new AMap.Polyline({
-      path: path,
-      strokeColor: "#409EFF",
-      strokeWeight: 3,
-      strokeOpacity: 0.8,
-      lineStyle: "solid",
-    });
-
-    map.add(line);
-    routeLines.value.push(line);
-
-    console.log(
-      `添加航线线段: (${fromPoint.lon.toFixed(6)}, ${fromPoint.lat.toFixed(
-        6
-      )}) -> (${toPoint.lon.toFixed(6)}, ${toPoint.lat.toFixed(6)})`
-    );
-  } catch (error) {
-    console.error("添加航线线段失败:", error);
   }
 };
 // 清除所有覆盖物
@@ -1186,6 +1149,8 @@ const handleSearch = async () => {
         if (rtmpUrl.endsWith("hls.m3u8")) {
           dronM3u8PlayerShow.value = true; // 符合条件，显示第二个播放器
         } else {
+          console.log('1111')
+
           droneMonitoringShow.value = true; // 不符合，显示第一个播放器
         }
       }
@@ -1590,21 +1555,85 @@ const handleUploadMission = () => {
   returnVoyageDialogVisibleUploadRoute.value = true;
   fetchRoutes();
 };
-//测试按钮
-const testButton = async () => {
-  console.log("searchQuery.value:", searchQuery.value);
+// 左中右按钮禁用状态（严格按你的规则）
+const stepDisabled = ref({
+  left: false,    // 初始：可点
+  middle: true,   // 初始：禁用
+  right: true     // 初始：禁用
+});
+
+// 通道1：左边 / 中间 / 右边（严格状态流转）
+const setServoPosition = async (value) => {
+  console.log("setServoPosition", value);
+
+  if (!searchQuery.value) {
+    ElMessage.warning("请先搜索无人机信息");
+    return;
+  }
+  try {
+    // 先执行接口
+    let data = {
+      droneId: searchQuery.value,
+      servo: value === 1 ? 1050 : value === 2 ? 1500 : 1950,
+      type: 1
+    };
+    let res = await dronesSetServo(data);
+    // ============== 严格状态切换逻辑 ==============
+    if (value === 1) {
+      // 点击左边：左边禁用，中间可点，右边禁用
+      stepDisabled.value = { left: true, middle: false, right: true };
+    } else if (value === 2) {
+      // 点击中间：中间禁用，左右可点
+      stepDisabled.value = { left: false, middle: true, right: false };
+    } else if (value === 3) {
+      // 点击右边：右边禁用，中间可点，左边禁用
+      stepDisabled.value = { left: true, middle: false, right: true };
+    }
+    if (res.code === 200) {
+      ElMessage.success(`操作成功`);
+    }
+  } catch (err) {
+    console.error("请求失败", err);
+  }
+};
+
+// 通道2：失去焦点自动发送
+const sendChannel2 = async () => {
+  if (!searchQuery.value || !inputServo.value) return;
   try {
     let data = {
       droneId: searchQuery.value,
-      servo: Number(testInput.value),
+      servo: Number(inputServo.value),
+      type: 2
     };
-    console.log("发送数据:", data);
     let res = await dronesSetServo(data);
-    console.log("后端返回：", res);
+    // ElMessage.success(`通道2 已发送：${inputServo.value}`);
+    if (res.code === 200) {
+      ElMessage.success(`操作成功`);
+    }
   } catch (err) {
-    console.error("请求失败：", err);
+    console.error("通道2发送失败", err);
   }
-}
+};
+
+// 输入框失焦校验 + 自动发送
+const handleServoBlur = () => {
+  let val = inputServo.value || '';
+  val = val.replace(/[^\d]/g, '');
+
+  if (val === '') {
+    inputServo.value = '';
+    return;
+  }
+
+  let num = Number(val);
+  if (num < 1050) num = 1050;
+  if (num > 1950) num = 1950;
+  inputServo.value = num;
+
+  sendChannel2();
+};
+
 const fetchRoutes = async () => {
   try {
     const res = await getRouteList({
@@ -1814,24 +1843,6 @@ const calculateHeading = (currentLon, currentLat, targetLon, targetLat) => {
   // 调整为0-360度（与现有droneHeading逻辑兼容）
   if (heading < 0) heading += 360;
   return heading;
-};
-const successExecutedRoute = async () => {
-  try {
-    //2. 调用接口（带错误捕获）
-    let res = await oneClickExecute({
-      droneId: searchQuery.value,
-    });
-    // 3. 接口成功后的逻辑（如提示、数据处理）
-    console.log("一键执行成功：", res.data);
-    if (res.code === 200) {
-      // 一键执行的接口成功，开始执行航线
-      startMission();
-    }
-  } catch (error) {
-    // 4. 接口失败后的处理（如打印错误、提示用户）
-    console.error("一键执行失败：", error.response?.data || error.message);
-    // ElMessage.error("指令发送失败，请重试");
-  }
 };
 //执行航线处理函数
 const startMission = async () => {
@@ -2118,6 +2129,17 @@ watch(
         }
       }, 300);
     }
+  },
+  { immediate: true }
+);
+//切换到通道1的时候会清除通道2的输入内容
+watch(
+  current,
+  (newVal) => {
+    if (newVal === 1) {
+      inputServo.value = ''; // 切换通道时清空输入框
+    }
+    console.log("current:", newVal);
   },
   { immediate: true }
 );
@@ -2769,20 +2791,6 @@ const updateDeviceOnlineStatus = async (deviceList) => {
     console.log("获取状态失败:", error);
   }
 };
-
-// 清理航线标记的辅助函数
-const clearRouteOverlays = () => {
-  if (!map) return;
-
-  try {
-    // 这里需要清除所有航线相关的覆盖物
-    // 由于天地图没有直接获取所有覆盖物的方法，我们记录要清除的标记
-    // 在实际项目中，你可能需要维护一个数组来存储要清除的标记
-    console.log("清理航线标记");
-  } catch (error) {
-    console.warn("清理航线标记失败:", error);
-  }
-};
 //查看详情
 const uavViewDetails = () => {
   console.log("uavViewDetails:");
@@ -2801,8 +2809,9 @@ const handleShareVideo = async () => {
 
     // 调用后端API获取二维码
     const data = {
-      streamUrl: videoUrl,
+      streamUrl: `ws://121.41.60.99:8082/${droneMonitoringUrl.value}.live.flv`,
       title: selectedDeviceInfo.value.deviceName || '',
+      droneId: searchQuery.value,
     };
 
     let res = await liveStreamShare(data);
@@ -3332,6 +3341,17 @@ const handleShareVideo = async () => {
 :deep(.map-type-selector .el-select__wrapper) {
   background-color: transparent;
   box-shadow: none;
+}
+
+:deep(.servoNum .el-input__inner) {
+  color: #fff;
+  background: #2c3d45;
+}
+
+/* .el- */
+:deep(.servoNum .el-input__wrapper) {
+  color: #fff;
+  background: #2c3d45;
 }
 
 /* 响应式调整 - 确保在各种屏幕尺寸下保持对齐 */

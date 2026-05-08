@@ -174,3 +174,11 @@ export const dronesCommMode = (droneId) => {
     method: 'GET',
   });
 };
+// 重置时间
+export const dronesSetRTCTime = (params) => {
+  return service({
+    url: `api/drones/setRTCTime`,
+    method: 'POST',
+    data: params,
+  });
+};

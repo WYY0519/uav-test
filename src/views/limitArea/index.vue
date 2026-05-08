@@ -38,7 +38,7 @@
               <RouteList
                 v-if="isNoFlyZoneManagerMounted"
                 ref="routeListRef"
-                :map="map"
+                :map="map" 
                 :no-fly-zone-manager-ref="noFlyZoneManagerRef"
                 @route-view="handleRouteView"
                 @route-retract="handleRouteRetract"

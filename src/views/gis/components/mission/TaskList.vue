@@ -28,7 +28,7 @@
 
         <div class="task-items-scroll-container">
           <div v-for="item in taskAllList" :key="item.missionId" class="task-item" @click.stop="handleSelectTask(item)"
-            :class="{ active: selectedTaskId === item.missionId }">
+            :class="{ active: selectedTaskId === item.missionId }"> 
             <div class="task-name">{{ item.name }}</div>
             <div class="task-row">
               <span class="label">所属项目：</span>
@@ -281,7 +281,7 @@ onMounted(() => {
   /* 标签永远不换行 */
   flex-shrink: 0;
   /* 禁止标签压缩 */
-  margin-right: 6px;
+  /* margin-right: 6px; */
 }
 
 .task-row .text {
