@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard">
-    <!-- 左侧面板：使用 Element Plus Tree 组件 -->
+    <!-- 左侧面板 -->
     <div class="tree-panel">
       <div class="tree-header">
         <el-input v-model="searchQuery" placeholder="请输入日志名称" class="search-input" clearable @input="handleInputSearch">
@@ -153,7 +153,7 @@ const autoTranslate = (str) => {
   return wordMap[str] || str;
 }
 
-// 构建 Element Tree 数据结构
+// 构建Tree 数据结构
 const buildElementTree = (paths, expandAll = false) => {
   const rootMap = new Map();
   for (const p of paths) {
@@ -172,7 +172,7 @@ const buildElementTree = (paths, expandAll = false) => {
           path: isLeaf ? p : null,
           isLeaf: isLeaf,
           children: [],
-          expanded: expandAll, // 👈 关键在这里
+          expanded: expandAll, // 关键在这里
         };
         currentMap.set(part, node);
         if (parentNode) parentNode.children.push(node);
@@ -217,7 +217,7 @@ const buildElementTree = (paths, expandAll = false) => {
   }
   rootArray.sort((a, b) => a.name.localeCompare(b.name));
 
-  // 🔥 跳过顶层只有一个父节点的情况，将其子节点提升到根
+  //  跳过顶层只有一个父节点的情况，将其子节点提升到根
   const skipNames = ['fc_status', 'flight_status', 'status', 'system', 'vehicle'];
   if (rootArray.length === 1 && skipNames.includes(rootArray[0].name) && rootArray[0].children?.length) {
     return rootArray[0].children;
@@ -453,7 +453,7 @@ const updateChart = () => {
   }
 
   // ==============================================
-  // 🔥 多Y轴全部在左侧，依次向右错开（修复空白问题）
+  //  多Y轴全部在左侧，依次向右错开（修复空白问题）
   // ==============================================
   const yAxisCount = Math.min(series.length, 2);
   const yAxisList = [];

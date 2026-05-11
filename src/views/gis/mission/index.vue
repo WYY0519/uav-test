@@ -178,9 +178,21 @@
         <div class="right-panel">
           <div class="panel-content">
             <div class="monitor-section">
-              <h4 style="padding-bottom: 6px" class="fontGradient">
-                无人机监控
-              </h4>
+              <div style="
+          padding-bottom: 6px;
+          display: flex;
+          justify-content: space-between;
+              align-items: center;" class="fontGradient">
+                <span>无人机监控</span>
+                <div>
+                  <img style="width: 16px; height: 16px; cursor: pointer;" :src="shareVideo" alt="分享视频" title="分享视频"
+                    class="logo" @click="handleShareVideo" />
+                  <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo2" alt="开始录制"
+                    title="开始录制" class="logo" @click="toggleRecording(0)" />
+                  <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo3" alt='停止录制'
+                    title='停止录制' class="logo" @click="toggleRecording(1)" />
+                </div>
+              </div>
               <!-- 监控内容区域 -->
               <!-- <ShakaPlayer src="http://192.168.1.148:7080/stream/1/hls.m3u8" :config="playerConfig" /> -->
               <!-- hls视频流播放 -->
@@ -453,6 +465,53 @@
                 返航点设置
               </el-button>
             </div>
+            <!-- 通道--舵机 -->
+            <div style="
+    margin-right: 12px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    justify-content: space-around;
+">
+              <div style="display: flex; gap: 6px; justify-content: start">
+                <el-button type="info" class="control-btn" @click="current = 1" :disabled="!searchQuery">
+                  通道1
+                </el-button>
+                <el-button type="info" class="control-btn" @click="current = 2" :disabled="!searchQuery">
+                  通道2
+                </el-button>
+              </div>
+
+              <!-- 通道1：显示 左中右 按钮 -->
+              <div v-if="current === 1" style="display: flex; gap: 6px; flex-direction: column;">
+                <div style="display: flex; gap: 6px; justify-content: space-between;">
+                  <el-button type="info" class="control-btn" @click="setServoPosition(1)"
+                    :disabled="stepDisabled.left || !searchQuery">
+                    左边
+                  </el-button>
+                  <el-button type="info" class="control-btn" @click="setServoPosition(2)"
+                    :disabled="stepDisabled.middle || !searchQuery">
+                    中间
+                  </el-button>
+                  <el-button type="info" class="control-btn" @click="setServoPosition(3)"
+                    :disabled="stepDisabled.right || !searchQuery">
+                    右边
+                  </el-button>
+                </div>
+                <p style="color: #fff;font-size:12px;margin-top:2px">
+                  <span>*</span> 按顺序切换状态，点击后自动锁定
+                </p>
+              </div>
+
+              <!-- 通道2：显示输入框（失去焦点自动发送） -->
+              <div v-else-if="current === 2">
+                <el-input class="servoNum" style="width: 220px;" v-model="inputServo" placeholder="请输入数字"
+                  @input="inputServo = inputServo.replace(/[^\d]/g, '')" @blur="handleServoBlur" clearable />
+                <p style="color: #fff;font-size:12px;margin-top:4px">
+                  <span>*</span> 输入限制：1050 ~ 1950
+                </p>
+              </div>
+            </div>
             <!-- 方向控制区域 -->
             <div class="direction-controls">
               <div class="direction-buttons bottom-buttons">
@@ -559,9 +618,11 @@ import {
   droneRtl,
   droneMode,
   droneJoystick,
-  uploadRouteFile
-
+  uploadRouteFile,
+  dronesSetServo
 } from "@/api/drones";
+import { videoStartRecording, videoStopRecording } from "@/api/video.js";
+import { liveStreamShare } from "@/api/liveStream";
 import { missionAllList, missioRoutes } from "@/api/mission";
 import {
   Bottom,
@@ -590,6 +651,9 @@ import { getRouteList } from "@/api/route";
 // import droneIconUrl from "@/assets/mti-无人机.png";
 import planeIcon from "@/assets/飞机.png";
 import localIcon from "@/assets/local.png";
+import shareVideo from "@/assets/分享.png";
+import shareVideo2 from "@/assets/录制_开始录制.png";
+import shareVideo3 from "@/assets/录制_停止录制.png";
 import TaskList from "../components/mission/TaskList.vue";
 import UploadRouteDialog from "../components/mission/UploadRouteDialog.vue";
 import UavDetailDialog from "../components/mission/UavDetailDialog.vue";//无人机监控里面的弹窗
@@ -659,6 +723,17 @@ const trackState = reactive({
 });
 // 搜索相关
 const searchQuery = ref("");
+// 视频录制状态
+const currentRecordId = ref('');
+const isRecording = ref(false);
+// 通道-舵机控制
+const current = ref(0);
+const inputServo = ref('');
+const stepDisabled = ref({
+  left: false,
+  middle: true,
+  right: true
+});
 const taskName = ref("");
 let selectedDeviceInfo = ref(null);
 const isConnected = ref(false); //0816测试无人机按钮是否可用
@@ -822,6 +897,170 @@ const taskRouteId = ref(0);
 const toggleTaskList = () => {
   showTaskList.value = !showTaskList.value;
   showTaskDetails.value = false;
+};
+
+// 切换录制状态
+const toggleRecording = async (value) => {
+  console.log(isRecording.value, "=====")
+  if (!selectedDeviceInfo.value || !selectedDeviceInfo.value.videoIp) {
+    ElMessage.warning("请先选择无人机设备");
+    return;
+  }
+
+  // 正在录制 → 停止
+  if (value === 1) {
+    try {
+      if (!currentRecordId.value) {
+        ElMessage.warning("未找到录制ID，无法停止");
+        isRecording.value = false;
+        return;
+      }
+      let res = await videoStopRecording({
+        recordId: currentRecordId.value // 正确传录制ID
+      });
+      console.log("停止录制返回:", res);
+      ElMessage.success("已停止录制");
+    } catch (err) {
+      console.error(err);
+      ElMessage.error("停止录制失败");
+    } finally {
+      // 无论成功失败，都重置状态
+      isRecording.value = false;
+      currentRecordId.value = '';
+    }
+    return;
+  }
+
+  // 未录制 → 开始
+  try {
+    isRecording.value = true; // 先切图标，防止接口慢导致不切换
+    let data = {
+      droneId: searchQuery.value,
+      streamUrl: selectedDeviceInfo.value.videoIp,
+      // title: selectedDeviceInfo.value.deviceName || "无人机录制"
+    };
+    let res = await videoStartRecording(data);
+    console.log("开始录制返回:", res);
+
+    if (res?.code === 200 && res?.data) {
+      currentRecordId.value = res.data; // 保存后端返回的录制ID
+      ElMessage.success("开始录制成功");
+    } else {
+      ElMessage.error(res?.message || "开始录制失败");
+      isRecording.value = false;
+    }
+  } catch (err) {
+    console.error(err);
+    ElMessage.error("开始录制异常");
+    isRecording.value = false;
+  }
+};
+
+// 分享视频
+const handleShareVideo = async () => {
+  if (!selectedDeviceInfo.value || !selectedDeviceInfo.value.videoIp) {
+    ElMessage.warning("请先选择无人机设备");
+    return;
+  }
+
+  try {
+    // 生成视频分享URL
+    const videoUrl = selectedDeviceInfo.value.videoIp;
+
+    // 调用后端API获取二维码
+    const data = {
+      streamUrl: `ws://121.41.60.99:8082/${droneMonitoringUrl.value}.live.flv`,
+      title: selectedDeviceInfo.value.deviceName || '',
+      droneId: searchQuery.value,
+    };
+
+    let res = await liveStreamShare(data);
+    if (res.code === 200 && res.data) {
+      // 显示二维码
+      qrCodeUrl.value = res.data.qrCode;
+      qrCodeDialogVisible.value = true;
+      console.log("二维码生成成功:", qrCodeUrl.value);
+    } else {
+      ElMessage.error(res.message || "二维码生成失败");
+    }
+
+    console.log(data, "data", res);
+  } catch (error) {
+    console.error("分享视频失败:", error);
+    ElMessage.error("分享视频失败: " + (error.message || "未知错误"));
+  }
+}
+
+// 通道1：左边 / 中间 / 右边（严格状态流转）
+const setServoPosition = async (value) => {
+  console.log("setServoPosition", value);
+
+  if (!searchQuery.value) {
+    ElMessage.warning("请先搜索无人机信息");
+    return;
+  }
+  try {
+    // 先执行接口
+    let data = {
+      droneId: searchQuery.value,
+      servo: value === 1 ? 1050 : value === 2 ? 1500 : 1950,
+      type: 1
+    };
+    let res = await dronesSetServo(data);
+    // ============== 严格状态切换逻辑 ==============
+    if (value === 1) {
+      // 点击左边：左边禁用，中间可点，右边禁用
+      stepDisabled.value = { left: true, middle: false, right: true };
+    } else if (value === 2) {
+      // 点击中间：中间禁用，左右可点
+      stepDisabled.value = { left: false, middle: true, right: false };
+    } else if (value === 3) {
+      // 点击右边：右边禁用，中间可点，左边禁用
+      stepDisabled.value = { left: true, middle: false, right: true };
+    }
+    if (res.code === 200) {
+      ElMessage.success(`操作成功`);
+    }
+  } catch (err) {
+    console.error("请求失败", err);
+  }
+};
+
+// 通道2：失去焦点自动发送
+const sendChannel2 = async () => {
+  if (!searchQuery.value || !inputServo.value) return;
+  try {
+    let data = {
+      droneId: searchQuery.value,
+      servo: Number(inputServo.value),
+      type: 2
+    };
+    let res = await dronesSetServo(data);
+    // ElMessage.success(`通道2 已发送：${inputServo.value}`);
+    if (res.code === 200) {
+      ElMessage.success(`操作成功`);
+    }
+  } catch (err) {
+    console.error("通道2发送失败", err);
+  }
+};
+
+// 输入框失焦校验 + 自动发送
+const handleServoBlur = () => {
+  let val = inputServo.value || '';
+  val = val.replace(/[^\d]/g, '');
+
+  if (val === '') {
+    inputServo.value = '';
+    return;
+  }
+
+  let num = Number(val);
+  if (num < 1050) num = 1050;
+  if (num > 1950) num = 1950;
+  inputServo.value = num;
+
+  sendChannel2();
 };
 // 新增：地图图层切换
 const mapLayerType = ref("satelliteMix"); // 默认卫星混合

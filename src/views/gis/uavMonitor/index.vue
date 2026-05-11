@@ -616,10 +616,10 @@ import {
   setHomePosition,
   doMission,
   oneClickExecute,
-} from "../../api/drones";
-import ShakaPlayer from "../component/ShakaPlayer.vue";
-import M3u8Player from "../component/M3u8Player.vue";
-import UavMonitorVisible from "./uavMonitor/components/uavMonitorVisible.vue";
+} from "@/api/drones";
+import ShakaPlayer from "../../component/ShakaPlayer.vue";
+import M3u8Player from "../../component/M3u8Player.vue";
+import UavMonitorVisible from "./components/uavMonitorVisible.vue";
 import { dronePolicyList } from "@/api/dronePolicy.js";
 import { videoStartRecording, videoStopRecording } from "@/api/video.js";
 // 

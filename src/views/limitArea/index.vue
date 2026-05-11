@@ -7,53 +7,35 @@
         <div ref="mapContainer" class="map-wrapper"></div>
         <!-- 左侧控制面板，浮动在地图上层 -->
         <div class="floating-panel left-panel" v-show="!isPanelCollapsed">
-          <el-card
-            class="control-card"
-            style="background-color: #00285a80; height: 100%"
-          >
+          <el-card class="control-card" style="background-color: #00285a80; height: 100%">
             <div style="height: 100%">
-              <el-card
-                style="
+              <el-card style="
                   background-color: #2e3649db;
                   color: #fff;
                   margin-bottom: 12px;
-                "
-              >
+                ">
                 <template #header>
                   <div class="panel-header" style="color: #fff">
                     <div style="opacity: 0"></div>
                     <span style="margin-left: 20px">区域列表</span>
                   </div>
                 </template>
-                <el-button
-                  type="primary"
-                  style="width: 100%"
-                  @click="regionalManagementDialog"
-                  :disabled="activeRouteId !== null || editingZoneId !== null"
-                  >绘制限制区域</el-button
-                >
+                <el-button type="primary" style="width: 100%" @click="regionalManagementDialog"
+                  :disabled="activeRouteId !== null || editingZoneId !== null">绘制限制区域</el-button>
               </el-card>
 
               <!-- 引入航线列表组件 -->
-              <RouteList
-                v-if="isNoFlyZoneManagerMounted"
-                ref="routeListRef"
-                :map="map" 
-                :no-fly-zone-manager-ref="noFlyZoneManagerRef"
-                @route-view="handleRouteView"
-                @route-retract="handleRouteRetract"
-                @route-edit="handleRouteEdit"
-                @route-edit-complete="handleRouteEditComplete"
-                @route-delete="handleRouteDelete"
-              />
+              <RouteList v-if="isNoFlyZoneManagerMounted" ref="routeListRef" :map="map"
+                :no-fly-zone-manager-ref="noFlyZoneManagerRef" @route-view="handleRouteView"
+                @route-retract="handleRouteRetract" @route-edit="handleRouteEdit"
+                @route-edit-complete="handleRouteEditComplete" @route-delete="handleRouteDelete" />
             </div>
           </el-card>
         </div>
       </div>
 
       <!-- 面板收起/展开按钮 -->
-      <div
-        style="
+      <div style="
           position: absolute;
           top: 35px;
           left: 35px;
@@ -61,10 +43,8 @@
           display: flex;
           align-items: center;
           justify-content: flex-end;
-        "
-      >
-        <div
-          style="
+        ">
+        <div style="
             background: #fff;
             border-radius: 50%;
             width: 26px;
@@ -75,9 +55,7 @@
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             transition: all 0.3s ease;
-          "
-          @click="togglePanel"
-        >
+          " @click="togglePanel">
           <el-icon :style="{ color: '#409eff !important' }">
             <Fold v-if="!isPanelCollapsed" />
             <Expand v-else />
@@ -86,10 +64,7 @@
       </div>
 
       <!-- 自定义悬浮提示框 -->
-      <div
-        class="image-tooltip"
-        v-show="showImgTooltip"
-        style="
+      <div class="image-tooltip" v-show="showImgTooltip" style="
           position: absolute;
           min-width: 50px;
           background: rgb(255, 255, 255);
@@ -99,31 +74,20 @@
           right: 10px;
           z-index: 1000;
           text-align: center;
-        "
-      >
+        ">
         <div style="font-size: 14px">{{ tooltipTile }}</div>
       </div>
       <!-- 3种地图图层下拉选择 -->
       <div style="position: absolute; top: 20px; right: 20px;">
-        <el-select
-          v-model="mapLayerType"
-          @change="onMapLayerChange"
-          style="width: 130px"
-          size="default"
-        >
+        <el-select v-model="mapLayerType" @change="onMapLayerChange" style="width: 130px" size="default">
           <el-option label="标准地图" value="normal" />
           <el-option label="卫星地图" value="satellite" />
           <el-option label="卫星混合" value="satelliteMix" />
         </el-select>
       </div>
       <!-- 引入禁飞区管理组件 -->
-      <NoFlyZoneManager
-        ref="noFlyZoneManagerRef"
-        :map="map"
-        :visible="noFlyZoneToolbar"
-        @update:visible="noFlyZoneToolbar = $event"
-        @zone-saved="handleZoneSaved"
-      />
+      <NoFlyZoneManager ref="noFlyZoneManagerRef" :map="map" :visible="noFlyZoneToolbar"
+        @update:visible="noFlyZoneToolbar = $event" @zone-saved="handleZoneSaved" />
     </div>
   </div>
 </template>
@@ -144,18 +108,14 @@ import NoFlyZoneManager from "./components/NoFlyZoneManager.vue";
 
 // 状态变量
 const mapContainer = ref(null);
-// const loading = ref(true);
-
 // 地图相关
 let map = null;
-
 // 面板控制
 const isPanelCollapsed = ref(false);
-
 // 禁飞区相关
 const noFlyZoneManagerRef = ref(null);
 const isNoFlyZoneManagerMounted = ref(false);
-const noFlyZoneToolbar = ref(false); // 修复：let改为const，符合ref规范
+const noFlyZoneToolbar = ref(false); // let改为const，符合ref规范
 
 // 航线列表组件引用
 const routeListRef = ref(null);
@@ -163,7 +123,7 @@ const activeRouteId = ref(null);
 const currentZoneShape = ref(null);
 const editingZoneId = ref(null);
 const isZoneEditing = ref(false);
-// 🔥 新增：地图图层切换
+//  新增：地图图层切换
 const mapLayerType = ref("satelliteMix"); // 默认卫星混合
 // 面板控制
 const togglePanel = () => {
@@ -175,7 +135,6 @@ const togglePanel = () => {
 const initMap = () => {
   if (!window.AMap) {
     ElMessage.error("高德地图API未加载，请检查网络连接");
-    // loading.value = false;
     return;
   }
 
@@ -190,7 +149,6 @@ const initMap = () => {
     });
 
     map.on("complete", () => {
-      // loading.value = false;
       ElMessage.success("地图加载成功");
     });
 
@@ -213,7 +171,6 @@ const initMap = () => {
     }
   } catch (error) {
     console.error("地图初始化失败:", error);
-    // loading.value = false;
     ElMessage.error("地图初始化失败，请检查配置");
   }
 };
@@ -247,7 +204,7 @@ const onMapLayerChange = (val) => {
   map.setLayers(layers);
   ElMessage.success("已切换 → " + label);
 };
-// ========== 核心修复1：定义updateZoneDataOnEdit（原updateZoneData重命名+提前定义） ==========
+// ==========定义updateZoneDataOnEdit（原updateZoneData重命名+提前定义） ==========
 // 更新编辑时的区域数据（提前定义，确保所有调用处可访问，修复未定义报错）
 const updateZoneDataOnEdit = (id, updates) => {
   console.log("更新区域数据:", id, updates);
@@ -261,12 +218,10 @@ const updateZoneDataOnEdit = (id, updates) => {
       updates.area > 0 ? Math.sqrt((updates.area * 1000000) / Math.PI) : 100;
   }
 };
-// ========== 修复1结束 ==========
-
 // 处理查看路线/禁飞区
 const handleRouteView = (route) => {
   console.log("查看路线/禁飞区:", route);
-  // 🔥 新增：查看时自动关闭区域管理工具栏
+  //  新增：查看时自动关闭区域管理工具栏
   if (noFlyZoneToolbar.value) {
     noFlyZoneToolbar.value = false;
   }
@@ -282,7 +237,7 @@ const handleRouteView = (route) => {
 
 // 处理编辑禁飞区
 const handleRouteEdit = (zoneData) => {
-  // 🔥 新增：编辑时自动关闭区域管理工具栏
+  //  新增：编辑时自动关闭区域管理工具栏
   if (noFlyZoneToolbar.value) {
     noFlyZoneToolbar.value = false;
   }
@@ -320,24 +275,18 @@ const viewNoFlyZone = (zoneData) => {
   try {
     // 清除之前的所有覆盖物
     clearAllOverlays();
-
     // 解析并显示禁飞区
     const parsedZoneData = parseZoneDataForDisplay(zoneData);
-
     // 如果解析返回null（坐标数据无效），直接返回
     if (!parsedZoneData) {
       return;
     }
-
     const shape = createZoneShape(parsedZoneData);
-
     if (shape) {
       // 添加到地图
       map.add(shape);
-
       // 保存引用，便于后续操作
       currentZoneShape.value = shape;
-
       // 跳转到禁飞区位置
       if (parsedZoneData.type === "circle") {
         // 圆形禁飞区：定位到圆心并设置合适缩放
@@ -364,12 +313,10 @@ const viewNoFlyZone = (zoneData) => {
 // 编辑禁飞区函数
 const editNoFlyZone = (zoneData) => {
   console.log("编辑禁飞区:", zoneData);
-
   if (!map) {
     ElMessage.error("地图未初始化");
     return;
   }
-
   try {
     // 清除之前的所有覆盖物
     clearAllOverlays();
@@ -399,7 +346,7 @@ const editNoFlyZone = (zoneData) => {
   }
 };
 
-// ========== 核心修复2：重构completeEdit（移除routeInfo/emit/未定义接口，修复未定义报错） ==========
+// ========== 重构completeEdit（移除routeInfo/emit/未定义接口，修复未定义报错） ==========
 // 完成编辑（主组件专属，仅负责清除状态+刷新子组件，不操作子组件私有变量）
 const completeEdit = (zoneId) => {
   if (!zoneId && !editingZoneId.value) return;
@@ -423,11 +370,7 @@ const completeEdit = (zoneId) => {
   if (routeListRef.value) {
     routeListRef.value.routeList();
   }
-
-  // 4. 提示成功
-  // ElMessage.success("编辑完成，列表已刷新");
 };
-// ========== 修复2结束 ==========
 
 // 跳转到圆形禁飞区
 const jumpToCircleZone = (center, radius) => {
@@ -676,7 +619,6 @@ const parseZoneDataForDisplay = (zoneData) => {
 };
 
 // 创建禁飞区形状
-// 创建禁飞区形状（修改多边形部分，新增点数校验）
 const createZoneShape = (zoneData) => {
   console.log("创建禁飞区形状:", zoneData);
 
@@ -775,14 +717,13 @@ const calculatePointOnCircle = (center, radius, angle) => {
   return [center.lng + deltaLng, center.lat + deltaLat];
 };
 // 创建可编辑的圆形
-// 创建可编辑的圆形
 const createEditableCircle = (zoneData) => {
   const center = zoneData.coordinates[0]; // { lng, lat }
   const initialRadius = zoneData.radius; // 当前半径（米）
 
   console.log(`[编辑圆形] 初始化 - 圆心:`, center, `初始半径:`, initialRadius);
 
-  // 🔴 核心修复：用局部变量存储拖拽状态，替代this
+  // 用局部变量存储拖拽状态，替代this
   const dragState = {
     dragStartPos: null,
     radiusMarkerStartPos: null,
@@ -790,7 +731,7 @@ const createEditableCircle = (zoneData) => {
     isDragging: false, // 新增：标记是否正在拖拽
   };
 
-  // 🔴 修复：使用ref确保变量响应式更新
+  // 使用ref确保变量响应式更新
   const currentRadius = ref(initialRadius);
 
   // 1. 创建圆形（编辑样式）
@@ -826,7 +767,7 @@ const createEditableCircle = (zoneData) => {
     // 计算圆上点经纬度（angle=0 为正东方向）
     const newLatRad = Math.asin(
       Math.sin(latRad) * Math.cos(angularDist) +
-        Math.cos(latRad) * Math.sin(angularDist) * Math.cos(angle),
+      Math.cos(latRad) * Math.sin(angularDist) * Math.cos(angle),
     );
     const newLngRad =
       lngRad +
@@ -934,7 +875,7 @@ const createEditableCircle = (zoneData) => {
     const newRadiusPoint = e.lnglat;
     const centerPos = dragState.centerPos || centerMarker.getPosition();
 
-    // 🔴 核心修复1：实时计算并更新半径，移除不必要的限制
+    // ：实时计算并更新半径，移除不必要的限制
     const newRadius = AMap.GeometryUtil.distance(centerPos, newRadiusPoint);
     console.log(
       `[半径拖拽中] 新半径:`,
@@ -946,7 +887,7 @@ const createEditableCircle = (zoneData) => {
     // 仅限制最小值，不阻止缩小操作
     if (newRadius >= 10) {
       currentRadius.value = newRadius;
-      // 🔴 核心修复2：立即更新圆形半径
+      // ：立即更新圆形半径
       circle.setRadius(currentRadius.value);
       console.log(`[半径拖拽中] 更新半径为:`, currentRadius.value);
     } else {
@@ -963,7 +904,7 @@ const createEditableCircle = (zoneData) => {
     console.log(`[半径拖拽结束] 最终计算半径:`, finalRadius);
 
     if (finalRadius >= 10) {
-      // 🔴 确保最终半径更新
+      // 确保最终半径更新
       currentRadius.value = finalRadius;
       circle.setRadius(currentRadius.value);
 
@@ -1058,7 +999,6 @@ const clearAllOverlays = () => {
 };
 
 // 创建可编辑的多边形
-// 创建可编辑的多边形（新增前置点数校验，完整替换此函数）
 const createEditablePolygon = (zoneData) => {
   // 前置校验：点数≥3才创建
   if (!zoneData.coordinates || zoneData.coordinates.length < 3) {
@@ -1094,7 +1034,7 @@ const createEditablePolygon = (zoneData) => {
       position: [point.lng, point.lat],
       icon: createEditIcon("#ff9800"),
       draggable: true,
-      anchor: "center", // 修复：确保标记居中对齐顶点
+      anchor: "center", // 确保标记居中对齐顶点
     });
     marker.on("dragend", (e) => {
       const newPoint = e.lnglat;
@@ -1285,7 +1225,6 @@ onBeforeUnmount(() => {
       map = null;
     }
 
-    // loading.value = false;
   } catch (error) {
     console.error("清理资源失败:", error);
   }
@@ -1546,6 +1485,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
   margin-right: 6px;
 }
+
 .routeOperation-box-foldUp {
   color: rgb(255 255 255 / 34%);
   cursor: pointer;
@@ -1826,22 +1766,26 @@ h3 {
   padding-bottom: 8px;
   margin-bottom: 10px;
 }
+
 .no-fly-tooltip .tooltip-title {
   font-weight: 600;
   color: #e74c3c;
   font-size: 15px;
 }
+
 .no-fly-tooltip .tooltip-content {
   font-size: 13px;
   line-height: 1.8;
   color: #333;
 }
+
 .no-fly-tooltip .label {
   color: #666;
   margin-right: 6px;
   display: inline-block;
   width: 50px;
 }
+
 /* 防止浮层超出视口 */
 .no-fly-tooltip {
   max-width: 300px;
@@ -1868,11 +1812,13 @@ h3 {
     content: "查";
     font-size: 16px;
   }
+
   .routeOperation-box-foldUp::after {
     content: "收";
     font-size: 16px;
   }
 }
+
 :deep(.el-card__body) {
   height: calc(100% - 40px);
 }
@@ -1888,10 +1834,12 @@ h3 {
     box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7);
     border-width: 3px;
   }
+
   70% {
     box-shadow: 0 0 0 10px rgba(255, 152, 0, 0);
     border-width: 2px;
   }
+
   100% {
     box-shadow: 0 0 0 0 rgba(255, 152, 0, 0);
     border-width: 3px;
