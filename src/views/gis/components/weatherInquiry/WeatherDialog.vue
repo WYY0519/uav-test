@@ -1,12 +1,6 @@
 <template>
-  <el-dialog
-    :model-value="visible"
-    @update:model-value="handleClose"
-    title="天气信息"
-    width="500px"
-    center
-    destroy-on-close
-  >
+  <el-dialog :model-value="visible" @update:model-value="handleClose" title="天气信息" width="500px" center
+    destroy-on-close>
     <div class="dialog-content">
       <!-- 经纬度模块 -->
       <div class="section">
@@ -19,12 +13,8 @@
 
       <!-- 天气预报模块 -->
       <div class="info-group grid-3">
-        <p
-          class="info-item"
-          v-for="(item, index) in weatherFieldEnum"
-          :key="index"
-          :style="item.key === 'reporttime' ? { gridColumn: '1 / -1' } : {}"
-        >
+        <p class="info-item" v-for="(item, index) in weatherFieldEnum" :key="index"
+          :style="item.key === 'reporttime' ? { gridColumn: '1 / -1' } : {}">
           <span class="label">{{ item.label }}：</span>
           <span :class="['value', item.isTag ? 'tag' : '']">
             {{ getWeatherValue(item.key) }}
@@ -38,9 +28,6 @@
 <script setup>
 import { watch, ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
-// 无需导入 wgs84togcj02，直接用父组件传递的 gcj 坐标
-// import { wgs84togcj02 } from "@/utils/coordTransform";
-import { Sunny } from "@element-plus/icons-vue";
 
 // 响应式数据
 const latitudelongitude = ref({ lng: "", lat: "", gcjLng: "", gcjLat: "" });
@@ -190,11 +177,13 @@ watch(
   padding-bottom: 12px;
   border-bottom: 1px solid #f0f0f0;
 }
+
 .section:last-child {
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: 0;
 }
+
 .section-title {
   font-size: 15px;
   font-weight: 600;
@@ -207,6 +196,7 @@ watch(
   flex-wrap: wrap;
   gap: 10px;
 }
+
 .grid-3 {
   grid-template-columns: repeat(3, 1fr);
   display: grid;
@@ -218,14 +208,17 @@ watch(
   line-height: 24px;
   margin: 0;
 }
+
 .label {
   color: #606266;
   margin-right: 4px;
 }
+
 .value {
   color: #1f2d3d;
   font-weight: 500;
 }
+
 .tag {
   background: #fde2e2;
   color: #f56c6c;
@@ -234,6 +227,7 @@ watch(
   font-size: 12px;
   display: inline-block;
 }
+
 .reporttime {
   color: #1f2d3d;
   font-weight: 500;
