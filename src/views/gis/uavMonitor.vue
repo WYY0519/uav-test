@@ -428,6 +428,53 @@
             返航点设置
           </el-button>
         </div>
+        <!-- 通道--舵机 -->
+        <div style="
+    margin-right: 12px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    justify-content: space-around;
+">
+          <div style="display: flex; gap: 6px; justify-content: start">
+            <el-button type="info" class="control-btn" @click="current = 1" :disabled="!searchQuery">
+              通道1
+            </el-button>
+            <el-button type="info" class="control-btn" @click="current = 2" :disabled="!searchQuery">
+              通道2
+            </el-button>
+          </div>
+
+          <!-- 通道1：显示 左中右 按钮 -->
+          <div v-if="current === 1" style="display: flex; gap: 6px; flex-direction: column;">
+            <div style="display: flex; gap: 6px; justify-content: space-between;">
+              <el-button type="info" class="control-btn" @click="setServoPosition(1)"
+                :disabled="stepDisabled.left || !searchQuery">
+                左边
+              </el-button>
+              <el-button type="info" class="control-btn" @click="setServoPosition(2)"
+                :disabled="stepDisabled.middle || !searchQuery">
+                中间
+              </el-button>
+              <el-button type="info" class="control-btn" @click="setServoPosition(3)"
+                :disabled="stepDisabled.right || !searchQuery">
+                右边
+              </el-button>
+            </div>
+            <p style="color: #fff;font-size:12px;margin-top:2px">
+              <span>*</span> 按顺序切换状态，点击后自动锁定
+            </p>
+          </div>
+
+          <!-- 通道2：显示输入框（失去焦点自动发送） -->
+          <div v-else-if="current === 2">
+            <el-input class="servoNum" style="width: 220px;" v-model="inputServo" placeholder="请输入数字"
+              @input="inputServo = inputServo.replace(/[^\d]/g, '')" @blur="handleServoBlur" clearable />
+            <p style="color: #fff;font-size:12px;margin-top:4px">
+              <span>*</span> 输入限制：1050 ~ 1950
+            </p>
+          </div>
+        </div>
         <!-- 方向控制区域3 -->
         <div class="direction-controls">
           <div class="direction-buttons bottom-buttons">
@@ -569,7 +616,8 @@ import {
 import { ElMessage, ElMessageBox } from "element-plus";
 import { sendMoveCommand } from "@/api/device";
 import axios from "axios";
-import { deviceDetails } from "@/api/monitor";
+import { deviceDetails,monitorSendMoveCommand } from "@/api/monitor";
+
 import { ICONS } from "@/assets/icons.js";
 import {
   droneArm,
@@ -579,7 +627,11 @@ import {
   droneRtl,
   droneMode,
   droneJoystick,
-  uploadRouteFile
+  uploadRouteFile,
+  droneIdStatus,
+  setHomePosition,
+  doMission,
+  oneClickExecute,
 } from "@/api/drones";
 import { liveStreamShare } from "@/api/liveStream";
 import {
@@ -596,12 +648,9 @@ import {
   Picture,
 } from "@element-plus/icons-vue";
 import { ElLoading } from "element-plus";
-import {
-  droneIdStatus,
-  setHomePosition,
-  doMission,
-  oneClickExecute,
-} from "../../api/drones";
+// import {
+
+// } from "../../api/drones";
 import ShakaPlayer from "../component/ShakaPlayer.vue";
 import M3u8Player from "../component/M3u8Player.vue";
 import UavMonitorVisible from "./components/uavMonitor/uavMonitorVisible.vue";
@@ -703,6 +752,16 @@ const fileName = ref("");
 const fileDescription = ref("");
 const waypointStrategy = ref("");
 const waypointOptions = ref([]);
+// 通道相关变量
+const inputServo = ref('');
+// 1=通道1  2=通道2
+const current = ref(0);
+// 左中右按钮禁用状态（严格按规则）
+const stepDisabled = ref({
+  left: false,    // 初始：可点
+  middle: true,   // 初始：禁用
+  right: true     // 初始：禁用
+});
 // const uploadComponent = ref(null); // 注册 upload 组件的引用
 let number = ref(100);
 const canOperate = ref(true);
@@ -1366,6 +1425,77 @@ const handleDirection1 = async (direction) => {
 
   ElMessage.info(`发送${direction}控制指令`);
 };
+// 通道1：左边 / 中间 / 右边（严格状态流转）
+const setServoPosition = async (value) => {
+  console.log("setServoPosition", value);
+
+  if (!searchQuery.value) {
+    ElMessage.warning("请先搜索无人机信息");
+    return;
+  }
+  try {
+    // 先执行接口
+    let data = {
+      droneId: searchQuery.value,
+      servo: value === 1 ? 1050 : value === 2 ? 1500 : 1950,
+      type: 1
+    };
+    let res = await monitorSendMoveCommand(data);
+    // ============== 严格状态切换逻辑 ==============
+    if (value === 1) {
+      // 点击左边：左边禁用，中间可点，右边禁用
+      stepDisabled.value = { left: true, middle: false, right: true };
+    } else if (value === 2) {
+      // 点击中间：中间禁用，左右可点
+      stepDisabled.value = { left: false, middle: true, right: false };
+    } else if (value === 3) {
+      // 点击右边：右边禁用，中间可点，左边禁用
+      stepDisabled.value = { left: true, middle: false, right: true };
+    }
+    if (res.code === 200) {
+      ElMessage.success(`操作成功`);
+    }
+  } catch (err) {
+    console.error("请求失败", err);
+  }
+};
+
+// 通道2：失去焦点自动发送
+const sendChannel2 = async () => {
+  if (!searchQuery.value || !inputServo.value) return;
+  try {
+    let data = {
+      droneId: searchQuery.value,
+      servo: Number(inputServo.value),
+      type: 2
+    };
+    let res = await monitorSendMoveCommand(data);
+    if (res.code === 200) {
+      ElMessage.success(`操作成功`);
+    }
+  } catch (err) {
+    console.error("通道2发送失败", err);
+  }
+};
+
+// 输入框失焦校验 + 自动发送
+const handleServoBlur = () => {
+  let val = inputServo.value || '';
+  val = val.replace(/[^\d]/g, '');
+
+  if (val === '') {
+    inputServo.value = '';
+    return;
+  }
+
+  let num = Number(val);
+  if (num < 1050) num = 1050;
+  if (num > 1950) num = 1950; 
+  inputServo.value = num;
+
+  sendChannel2();
+};
+
 // 解锁按钮点击事件
 const handleArm = async () => {
   if (!selectedDeviceId.value) {
@@ -2103,6 +2233,18 @@ const markPositionOnMap2 = (lng, lat, height) => {
     console.error("更新小飞机位置失败:", error);
   }
 };
+
+// 切换到通道1的时候会清除通道2的输入内容
+watch(
+  current,
+  (newVal) => {
+    if (newVal === 1) {
+      inputServo.value = ''; // 切换通道时清空输入框
+    }
+    console.log("current:", newVal);
+  },
+  { immediate: true }
+);
 
 watch(
   isCollapse,
@@ -3415,5 +3557,15 @@ const handleShareVideo = async () => {
 /* 确保所有元素使用相同的盒模型计算方式 */
 * {
   box-sizing: border-box;
+}
+
+::deep(.servoNum .el-input__inner) {
+  color: #fff;
+  background: #2c3d45;
+}
+
+::deep(.servoNum .el-input__wrapper) {
+  color: #fff;
+  background: #2c3d45;
 }
 </style>
