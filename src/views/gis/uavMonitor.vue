@@ -371,7 +371,7 @@
                 </div>
                 <span class="slider-text">{{
                   isLocked ? "已加锁" : "未加锁"
-                }}</span>
+                  }}</span>
               </div>
             </div>
           </el-button>
@@ -607,6 +607,7 @@ import {
   setHomePosition,
   doMission,
   oneClickExecute,
+  dronesSetServo
 } from "@/api/drones";
 import { liveStreamShare } from "@/api/liveStream";
 import {
@@ -672,7 +673,7 @@ const returnVoyageForm = ref({
   height: "",
 });
 // 视频录制状态
-const currentRecordId = ref(''); // 👈 加上这个
+const currentRecordId = ref(''); 
 const isRecording = ref(false);
 // 表单验证规则
 const returnVoyageRules = {
@@ -877,7 +878,7 @@ const initMap = () => {
     //   center: new AMap.LngLat(113.65644, 34.78723),
     //   viewMode: "2D",
     //   mapStyle: "normal",
-    // });
+    // });  
     map = new AMap.Map(mapContainer.value, {
       zoom: 15,
       center: [113.65644, 34.78723],
@@ -1371,27 +1372,36 @@ const flyDirection = async (index, direction) => {
 };
 const handleDirection1 = async (direction) => {
   try {
-    if (direction === "connect") {
-      const res = await sendMoveCommand({
-        droneId: searchQuery.value,
-        ip: selectedDeviceInfo.value.ip,
-        command: direction,
-        video_ip: selectedDeviceInfo.value.videoIp,
-        data_port: selectedDeviceInfo.value.dataPort,
-        control_port: selectedDeviceInfo.value.controlPort,
-        picture_port: selectedDeviceInfo.value.picturePort,
-      });
-    } else {
-      const res = await sendMoveCommand({
-        droneId: searchQuery.value,
-        ip: selectedDeviceInfo.value.ip,
-        command: direction,
-        video_ip: selectedDeviceInfo.value.videoIp,
-        data_port: selectedDeviceInfo.value.dataPort,
-        control_port: selectedDeviceInfo.value.controlPort,
-        picture_port: selectedDeviceInfo.value.picturePort,
-      });
-    }
+    // if (direction === "connect") {
+    //   const res = await sendMoveCommand({
+    //     droneId: searchQuery.value,
+    //     ip: '192.168.144.119' ,//selectedDeviceInfo.value.ip,
+    //     command: direction,
+    //     video_ip: selectedDeviceInfo.value.videoIp,
+    //     data_port: selectedDeviceInfo.value.dataPort,
+    //     control_port: '1030',//selectedDeviceInfo.value.controlPort,
+    //     picture_port: selectedDeviceInfo.value.picturePort,
+    //   });
+    // } else {
+    //   const res = await sendMoveCommand({
+    //     droneId: searchQuery.value,
+    //     ip: selectedDeviceInfo.value.ip,
+    //     command: direction,
+    //     video_ip: selectedDeviceInfo.value.videoIp,
+    //     data_port: selectedDeviceInfo.value.dataPort,
+    //     control_port: selectedDeviceInfo.value.controlPort,
+    //     picture_port: selectedDeviceInfo.value.picturePort,
+    //   });
+    // }
+    const res = await sendMoveCommand({
+      droneId: searchQuery.value,
+      ip: '192.168.144.119',//selectedDeviceInfo.value.ip,
+      command: direction,
+      video_ip: selectedDeviceInfo.value.videoIp,
+      data_port: selectedDeviceInfo.value.dataPort,
+      control_port: '1030',//selectedDeviceInfo.value.controlPort,
+      picture_port: selectedDeviceInfo.value.picturePort,
+    });
     // console.log(res);
   } catch (error) {
     console.error("发送控制指令失败:", error);
@@ -1415,7 +1425,7 @@ const setServoPosition = async (value) => {
       servo: value === 1 ? 1050 : value === 2 ? 1500 : 1950,
       type: 1
     };
-    let res = await monitorSendMoveCommand(data);
+    let res = await dronesSetServo(data);
     // ============== 严格状态切换逻辑 ==============
     if (value === 1) {
       // 点击左边：左边禁用，中间可点，右边禁用
@@ -1444,7 +1454,7 @@ const sendChannel2 = async () => {
       servo: Number(inputServo.value),
       type: 2
     };
-    let res = await monitorSendMoveCommand(data);
+    let res = await dronesSetServo(data);
     if (res.code === 200) {
       ElMessage.success(`操作成功`);
     }

@@ -107,52 +107,60 @@ const initLoadingCountdown = (delay: number) => {
 // -------------------------- 新增：处理播放器错误（核心：路径错误判断） --------------------------
 const handlePlayerError = (err: any) => {
   console.error("FLV播放器错误:", err);
-  clearAllTimers(); // 清除现有定时器
 
-  // 筛选"路径错误/连接失败"相关的错误类型（根据flvjs错误码判断）
+  // 关键：检测视频元素本身是否进入错误状态
+  const videoElement = videoRef.value;
+  if (videoElement && videoElement.error) {
+    console.error("视频元素错误状态:", videoElement.error.code, videoElement.error.message);
+    // 视频元素已损坏，必须销毁并重建
+    handleFatalError("视频流中断");
+    return;
+  }
+
+  // 筛选"路径错误/连接失败"相关的错误类型
   const isPathError = [
-    "NETWORK_ERROR", // 网络错误（如404、连接超时）
-    "MEDIA_ERROR", // 媒体加载错误（路径无效导致无法解析）
-    "LOAD_ERROR", // 资源加载错误
+    "NETWORK_ERROR",
+    "MEDIA_ERROR",
+    "LOAD_ERROR",
   ].includes(err?.type || err?.code || "");
 
   if (isPathError) {
-    // 延迟提示：等待设定时间（如3秒）后显示错误，期间保持"加载中"
-    errorTimer = setTimeout(() => {
-      isLoading.value = false; // 关闭加载状态
-      showError.value = true; // 显示路径错误提示
-    }, 3000); // 加载状态持续时间（可调整，如2000=2秒）
-  } else {
-    // 其他错误（如格式不支持）：直接提示
-    isLoading.value = false;
-    showError.value = true;
+    handleFatalError("网络连接失败");
   }
-  
-  // 播放器出现错误时，尝试重新初始化（仅在路径错误时）
-  if (isPathError && props.src) {
+};
+
+// -------------------------- 新增：致命错误处理（统一入口） --------------------------
+const handleFatalError = (message: string) => {
+  clearAllTimers();
+
+  // 延迟显示错误提示，给重连一个机会
+  errorTimer = setTimeout(() => {
     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
       reconnectAttempts++;
-      console.warn(`检测到网络错误，${RECONNECT_DELAY / 1000}秒后尝试重新连接 (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+      console.warn(`检测到错误，${RECONNECT_DELAY / 1000}秒后尝试重新连接 (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
       reconnectTimer = setTimeout(() => {
-        if (flvPlayer.value) {
-          destroyFlvPlayer();
-          initFlvPlayer();
-        }
+        isLoading.value = true;
+        showError.value = false;
+        initFlvPlayer();
       }, RECONNECT_DELAY);
     } else {
       console.error(`已达到最大重连次数 (${MAX_RECONNECT_ATTEMPTS})，停止重连`);
       isLoading.value = false;
       showError.value = true;
     }
-  }
+  }, 2000);
 };
 
-// -------------------------- 原有：初始化播放器（新增错误监听） --------------------------
+// 视频元素错误监听器引用（防止重复绑定）
+let videoErrorHandler: (() => void) | null = null;
+let videoEndedHandler: (() => void) | null = null;
+let timeUpdateHandler: (() => void) | null = null;
+
 const initFlvPlayer = () => {
   // 重置状态：每次初始化前清除错误和加载状态
   isLoading.value = true;
   showError.value = false;
-  reconnectAttempts = 0; // 重置重连计数器
+  reconnectAttempts = 0;
   clearAllTimers();
   destroyFlvPlayer();
 
@@ -166,10 +174,48 @@ const initFlvPlayer = () => {
   const videoElement = videoRef.value;
   if (!videoElement) return;
 
+  // 关键修复：重置视频元素的错误状态
+  videoElement.removeAttribute("src");
+  videoElement.load();
+
   // 初始化加载倒计时（3秒）
   initLoadingCountdown(3);
 
-  // 创建FLV播放器（新增错误事件监听）
+  // 移除旧的错误监听器（防止重复绑定）
+  if (videoErrorHandler) {
+    videoElement.removeEventListener("error", videoErrorHandler);
+    videoErrorHandler = null;
+  }
+  if (videoEndedHandler) {
+    videoElement.removeEventListener("ended", videoEndedHandler);
+    videoEndedHandler = null;
+  }
+  if (timeUpdateHandler) {
+    videoElement.removeEventListener("timeupdate", timeUpdateHandler);
+    timeUpdateHandler = null;
+  }
+
+  // 关键：监听视频元素的 error 事件（捕获 appendBuffer 失败等底层错误）
+  videoErrorHandler = () => {
+    const err = videoElement.error;
+    if (err) {
+      console.error("视频元素错误 code:", err.code, "message:", err.message);
+      // code 2=MEDIA_ERR_NETWORK, 3=MEDIA_ERR_DECODE, 4=MEDIA_ERR_SRC_NOT_SUPPORTED
+      if (err.code >= 2) {
+        handleFatalError("视频解码失败");
+      }
+    }
+  };
+  videoElement.addEventListener("error", videoErrorHandler);
+
+  // 监听 ended 事件（MediaSource onSourceEnded 场景）
+  videoEndedHandler = () => {
+    console.warn("视频流已结束 (ended)，尝试重连");
+    handleFatalError("视频流中断");
+  };
+  videoElement.addEventListener("ended", videoEndedHandler);
+
+  // 创建FLV播放器
   flvPlayer.value = flvjs.createPlayer(
     {
       type: "flv",
@@ -193,30 +239,29 @@ const initFlvPlayer = () => {
     }
   );
 
-  // -------------------------- 新增：监听播放器错误事件 --------------------------
+  // 监听播放器错误事件
   flvPlayer.value.on("error", handlePlayerError);
 
-  // 原有逻辑：挂载视频元素、加载播放
+  // 挂载视频元素、加载播放
   flvPlayer.value.attachMediaElement(videoElement);
   flvPlayer.value.load();
   flvPlayer.value
     .play()
     .then(() => {
-      // 播放成功：关闭加载和错误状态
       isLoading.value = false;
       showError.value = false;
       clearAllTimers();
     })
     .catch((err) => {
       console.warn("自动播放失败，请点击播放", err);
-      // 播放失败（非路径问题，如自动播放策略限制）：关闭加载状态
       isLoading.value = false;
     });
 
-  // 监听时间更新（原有逻辑）
-  videoElement.addEventListener("timeupdate", () => {
+  // 监听时间更新
+  timeUpdateHandler = () => {
     if (videoElement) currentTime.value = videoElement.currentTime;
-  });
+  };
+  videoElement.addEventListener("timeupdate", timeUpdateHandler);
 };
 
 // -------------------------- 原有函数（保持不变） --------------------------
@@ -277,7 +322,7 @@ const handleVideoClick = () => {
 const destroyFlvPlayer = () => {
   if (flvPlayer.value) {
     try {
-      // 移除错误监听（防止重复触发）
+      // 移除播放器错误监听
       flvPlayer.value.off("error", handlePlayerError);
       flvPlayer.value.pause();
       flvPlayer.value.unload();
@@ -287,6 +332,22 @@ const destroyFlvPlayer = () => {
       console.warn("销毁播放器时出现错误:", error);
     } finally {
       flvPlayer.value = null;
+    }
+  }
+  // 清除视频元素的事件监听
+  const videoElement = videoRef.value;
+  if (videoElement) {
+    if (videoErrorHandler) {
+      videoElement.removeEventListener("error", videoErrorHandler);
+      videoErrorHandler = null;
+    }
+    if (videoEndedHandler) {
+      videoElement.removeEventListener("ended", videoEndedHandler);
+      videoEndedHandler = null;
+    }
+    if (timeUpdateHandler) {
+      videoElement.removeEventListener("timeupdate", timeUpdateHandler);
+      timeUpdateHandler = null;
     }
   }
 };
@@ -302,14 +363,15 @@ watch(
   }
 );
 
-// -------------------------- 生命周期：新增定时器销毁 --------------------------
+// -------------------------- 生命周期 --------------------------
+let globalErrorHandler: ((event: ErrorEvent) => void) | null = null;
+
 onMounted(() => {
   // 添加全局错误处理器，捕获 flv.js 内部错误
-  const handleError = (event: ErrorEvent) => {
+  globalErrorHandler = (event: ErrorEvent) => {
     if (event.message && event.message.includes('flushStashedSamples')) {
       console.warn("捕获到 flv.js 内部错误:", event.message);
-      event.preventDefault(); // 阻止错误继续抛出
-      // 自动销毁并重新初始化播放器
+      event.preventDefault();
       if (flvPlayer.value) {
         destroyFlvPlayer();
         setTimeout(() => initFlvPlayer(), 1000);
@@ -317,21 +379,16 @@ onMounted(() => {
     }
   };
   
-  window.addEventListener('error', handleError);
-  
+  window.addEventListener('error', globalErrorHandler);
   initFlvPlayer();
-  
-  // 保存事件监听器引用以便清理
-  const cleanup = () => {
-    window.removeEventListener('error', handleError);
-  };
-  
-  // 在组件卸载时清理事件监听器
-  onBeforeUnmount(cleanup);
 });
 
-// 组件卸载时清除所有定时器和播放器（防止内存泄漏）
+// 组件卸载时清除所有资源（防止内存泄漏）
 onBeforeUnmount(() => {
+  if (globalErrorHandler) {
+    window.removeEventListener('error', globalErrorHandler);
+    globalErrorHandler = null;
+  }
   clearAllTimers();
   destroyFlvPlayer();
 });
