@@ -99,8 +99,9 @@
             </el-button>
           </template>
           <template #role="{ row }">
-            <el-tag v-if="row.role === 'admin'" type="danger">管理员</el-tag>
-            <el-tag v-else type="success">成员</el-tag>
+            <el-tag>{{ row.rolename }}</el-tag>
+            <!-- <el-tag v-if="row.role === 'admin'" type="danger">管理员</el-tag> -->
+            <!-- <el-tag v-else type="success">成员</el-tag> -->
           </template>
           <template #action="{ row }">
             <el-tooltip content="移除成员" placement="top">
@@ -161,11 +162,12 @@
     </el-dialog>
 
     <!-- 添加设备弹窗 -->
-    <el-dialog v-model="addDeviceDialogVisible" title="添加设备" width="50%" @close="addDeviceDialogVisible = false" > 
+    <el-dialog v-model="addDeviceDialogVisible" title="添加设备" width="50%" @close="addDeviceDialogVisible = false">
       <div class="add-device-dialog-content">
-        <CommonTable ref="addDeviceTableRef" title="可添加的设备列表" :table-data="addDeviceTableData" :columns="addDeviceColumns"
-          :total="addDeviceTableData.length" :loading="addDeviceLoading" :show-selection="true" row-key="deviceNumber"
-          :reserve-selection="false" :action-width="0" :show-action="false" @selection-change="handleAddDeviceSelectionChange" />
+        <CommonTable ref="addDeviceTableRef" title="可添加的设备列表" :table-data="addDeviceTableData"
+          :columns="addDeviceColumns" :total="addDeviceTableData.length" :loading="addDeviceLoading"
+          :show-selection="true" row-key="deviceNumber" :reserve-selection="false" :action-width="0"
+          :show-action="false" @selection-change="handleAddDeviceSelectionChange" />
       </div>
       <template #footer>
         <el-button @click="addDeviceDialogVisible = false">取消</el-button>
@@ -180,7 +182,7 @@
       @close="detailDialogVisible = false">
       <div v-if="currentOrganization" class="org-detail">
         <div class="detail-header">
-          <div class="org-avatar">
+          <div class="org-avatar">e === 'admin'" type
             {{ currentOrganization.name?.charAt(0) || "O" }}
           </div>
           <div class="org-info">
