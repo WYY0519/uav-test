@@ -3,26 +3,31 @@
   <div class="drone-monitor">
     <!-- 地图底层 -->
     <div class="map-container" ref="mapContainer"></div>
-    <!-- 3种地图图层下拉选择 -->
-    <div style="position: absolute; top: 20px; right: 20px; ">
-      <el-select v-model="mapLayerType" @change="onMapLayerChange" style="width: 130px" size="default">
-        <el-option label="标准地图" value="normal" />
-        <el-option label="卫星地图" value="satellite" />
-        <el-option label="卫星混合" value="satelliteMix" />
-      </el-select>
-    </div>
+            <!-- 3种地图图层下拉选择 -->
+      <div style="position: absolute; top: 20px; right: 20px; ">
+        <el-select
+          v-model="mapLayerType"
+          @change="onMapLayerChange"
+          style="width: 130px"
+          size="default"
+        >
+          <el-option label="标准地图" value="normal" />
+          <el-option label="卫星地图" value="satellite" />
+          <el-option label="卫星混合" value="satelliteMix" />
+        </el-select>
+      </div>
     <div class="layout-container">
-      <div class="task-details-card-wrapper" :class="{ 'task-list-expanded': showTaskList }" v-show="showTaskDetails">
+      <div
+        class="task-details-card-wrapper"
+        :class="{ 'task-list-expanded': showTaskList }"
+        v-show="showTaskDetails"
+      >
         <el-card style="max-width: 480px">
           <template #header>
             <div class="card-header">
               <span>任务详情</span>
             </div>
           </template>
-          <p style="font-size: 12px">所属任务：</p>
-          <p style="font-size: 12px">
-            {{ selectedMission?.missionName || selectedMission?.name || "--" }}
-          </p>
           <p style="font-size: 12px">飞控编号：</p>
           <p style="font-size: 12px">
             {{
@@ -32,54 +37,84 @@
             }}
           </p>
 
-          <el-select style="margin: 12px 0" v-model="selectedRouteValue" placeholder="请选择航线"
-            @change="handleRouteSelect">
-            <el-option v-for="item in taskOptions" :key="item.value" :label="item.label" :value="item.value" />
+          <el-select
+            style="margin: 12px 0"
+            v-model="selectedRouteValue"
+            placeholder="请选择航线"
+            @change="handleRouteSelect"
+          >
+            <el-option
+              v-for="item in taskOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
           </el-select>
           <div>
-            <el-button type="info" @click="showTaskDetails = false">取消</el-button>
+            <el-button type="info" @click="showTaskDetails = false"
+              >取消</el-button
+            >
             <!--  -->
-            <el-button :disabled="!(
-              selectedMission?.assignedDevice?.deviceNumber &&
-              selectedMission?.assignedDevice?.deviceNumber.trim()
-            ) || !selectedRouteValue
-              " type="primary" @click="executeMission(selectedMission)">开始</el-button>
+            <el-button
+              :disabled="
+                !(
+                  selectedMission?.assignedDevice?.deviceNumber &&
+                  selectedMission?.assignedDevice?.deviceNumber.trim()
+                ) || !selectedRouteValue
+              "
+              type="primary"
+              @click="executeMission(selectedMission)"
+              >开始</el-button
+            >
           </div>
         </el-card>
       </div>
       <!-- 引入任务列表组件 -->
-      <TaskList :style="{
-        width: showTaskList ? '20%' : '0',
-        opacity: showTaskList ? 1 : 0,
-        overflow: 'hidden',
-        transition: 'all 0.3s ease'
-      }" :initial-show-task-list="showTaskList" @toggle-task-list="handleTaskListToggle" @select-task="selectTask"
-        @mouseleave-task="mouseleaveTask" @update-task-list-status="handleTaskListStatusUpdate" />
-      <!-- 任务列表切换按钮 -->
-      <div class="task-list-toggle" @click.stop="showTaskList = !showTaskList">
-        <el-icon :style="{ color: '#409eff' }">
-          <Fold v-if="!showTaskList" />
-          <Expand v-else />
-        </el-icon>
-      </div>
-      <div class="bottom-section" :class="{ 'full-width': !showTaskList }">
+      <TaskList
+        style="width: 20%"
+        :initial-show-task-list="showTaskList"
+        @toggle-task-list="handleTaskListToggle"
+        @select-task="selectTask"
+        @mouseleave-task="mouseleaveTask"
+        @update-task-list-status="handleTaskListStatusUpdate"
+      />
+      <div
+        class="bottom-section"
+        :style="{
+          flex: showTaskList ? '0 0 80%' : '0 0 100%',
+          'min-width': showTaskList ? '80%' : '100%',
+        }"
+      >
         <!-- 顶部面板 -->
         <div class="top-panel">
-          <el-input style="padding: 12px" v-model="searchQuery" placeholder="输入无人机编号搜索" class="search-input" clearable
-            @clear="handleSearchClear" @keyup.enter="handleSearch" type="primary">
+          <el-input
+            style="padding: 12px"
+            v-model="searchQuery"
+            placeholder="输入无人机编号搜索"
+            class="search-input"
+            clearable
+            @clear="handleSearchClear"
+            @keyup.enter="handleSearch"
+            type="primary"
+          >
             <template #append>
-              <el-button style="
+              <el-button
+                style="
                   background-color: #409eff;
                   color: white;
                   padding-left: 17px;
-                " :icon="Search" @click="handleSearch" />
+                "
+                :icon="Search"
+                @click="handleSearch"
+              />
             </template>
           </el-input>
         </div>
         <!-- 左侧信息面板  -->
         <div class="left-panel">
           <div class="panel-content">
-            <div style="
+            <div
+              style="
                 display: flex;
                 flex-direction: column;
                 height: 100%;
@@ -89,10 +124,14 @@
                 border: 2px solid rgba(60, 127, 231, 0.7);
                 border-radius: 12px;
                 box-sizing: border-box;
-              ">
+              "
+            >
               <div class="compass-container">
                 <div class="compass">
-                  <div class="arrow" :style="{ transform: `rotate(${droneHeading}deg)` }"></div>
+                  <div
+                    class="arrow"
+                    :style="{ transform: `rotate(${droneHeading}deg)` }"
+                  ></div>
                   <span class="direction north">北</span>
                   <span class="direction south">南</span>
                   <span class="direction west">西</span>
@@ -126,30 +165,33 @@
                     {{
                       uavStatusContent?.system_time?.time_boot_ms
                         ? convertTime(
-                          uavStatusContent?.system_time?.time_boot_ms
-                        )
+                            uavStatusContent?.system_time?.time_boot_ms
+                          )
                         : ""
                     }}
                   </el-descriptions-item>
                   <el-descriptions-item label="经纬度">
-                    <span v-if="
+                    {{
                       uavStatusContent?.global_position_int?.lon &&
-                      uavStatusContent?.global_position_int?.lat &&
-                      uavStatusContent?.global_position_int?.lon !== 0 &&
-                      uavStatusContent?.global_position_int?.lat !== 0
-                    ">
-                      {{ uavStatusContent?.global_position_int?.lon }},
-                      {{ uavStatusContent?.global_position_int?.lat }}
-                    </span>
+                      uavStatusContent?.global_position_int?.lat
+                        ? `${uavStatusContent?.global_position_int?.lon},
+                                ${uavStatusContent?.global_position_int?.lat}`
+                        : uavStatusContent?.global_position_int?.lon ||
+                          uavStatusContent?.global_position_int?.lat
+                    }}
                   </el-descriptions-item>
                 </el-descriptions>
-                <el-button style="
+                <el-button
+                  style="
                     width: 100%;
                     margin: 5px 0 0 0;
                     background: #2c3d45;
                     color: #fff;
-                  " class="direction-btn right" @click.stop="uavViewDetails()"
-                  :disabled="!isConnected || !canOperate">
+                  "
+                  class="direction-btn right"
+                  @click.stop="uavViewDetails()"
+                  :disabled="!isConnected || !canOperate"
+                >
                   查看详情
                 </el-button>
               </div>
@@ -158,18 +200,37 @@
               <div style="height: 30px; color: #fff; padding-left: 12px">
                 无人机设置灵敏度
               </div>
-              <el-select v-model="sensitivity" placeholder="请选择灵敏度" @change="droneModeSettingChange2">
-                <el-option v-for="item in sensitivityOptions" :key="item.value" :label="item.label"
-                  :value="item.value" />
+              <el-select
+                v-model="sensitivity"
+                placeholder="请选择灵敏度"
+                @change="droneModeSettingChange2"
+              >
+                <el-option
+                  v-for="item in sensitivityOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
               </el-select>
             </div>
             <div class="uav-mode">
               <div style="height: 30px; color: #fff; padding-left: 12px">
                 无人机模式设置
               </div>
-              <el-select v-model="droneModeSetting" placeholder="Select" @change="droneModeSettingChange"
-                :disabled="!isConnected || !canOperate" ref="selectRef" @visible-change="handleVisibleChange">
-                <el-option v-for="item in options" :key="item.value" :label="item.label" :value="item.value" />
+              <el-select
+                v-model="droneModeSetting"
+                placeholder="Select"
+                @change="droneModeSettingChange"
+                :disabled="!isConnected || !canOperate"
+                ref="selectRef"
+                @visible-change="handleVisibleChange"
+              >
+                <el-option
+                  v-for="item in options"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
               </el-select>
             </div>
           </div>
@@ -177,34 +238,32 @@
 
         <!-- 右侧监控面板 -->
         <div class="right-panel">
-          <el-button type="primary" @click="aaaaa(1)">测试1</el-button>
-          <el-button type="primary" style="margin: 12px 0 0 0;" @click="aaaaa(2)">测试2</el-button>
           <div class="panel-content">
             <div class="monitor-section">
-              <div style="
-          padding-bottom: 6px;
-          display: flex;
-          justify-content: space-between;
-              align-items: center;" class="fontGradient">
-                <span>无人机监控</span>
-                <div>
-                  <img style="width: 16px; height: 16px; cursor: pointer;" :src="shareVideo" alt="分享视频" title="分享视频"
-                    class="logo" @click="handleShareVideo" />
-                  <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo2" alt="开始录制"
-                    title="开始录制" class="logo" @click="toggleRecording(0)" />
-                  <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo3" alt='停止录制'
-                    title='停止录制' class="logo" @click="toggleRecording(1)" />
-                </div>
-              </div>
+              <h4 style="padding-bottom: 6px" class="fontGradient">
+                无人机监控
+              </h4>
               <!-- 监控内容区域 -->
-              <!-- WebRTC 原生播放 -->
-              <div v-if="droneMonitoringShow" class="webrtc-player-container">
-                <video ref="videoEl" autoplay muted playsinline controls></video>
-                <div v-if="webRTCStatus === 'connecting'" class="webrtc-loading">连接中...</div>
-                <div v-if="webRTCStatus === 'error'" class="webrtc-loading">播放失败，点击重试</div>
-              </div>
-              <M3u8Player v-if="dronM3u8PlayerShow" :video-url="videoUrl" :width="1000" :height="600"
-                @error="handleError" />
+              <!-- <ShakaPlayer src="http://192.168.1.148:7080/stream/1/hls.m3u8" :config="playerConfig" /> -->
+              <!-- hls视频流播放 -->
+              <!-- <ShakaPlayer src="http://121.41.60.99:7896/live/stream_key/index.m3u8" :config="playerConfig" /> -->
+              <!-- flv格式的视频流播放; -->
+              <!-- <ShakaPlayer
+          :src= "ws://121.41.60.99:8082/live/stream_key.live.flv"
+          :config="playerConfig" /> -->
+              <!-- <ShakaPlayer :src="videoStream" :config="playerConfig" /> rtsp://121.41.60.99:7896/stream_from_yunxiang/1F00263233510834373435  -->
+              <ShakaPlayer
+                v-if="droneMonitoringShow"
+                :src="`ws://121.41.60.99:8082/${droneMonitoringUrl}.live.flv`"
+                :config="playerConfig"
+              />
+              <M3u8Player
+                v-if="dronM3u8PlayerShow"
+                :video-url="videoUrl"
+                :width="1000"
+                :height="600"
+                @error="handleError"
+              />
             </div>
             <div class="device-info">
               <h4 class="fontGradient">无人机信息</h4>
@@ -217,15 +276,23 @@
               <p>设备类型: {{ selectedDeviceInfo?.deviceType }}</p>
             </div>
             <div class="mission-section">
-              <div class="mission-buttons" style="
+              <div
+                class="mission-buttons"
+                style="
                   display: flex;
                   flex-direction: column;
                   gap: 8px;
                   height: 165px;
                   overflow-y: scroll;
                   scrollbar-color: rgb(88, 130, 179) rgba(80, 80, 80, 0.4);
-                ">
-                <el-button plain class="mission-btn" @click="handleUploadMission" :disabled="!isConnected">
+                "
+              >
+                <el-button
+                  plain
+                  class="mission-btn"
+                  @click="handleUploadMission"
+                  :disabled="!isConnected"
+                >
                   <el-icon>
                     <Upload />
                   </el-icon>
@@ -233,32 +300,62 @@
                 </el-button>
 
                 <div class="upload-container">
-                  <el-input v-model="fileName" placeholder="请输入航线名称" style="height: 26px; margin-bottom: 8px"
-                    clearable />
-                  <el-input v-model="fileDescription" placeholder="请输入航线描述" style="height: 26px; margin-bottom: 8px"
-                    clearable />
-                  <el-select v-model="waypointStrategy" placeholder="请选择航点策略" @change="handleSelectStrategyChange"
-                    clearable>
-                    <el-option v-for="item in waypointOptions" :key="item.value" :label="item.label"
-                      :value="item.value" />
+                  <el-input
+                    v-model="fileName"
+                    placeholder="请输入航线名称"
+                    style="height: 26px; margin-bottom: 8px"
+                    clearable
+                  />
+                  <el-input
+                    v-model="fileDescription"
+                    placeholder="请输入航线描述"
+                    style="height: 26px; margin-bottom: 8px"
+                    clearable
+                  />
+                  <el-select
+                    v-model="waypointStrategy"
+                    placeholder="请选择航点策略"
+                    @change="handleSelectStrategyChange"
+                    clearable
+                  >
+                    <el-option
+                      v-for="item in waypointOptions"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
                   </el-select>
-                  <el-button @click="uploadFile" style="
+                  <el-button
+                    @click="uploadFile"
+                    style="
                       margin-top: 10px;
                       height: 26px;
                       width: 100%;
                       background: #2c3d45;
                       color: #fff;
-                    " :disabled="!isConnected">
+                    "
+                    :disabled="!isConnected"
+                  >
                     上传航线文件
                   </el-button>
                 </div>
-                <el-button plain class="mission-btn" @click="startMission" style="margin: 0">
+                <el-button
+                  plain
+                  class="mission-btn"
+                  @click="startMission"
+                  style="margin: 0"
+                >
                   <el-icon>
                     <VideoPlay />
                   </el-icon>
                   执行航线
                 </el-button>
-                <el-button plain class="mission-btn" @click="handlePauseMission" style="margin: 0">
+                <el-button
+                  plain
+                  class="mission-btn"
+                  @click="handlePauseMission"
+                  style="margin: 0"
+                >
                   <el-icon>
                     <VideoPlay />
                   </el-icon>
@@ -279,7 +376,8 @@
 
         <!-- 底部控制面板 -->
         <div class="bottom-panel" style="display: flex; flex-direction: column">
-          <div style="
+          <div
+            style="
               width: 100%;
               display: flex;
               background: rgba(0, 40, 90, 0.7);
@@ -288,7 +386,8 @@
               padding: 6px 12px;
               overflow-x: auto;
               scrollbar-color: rgb(88, 130, 179) rgba(80, 80, 80, 0.4);
-            ">
+            "
+          >
             <span class="routeProgress">航线进度：</span>
             <el-progress style="width: 100%" :percentage="percentage" striped />
           </div>
@@ -298,49 +397,72 @@
               <div class="direction-buttons bottom-buttons">
                 <div>
                   <div style="margin-bottom: 6px; text-align: center">前进</div>
-                  <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(1, 'forward')">
+                  <el-button
+                    :disabled="!isConnected || !canOperate"
+                    @click="flyDirection(1, 'forward')"
+                  >
                     <img :src="ICONS.rise" alt="" />
                   </el-button>
                 </div>
                 <div style="display: flex">
-                  <div style="
+                  <div
+                    style="
                       display: flex;
                       justify-content: center;
                       align-items: center;
-                    ">
+                    "
+                  >
                     <div style="width: 48px; margin-right: 6px">左横滚</div>
 
-                    <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'left')">
+                    <el-button
+                      :disabled="!isConnected || !canOperate"
+                      @click="flyDirection(2, 'left')"
+                    >
                       <img :src="ICONS.leftRoll" alt="" />
                     </el-button>
                   </div>
-                  <div style="
+                  <div
+                    style="
                       display: flex;
                       justify-content: center;
                       align-items: center;
-                    ">
-                    <el-button style="
+                    "
+                  >
+                    <el-button
+                      style="
                         border: 2px solid #7f99a6;
                         background: #181d1f;
                         color: #a0c2d2;
                         margin: 6px;
-                      " :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'neutralization')">
+                      "
+                      :disabled="!isConnected || !canOperate"
+                      @click="flyDirection(2, 'neutralization')"
+                    >
                       归中
                     </el-button>
                   </div>
-                  <div style="
+                  <div
+                    style="
                       display: flex;
                       justify-content: center;
                       align-items: center;
-                    ">
-                    <el-button style="" :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'right')">
+                    "
+                  >
+                    <el-button
+                      style=""
+                      :disabled="!isConnected || !canOperate"
+                      @click="flyDirection(2, 'right')"
+                    >
                       <img :src="ICONS.rightRoll" alt="" />
                     </el-button>
                     <div style="width: 48px; margin-left: 6px">右横滚</div>
                   </div>
                 </div>
                 <div>
-                  <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(1, 'backward')">
+                  <el-button
+                    :disabled="!isConnected || !canOperate"
+                    @click="flyDirection(1, 'backward')"
+                  >
                     <img :src="ICONS.decline" alt="" />
                   </el-button>
                   <div style="margin-top: 6px; text-align: center">后退</div>
@@ -351,50 +473,72 @@
             <div class="direction-buttons bottom-buttons">
               <div>
                 <div style="margin-bottom: 6px; text-align: center">上升</div>
-                <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'forward')">
+                <el-button
+                  :disabled="!isConnected || !canOperate"
+                  @click="flyDirection(2, 'forward')"
+                >
                   <img :src="ICONS.forward" alt="" />
                 </el-button>
               </div>
               <div style="display: flex">
-                <div style="
+                <div
+                  style="
                     text-align: center;
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                  ">
+                  "
+                >
                   <div style="width: 32px; margin-right: 6px">向左</div>
-                  <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(1, 'left')">
+                  <el-button
+                    :disabled="!isConnected || !canOperate"
+                    @click="flyDirection(1, 'left')"
+                  >
                     <img :src="ICONS.theLeft" alt="" />
                   </el-button>
                 </div>
-                <div style="
+                <div
+                  style="
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                  ">
-                  <el-button style="
+                  "
+                >
+                  <el-button
+                    style="
                       border: 2px solid #7f99a6;
                       background: #181d1f;
                       color: #a0c2d2;
                       margin: 6px;
-                    " :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'neutralization')">
+                    "
+                    :disabled="!isConnected || !canOperate"
+                    @click="flyDirection(2, 'neutralization')"
+                  >
                     归中
                   </el-button>
                 </div>
-                <div style="
+                <div
+                  style="
                     text-align: center;
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                  ">
-                  <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(1, 'right')">
+                  "
+                >
+                  <el-button
+                    :disabled="!isConnected || !canOperate"
+                    @click="flyDirection(1, 'right')"
+                  >
                     <img :src="ICONS.theRight" alt="" />
                   </el-button>
                   <div style="width: 32px; margin-left: 6px">向右</div>
                 </div>
               </div>
               <div>
-                <el-button :disabled="!isConnected || !canOperate" @click="flyDirection(2, 'backward')">
+                <el-button
+                  :disabled="!isConnected || !canOperate"
+                  @click="flyDirection(2, 'backward')"
+                >
                   <img :src="ICONS.backward" alt="" />
                 </el-button>
                 <div style="margin-top: 6px; text-align: center">下降</div>
@@ -402,28 +546,53 @@
             </div>
             <!-- 主要控制按钮 -->
             <div class="main-controls">
-              <el-button type="info" :disabled="!isConnected" class="control-btn emergency"
-                @click="updateDeviceOnlineStatus">
+              <el-button
+                type="info"
+                :disabled="!isConnected"
+                class="control-btn emergency"
+                @click="updateDeviceOnlineStatus"
+              >
                 <el-icon>
                   <Refresh />
                 </el-icon>
                 获取状态
               </el-button>
 
-              <el-button type="info" :disabled="!isConnected" class="control-btn" @click="handleArm">
+              <el-button
+                type="info"
+                :disabled="!isConnected"
+                class="control-btn"
+                @click="handleArm"
+              >
                 <el-icon>
                   <Unlock />
                 </el-icon>
                 解锁
               </el-button>
-              <el-button type="info" class="control-btn" :disabled="!isConnected || !canOperate">
-                <div class="lock-slider-container" :class="{ disabled: !isConnected }">
-                  <div class="lock-slider" :class="{
-                    locked: isLocked,
-                    'cursor-not-allowed': isLocked,
-                  }" @mousedown="startDrag" @touchstart="startDrag" ref="sliderContainer">
-                    <div class="slider-thumb" :style="{ transform: `translateX(${thumbPosition}px)` }"
-                      ref="sliderThumb">
+              <el-button
+                type="info"
+                class="control-btn"
+                :disabled="!isConnected || !canOperate"
+              >
+                <div
+                  class="lock-slider-container"
+                  :class="{ disabled: !isConnected }"
+                >
+                  <div
+                    class="lock-slider"
+                    :class="{
+                      locked: isLocked,
+                      'cursor-not-allowed': isLocked,
+                    }"
+                    @mousedown="startDrag"
+                    @touchstart="startDrag"
+                    ref="sliderContainer"
+                  >
+                    <div
+                      class="slider-thumb"
+                      :style="{ transform: `translateX(${thumbPosition}px)` }"
+                      ref="sliderThumb"
+                    >
                       <el-icon>
                         <Right />
                       </el-icon>
@@ -435,105 +604,89 @@
                 </div>
               </el-button>
 
-              <el-button type="info" class="control-btn" @click="handleTakeoff" :disabled="!isConnected">
+              <el-button
+                type="info"
+                class="control-btn"
+                @click="handleTakeoff"
+                :disabled="!isConnected"
+              >
                 <el-icon>
                   <TopRight />
                 </el-icon>
                 一键起飞
               </el-button>
 
-              <el-button type="info" class="control-btn" @click="handleReturnLand"
-                :disabled="!isConnected || !canOperate">
+              <el-button
+                type="info"
+                class="control-btn"
+                @click="handleReturnLand"
+                :disabled="!isConnected || !canOperate"
+              >
                 <el-icon>
                   <Bottom />
                 </el-icon>
                 降落
               </el-button>
 
-              <el-button type="info" class="control-btn" @click="handleReturn" :disabled="!isConnected || !canOperate">
+              <el-button
+                type="info"
+                class="control-btn"
+                @click="handleReturn"
+                :disabled="!isConnected || !canOperate"
+              >
                 <el-icon>
                   <Back />
                 </el-icon>
                 一键返航
               </el-button>
-              <el-button type="info" class="control-btn" @click="returnPointSettings"
-                :disabled="!isConnected || !canOperate">
+              <el-button
+                type="info"
+                class="control-btn"
+                @click="returnPointSettings"
+                :disabled="!isConnected || !canOperate"
+              >
                 <el-icon>
                   <Sort />
                 </el-icon>
                 返航点设置
               </el-button>
             </div>
-            <!-- 通道--舵机 -->
-            <div style="
-    margin-right: 12px;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    justify-content: space-around;
-">
-              <div style="display: flex; gap: 6px; justify-content: start">
-                <el-button type="info" class="control-btn" @click="current = 1" :disabled="!searchQuery">
-                  通道1
-                </el-button>
-                <el-button type="info" class="control-btn" @click="current = 2" :disabled="!searchQuery">
-                  通道2
-                </el-button>
-              </div>
-
-              <!-- 通道1：显示 左中右 按钮 -->
-              <div v-if="current === 1" style="display: flex; gap: 6px; flex-direction: column;">
-                <div style="display: flex; gap: 6px; justify-content: space-between;">
-                  <el-button type="info" class="control-btn" @click="setServoPosition(1)"
-                    :disabled="stepDisabled.left || !searchQuery">
-                    左边
-                  </el-button>
-                  <el-button type="info" class="control-btn" @click="setServoPosition(2)"
-                    :disabled="stepDisabled.middle || !searchQuery">
-                    中间
-                  </el-button>
-                  <el-button type="info" class="control-btn" @click="setServoPosition(3)"
-                    :disabled="stepDisabled.right || !searchQuery">
-                    右边
-                  </el-button>
-                </div>
-                <p style="color: #fff;font-size:12px;margin-top:2px">
-                  <span>*</span> 按顺序切换状态，点击后自动锁定
-                </p>
-              </div>
-
-              <!-- 通道2：显示输入框（失去焦点自动发送） -->
-              <div v-else-if="current === 2">
-                <el-input class="servoNum" style="width: 220px;" v-model="inputServo" placeholder="请输入数字"
-                  @input="inputServo = inputServo.replace(/[^\d]/g, '')" @blur="handleServoBlur" clearable />
-                <p style="color: #fff;font-size:12px;margin-top:4px">
-                  <span>*</span> 输入限制：1050 ~ 1950
-                </p>
-              </div>
-            </div>
             <!-- 方向控制区域 -->
             <div class="direction-controls">
               <div class="direction-buttons bottom-buttons">
                 <div style="margin-bottom: 6px">
                   <div style="margin-bottom: 6px; text-align: center">上</div>
-                  <el-button :disabled="!isConnected || !canOperate" @click="handleVideoControl('up')">
-                    <img :src="ICONS.forward" alt="" </el-button>
+                  <el-button
+                    :disabled="!isConnected || !canOperate"
+                    @click="handleVideoControl('up')"
+                  >
+                    <img :src="ICONS.forward" alt=""
+                  </el-button>
                 </div>
                 <div style="display: flex">
                   <div style="text-align: center; margin-right: 6px">
-                    <el-button :disabled="!isConnected || !canOperate" @click="handleVideoControl('left')">
+                    <el-button
+                      :disabled="!isConnected || !canOperate"
+                      @click="handleVideoControl('left')"
+                    >
                       <img :src="ICONS.theLeft" alt="" />
                     </el-button>
                     <div style="margin-top: 6px">左</div>
                   </div>
                   <div style="text-align: center">
-                    <el-button :disabled="!isConnected || !canOperate" @click="handleVideoControl('down')">
+                    <el-button
+                      :disabled="!isConnected || !canOperate"
+                      @click="handleVideoControl('down')"
+                    >
                       <img :src="ICONS.backward" alt="" />
                     </el-button>
                     <div style="margin-top: 6px">下</div>
                   </div>
                   <div style="text-align: center; margin-left: 6px">
-                    <el-button :disabled="!isConnected || !canOperate" @click="handleVideoControl('right')">
+                    <el-button
+                      :disabled="!isConnected || !canOperate"
+                      @click="handleVideoControl('right')"
+                    >
                       <img :src="ICONS.theRight" alt="" />
                     </el-button>
                     <div style="margin-top: 6px">右</div>
@@ -543,39 +696,574 @@
             </div>
             <!-- 视频按钮 -->
             <div class="functionButtons">
-              <el-button class="Button" style="margin-left: 12px" type="info" @click="handleVideoControl('connect')"
-                :disabled="!isConnected || !canOperate">
+              <el-button
+                class="Button"
+                style="margin-left: 12px"
+                type="info"
+                @click="handleVideoControl('connect')"
+                :disabled="!isConnected || !canOperate"
+              >
                 <i class="el-icon-video-pause"></i> 连接
               </el-button>
-              <el-button class="Button" type="info" @click="handleVideoControl('stop')"
-                :disabled="!isConnected || !canOperate">
+              <el-button
+                class="Button"
+                type="info"
+                @click="handleVideoControl('stop')"
+                :disabled="!isConnected || !canOperate"
+              >
                 <i class="el-icon-video-pause"></i> 暂停
               </el-button>
-              <el-button class="Button" type="info" @click="handleVideoControl('home')"
-                :disabled="!isConnected || !canOperate">
+              <el-button
+                class="Button"
+                type="info"
+                @click="handleVideoControl('home')"
+                :disabled="!isConnected || !canOperate"
+              >
                 <i class="el-icon-location"></i> 归中
               </el-button>
-              <el-button class="Button" type="info" @click="handleVideoControl('lowermost')"
-                :disabled="!isConnected || !canOperate">
+              <el-button
+                class="Button"
+                type="info"
+                @click="handleVideoControl('lowermost')"
+                :disabled="!isConnected || !canOperate"
+              >
                 <i class="el-icon-location"></i> 最低
               </el-button>
             </div>
           </div>
         </div>
 
-        <!-- 查看详情弹窗 -->
-        <UavDetailDialog v-model="isDetailDialogVisible" :uavStatusContent="uavStatusContent" />
+        <!-- 查看详情弹窗  -->
+        <el-dialog
+          :modal="false"
+          v-model="isDetailDialogVisible"
+          ref="dialogRef"
+          :append-to-body="true"
+          width="40%"
+          style="
+            height: 55%;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgb(88, 130, 179) rgba(80, 80, 80, 0.4);
+            background: rgba(0, 40, 90, 0.7);
+            color: #fff;
+            border: 2px solid rgba(60, 127, 231, 0.7);
+          "
+          :before-close="handleClose"
+        >
+          <div @click.stop.prevent>
+            <el-descriptions :column="1" border>
+              <!-- 顶层时间戳 -->
+              <el-descriptions-item label="时间戳">
+                {{ uavStatusContent.timestamp }}
+              </el-descriptions-item>
+
+              <!-- 缩放气压数据 -->
+              <el-descriptions-item label="缩放气压数据-气压差">
+                {{ uavStatusContent?.scaled_pressure?.press_diff }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放气压数据-温度">
+                {{ uavStatusContent?.scaled_pressure?.temperature }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放气压数据-绝对气压">
+                {{ uavStatusContent?.scaled_pressure?.press_abs }}
+              </el-descriptions-item>
+
+              <!-- 全局位置信息（整数） -->
+              <el-descriptions-item label="全局位置信息(整数)-X方向速度">
+                {{ uavStatusContent?.global_position_int?.vx }}
+              </el-descriptions-item>
+              <el-descriptions-item label="全局位置信息(整数)-Y方向速度">
+                {{ uavStatusContent?.global_position_int?.vy }}
+              </el-descriptions-item>
+              <el-descriptions-item label="全局位置信息(整数)-Z方向速度">
+                {{ uavStatusContent?.global_position_int?.vz }}
+              </el-descriptions-item>
+              <el-descriptions-item label="全局位置信息(整数)-海拔高度">
+                {{ uavStatusContent?.global_position_int?.alt }}
+              </el-descriptions-item>
+              <el-descriptions-item label="全局位置信息(整数)-相对高度">
+                {{ uavStatusContent?.global_position_int?.relative_alt }}
+              </el-descriptions-item>
+              <el-descriptions-item label="全局位置信息(整数)-经度">
+                {{ uavStatusContent?.global_position_int?.lon }}
+              </el-descriptions-item>
+              <el-descriptions-item label="全局位置信息(整数)-航向角">
+                {{ uavStatusContent?.global_position_int?.hdg }}
+              </el-descriptions-item>
+              <el-descriptions-item label="全局位置信息(整数)-纬度">
+                {{ uavStatusContent?.global_position_int?.lat }}
+              </el-descriptions-item>
+
+              <!-- 系统时间 -->
+              <el-descriptions-item label="系统时间-Unix时间(微秒)">
+                {{ uavStatusContent?.system_time?.time_unix_usec }}
+              </el-descriptions-item>
+              <el-descriptions-item label="系统时间-启动后时间（毫秒）">
+                {{ uavStatusContent?.system_time?.time_boot_ms }}
+              </el-descriptions-item>
+
+              <!-- 缩放惯性测量单元数据(IMU) -->
+              <el-descriptions-item label="缩放惯性测量单元数据(IMU)-磁力计Y轴">
+                {{ uavStatusContent?.scaled_imu?.mag_y }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放惯性测量单元数据(IMU)-磁力计X轴">
+                {{ uavStatusContent?.scaled_imu?.mag_x }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放惯性测量单元数据(IMU)-磁力计Z轴">
+                {{ uavStatusContent?.scaled_imu?.mag_z }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放惯性测量单元数据(IMU)-陀螺仪Y轴">
+                {{ uavStatusContent?.scaled_imu?.gyro_y }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="缩放惯性测量单元数据(IMU)-加速度计Z轴"
+              >
+                {{ uavStatusContent?.scaled_imu?.acc_z }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放惯性测量单元数据(IMU)-陀螺仪X轴">
+                {{ uavStatusContent?.scaled_imu?.gyro_x }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放惯性测量单元数据(IMU)-陀螺仪Z轴">
+                {{ uavStatusContent?.scaled_imu?.gyro_z }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="缩放惯性测量单元数据(IMU)-加速度计Y轴"
+              >
+                {{ uavStatusContent?.scaled_imu?.acc_y }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="缩放惯性测量单元数据(IMU)-加速度计X轴"
+              >
+                {{ uavStatusContent?.scaled_imu?.acc_x }}
+              </el-descriptions-item>
+
+              <!-- 导航控制器输出 -->
+              <el-descriptions-item label="导航控制器输出-导航滚转角">
+                {{ uavStatusContent?.nav_controller_output?.nav_roll }}
+              </el-descriptions-item>
+              <el-descriptions-item label="导航控制器输出-航点距离">
+                {{ uavStatusContent?.nav_controller_output?.wp_dist }}
+              </el-descriptions-item>
+              <el-descriptions-item label="导航控制器输出-高度误差">
+                {{ uavStatusContent?.nav_controller_output?.alt_error }}
+              </el-descriptions-item>
+              <el-descriptions-item label="导航控制器输出-横向轨迹误差">
+                {{ uavStatusContent?.nav_controller_output?.xtrack_error }}
+              </el-descriptions-item>
+              <el-descriptions-item label="导航控制器输出-导航俯仰角">
+                {{ uavStatusContent?.nav_controller_output?.nav_pitch }}
+              </el-descriptions-item>
+              <el-descriptions-item label="导航控制器输出-目标方位角">
+                {{ uavStatusContent?.nav_controller_output?.target_bearing }}
+              </el-descriptions-item>
+              <el-descriptions-item label="导航控制器输出-导航方位角">
+                {{ uavStatusContent?.nav_controller_output?.nav_bearing }}
+              </el-descriptions-item>
+              <el-descriptions-item label="导航控制器输出-空速误差">
+                {{ uavStatusContent?.nav_controller_output?.aspd_error }}
+              </el-descriptions-item>
+
+              <!-- 心跳包 -->
+              <el-descriptions-item label="心跳包-模式">
+                {{ uavStatusContent?.heartbeat?.mode }}
+              </el-descriptions-item>
+              <el-descriptions-item label="心跳包-MAVLink协议版本">
+                {{ uavStatusContent?.heartbeat?.mavlink_version }}
+              </el-descriptions-item>
+              <el-descriptions-item label="心跳包-状态">
+                {{ uavStatusContent?.heartbeat?.status }}
+              </el-descriptions-item>
+
+              <!-- 扩展系统状态 -->
+              <el-descriptions-item label="扩展系统状态-垂直起降状态">
+                {{ uavStatusContent?.extended_sys_state?.vtol_state }}
+              </el-descriptions-item>
+              <el-descriptions-item label="扩展系统状态-着陆状态">
+                {{ uavStatusContent?.extended_sys_state?.landed_state }}
+              </el-descriptions-item>
+
+              <!-- 自动驾驶仪版本 -->
+              <el-descriptions-item label="自动驾驶仪版本-序列号">
+                {{ uavStatusContent?.autopilot_version?.serial_number }}
+              </el-descriptions-item>
+              <el-descriptions-item label="自动驾驶仪版本-固件版本">
+                {{ uavStatusContent?.autopilot_version?.firmware_version }}
+              </el-descriptions-item>
+
+              <!-- GPS数据 -->
+              <el-descriptions-item label="GPS数据-可见卫星数量">
+                {{ uavStatusContent?.gps?.satellites_visible }}
+              </el-descriptions-item>
+              <el-descriptions-item label="GPS数据-海拔">
+                {{ uavStatusContent?.gps?.alt }}
+              </el-descriptions-item>
+              <el-descriptions-item label="GPS数据-定位类型">
+                {{ uavStatusContent?.gps?.fix_type }}
+              </el-descriptions-item>
+              <el-descriptions-item label="GPS数据-经度">
+                {{ uavStatusContent?.gps?.lon }}
+              </el-descriptions-item>
+              <el-descriptions-item label="GPS数据-纬度">
+                {{ uavStatusContent?.gps?.lat }}
+              </el-descriptions-item>
+
+              <!-- 电池数据 -->
+              <el-descriptions-item label="电池数据-电流">
+                {{ uavStatusContent?.battery?.current }}
+              </el-descriptions-item>
+              <el-descriptions-item label="电池数据-剩余电量（百分比）">
+                {{ uavStatusContent?.battery?.battery_remaining }}
+              </el-descriptions-item>
+              <el-descriptions-item label="电池数据-电压">
+                {{ uavStatusContent?.battery?.voltage }}
+              </el-descriptions-item>
+
+              <!-- 第二GPS原始数据 -->
+              <el-descriptions-item label="第二GPS原始数据-可见卫星数量">
+                {{ uavStatusContent?.gps2_raw?.satellites_visible }}
+              </el-descriptions-item>
+              <el-descriptions-item label="第二GPS原始数据-海拔">
+                {{ uavStatusContent?.gps2_raw?.alt }}
+              </el-descriptions-item>
+              <el-descriptions-item label="第二GPS原始数据-定位类型">
+                {{ uavStatusContent?.gps2_raw?.fix_type }}
+              </el-descriptions-item>
+              <el-descriptions-item label="第二GPS原始数据-经度">
+                {{ uavStatusContent?.gps2_raw?.lon }}
+              </el-descriptions-item>
+              <el-descriptions-item label="第二GPS原始数据-纬度">
+                {{ uavStatusContent?.gps2_raw?.lat }}
+              </el-descriptions-item>
+
+              <!-- 振动数据 -->
+              <el-descriptions-item label="振动数据-Y方向振动值">
+                {{ uavStatusContent?.vibration?.vibration_y }}
+              </el-descriptions-item>
+              <el-descriptions-item label="振动数据-1通道削波计数">
+                {{ uavStatusContent?.vibration?.clipping_1 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="振动数据-Z方向振动值">
+                {{ uavStatusContent?.vibration?.vibration_z }}
+              </el-descriptions-item>
+              <el-descriptions-item label="振动数据-2通道削波计数">
+                {{ uavStatusContent?.vibration?.clipping_2 }}
+              </el-descriptions-item>
+              <el-descriptions-item label="振动数据-X方向振动值">
+                {{ uavStatusContent?.vibration?.vibration_x }}
+              </el-descriptions-item>
+              <el-descriptions-item label="振动数据-0通道削波计数">
+                {{ uavStatusContent?.vibration?.clipping_0 }}
+              </el-descriptions-item>
+
+              <!-- 本地北东地坐标系(NED)位置 -->
+              <el-descriptions-item label="本地北东地坐标系(NED)位置-X方向速度">
+                {{ uavStatusContent?.local_position_ned?.vx }}
+              </el-descriptions-item>
+              <el-descriptions-item label="本地北东地坐标系(NED)位置-Y方向速度">
+                {{ uavStatusContent?.local_position_ned?.vy }}
+              </el-descriptions-item>
+              <el-descriptions-item label="本地北东地坐标系(NED)位置-Z方向速度">
+                {{ uavStatusContent?.local_position_ned?.vz }}
+              </el-descriptions-item>
+              <el-descriptions-item label="本地北东地坐标系(NED)位置-X坐标">
+                {{ uavStatusContent?.local_position_ned?.x }}
+              </el-descriptions-item>
+              <el-descriptions-item label="本地北东地坐标系(NED)位置-Y坐标">
+                {{ uavStatusContent?.local_position_ned?.y }}
+              </el-descriptions-item>
+              <el-descriptions-item label="本地北东地坐标系(NED)位置-Z坐标">
+                {{ uavStatusContent?.local_position_ned?.z }}
+              </el-descriptions-item>
+
+              <!-- 第二缩放惯性测量单元数据(IMU2) -->
+              <el-descriptions-item
+                label="第二缩放惯性测量单元数据(IMU2)-磁力计Y轴"
+              >
+                {{ uavStatusContent?.scaled_imu2?.mag_y }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第二缩放惯性测量单元数据(IMU2)-磁力计X轴"
+              >
+                {{ uavStatusContent?.scaled_imu2?.mag_x }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第二缩放惯性测量单元数据(IMU2)-磁力计Z轴"
+              >
+                {{ uavStatusContent?.scaled_imu2?.mag_z }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第二缩放惯性测量单元数据(IMU2)-陀螺仪Y轴"
+              >
+                {{ uavStatusContent?.scaled_imu2?.gyro_y }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第二缩放惯性测量单元数据(IMU2)-加速度计Z轴"
+              >
+                {{ uavStatusContent?.scaled_imu2?.acc_z }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第二缩放惯性测量单元数据(IMU2)-陀螺仪X轴"
+              >
+                {{ uavStatusContent?.scaled_imu2?.gyro_x }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第二缩放惯性测量单元数据(IMU2)-陀螺仪Z轴"
+              >
+                {{ uavStatusContent?.scaled_imu2?.gyro_z }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第二缩放惯性测量单元数据(IMU2)-加速度计Y轴"
+              >
+                {{ uavStatusContent?.scaled_imu2?.acc_y }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第二缩放惯性测量单元数据(IMU2)-加速度计X轴"
+              >
+                {{ uavStatusContent?.scaled_imu2?.acc_x }}
+              </el-descriptions-item>
+
+              <!-- 第三缩放惯性测量单元数据(IMU3) -->
+              <el-descriptions-item
+                label="第三缩放惯性测量单元数据(IMU3)-磁力计Y轴"
+              >
+                {{ uavStatusContent?.scaled_imu3?.mag_y }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第三缩放惯性测量单元数据(IMU3)-磁力计X轴"
+              >
+                {{ uavStatusContent?.scaled_imu3?.mag_x }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第三缩放惯性测量单元数据(IMU3)-磁力计Z轴"
+              >
+                {{ uavStatusContent?.scaled_imu3?.mag_z }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第三缩放惯性测量单元数据(IMU3)-陀螺仪Y轴"
+              >
+                {{ uavStatusContent?.scaled_imu3?.gyro_y }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第三缩放惯性测量单元数据(IMU3)-加速度计Z轴"
+              >
+                {{ uavStatusContent?.scaled_imu3?.acc_z }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第三缩放惯性测量单元数据(IMU3)-陀螺仪X轴"
+              >
+                {{ uavStatusContent?.scaled_imu3?.gyro_x }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第三缩放惯性测量单元数据(IMU3)-陀螺仪Z轴"
+              >
+                {{ uavStatusContent?.scaled_imu3?.gyro_z }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第三缩放惯性测量单元数据(IMU3)-加速度计Y轴"
+              >
+                {{ uavStatusContent?.scaled_imu3?.acc_y }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="第三缩放惯性测量单元数据(IMU3)-加速度计X轴"
+              >
+                {{ uavStatusContent?.scaled_imu3?.acc_x }}
+              </el-descriptions-item>
+
+              <!-- 缩放的遥控通道数据 -->
+              <el-descriptions-item label="缩放的遥控通道数据-第6通道缩放值">
+                {{ uavStatusContent?.rc_channels_scaled?.chan6_scaled }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放的遥控通道数据-第7通道缩放值">
+                {{ uavStatusContent?.rc_channels_scaled?.chan7_scaled }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放的遥控通道数据-信号强度（RSSI）">
+                {{ uavStatusContent?.rc_channels_scaled?.rssi }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放的遥控通道数据-第1通道缩放值">
+                {{ uavStatusContent?.rc_channels_scaled?.chan1_scaled }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放的遥控通道数据-第8通道缩放值">
+                {{ uavStatusContent?.rc_channels_scaled?.chan8_scaled }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放的遥控通道数据-第4通道缩放值">
+                {{ uavStatusContent?.rc_channels_scaled?.chan4_scaled }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放的遥控通道数据-第5通道缩放值">
+                {{ uavStatusContent?.rc_channels_scaled?.chan5_scaled }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放的遥控通道数据-第2通道缩放值">
+                {{ uavStatusContent?.rc_channels_scaled?.chan2_scaled }}
+              </el-descriptions-item>
+              <el-descriptions-item label="缩放的遥控通道数据-第3通道缩放值">
+                {{ uavStatusContent?.rc_channels_scaled?.chan3_scaled }}
+              </el-descriptions-item>
+
+              <!-- 当前任务信息 -->
+              <el-descriptions-item label="当前任务信息-总任务数">
+                {{ uavStatusContent?.mission_current?.total }}
+              </el-descriptions-item>
+              <el-descriptions-item label="当前任务信息-任务状态">
+                {{ uavStatusContent?.mission_current?.mission_state }}
+              </el-descriptions-item>
+              <el-descriptions-item label="当前任务信息-任务模式">
+                {{ uavStatusContent?.mission_current?.mission_mode }}
+              </el-descriptions-item>
+              <el-descriptions-item label="当前任务信息-任务ID">
+                {{ uavStatusContent?.mission_current?.mission_id }}
+              </el-descriptions-item>
+              <el-descriptions-item label="当前任务信息-电子围栏ID">
+                {{ uavStatusContent?.mission_current?.fence_id }}
+              </el-descriptions-item>
+              <el-descriptions-item label="当前任务信息-集结点ID">
+                {{ uavStatusContent?.mission_current?.rally_points_id }}
+              </el-descriptions-item>
+              <el-descriptions-item label="当前任务信息-当前序列">
+                {{ uavStatusContent?.mission_current?.seq }}
+              </el-descriptions-item>
+
+              <!-- 障碍物距离 -->
+              <el-descriptions-item label="障碍物距离-距离数组">
+                {{
+                  JSON.stringify(uavStatusContent?.obstacle_distance?.distances)
+                }}
+              </el-descriptions-item>
+              <el-descriptions-item label="障碍物距离-角度偏移">
+                {{ uavStatusContent?.obstacle_distance?.angle_offset }}
+              </el-descriptions-item>
+              <el-descriptions-item label="障碍物距离-最小距离">
+                {{ uavStatusContent?.obstacle_distance?.min_distance }}
+              </el-descriptions-item>
+              <el-descriptions-item label="障碍物距离-角度增量（浮点）">
+                {{ uavStatusContent?.obstacle_distance?.increment_f }}
+              </el-descriptions-item>
+              <el-descriptions-item label="障碍物距离-角度增量（整数）">
+                {{ uavStatusContent?.obstacle_distance?.increment }}
+              </el-descriptions-item>
+              <el-descriptions-item label="障碍物距离-传感器类型">
+                {{ uavStatusContent?.obstacle_distance?.sensor_type }}
+              </el-descriptions-item>
+              <el-descriptions-item label="障碍物距离-最大距离">
+                {{ uavStatusContent?.obstacle_distance?.max_distance }}
+              </el-descriptions-item>
+              <el-descriptions-item label="障碍物距离-时间（微秒）">
+                {{ uavStatusContent?.obstacle_distance?.time_usec }}
+              </el-descriptions-item>
+              <el-descriptions-item label="障碍物距离-坐标系">
+                {{ uavStatusContent?.obstacle_distance?.frame }}
+              </el-descriptions-item>
+
+              <!-- 遥控通道数据 -->
+              <el-descriptions-item label="遥控通道数据-信号强度(RSSI)">
+                {{ uavStatusContent?.rc_channels?.rssi }}
+              </el-descriptions-item>
+              <el-descriptions-item label="遥控通道数据-第3通道原始值">
+                {{ uavStatusContent?.rc_channels?.chan3_raw }}
+              </el-descriptions-item>
+              <el-descriptions-item label="遥控通道数据-第6通道原始值">
+                {{ uavStatusContent?.rc_channels?.chan6_raw }}
+              </el-descriptions-item>
+              <el-descriptions-item label="遥控通道数据-第5通道原始值">
+                {{ uavStatusContent?.rc_channels?.chan5_raw }}
+              </el-descriptions-item>
+              <el-descriptions-item label="遥控通道数据-第4通道原始值">
+                {{ uavStatusContent?.rc_channels?.chan4_raw }}
+              </el-descriptions-item>
+              <el-descriptions-item label="遥控通道数据-第7通道原始值">
+                {{ uavStatusContent?.rc_channels?.chan7_raw }}
+              </el-descriptions-item>
+              <el-descriptions-item label="遥控通道数据-第2通道原始值">
+                {{ uavStatusContent?.rc_channels?.chan2_raw }}
+              </el-descriptions-item>
+              <el-descriptions-item label="遥控通道数据-第1通道原始值">
+                {{ uavStatusContent?.rc_channels?.chan1_raw }}
+              </el-descriptions-item>
+              <el-descriptions-item label="遥控通道数据-第8通道原始值">
+                {{ uavStatusContent?.rc_channels?.chan8_raw }}
+              </el-descriptions-item>
+
+              <!-- 虚拟飞行仪表数据(VFR HUD) -->
+              <el-descriptions-item label="虚拟飞行仪表数据(VFR HUD)-爬升率">
+                {{ uavStatusContent?.vfr_hud?.climb }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="虚拟飞行仪表数据(VFR HUD)-油门（百分比）"
+              >
+                {{ uavStatusContent?.vfr_hud?.throttle }}
+              </el-descriptions-item>
+              <el-descriptions-item label="虚拟飞行仪表数据(VFR HUD)-航向">
+                {{ uavStatusContent?.vfr_hud?.heading }}
+              </el-descriptions-item>
+              <el-descriptions-item label="虚拟飞行仪表数据(VFR HUD)-高度">
+                {{ uavStatusContent?.vfr_hud?.alt }}
+              </el-descriptions-item>
+              <el-descriptions-item label="虚拟飞行仪表数据(VFR HUD)-地速">
+                {{ uavStatusContent?.vfr_hud?.groundspeed }}
+              </el-descriptions-item>
+              <el-descriptions-item label="虚拟飞行仪表数据(VFR HUD)-空速">
+                {{ uavStatusContent?.vfr_hud?.airspeed }}
+              </el-descriptions-item>
+
+              <!-- 调试向量数据  -->
+              <el-descriptions-item label="调试向量数据-名称">
+                {{ uavStatusContent?.debug_vect?.name }}
+              </el-descriptions-item>
+              <el-descriptions-item label="调试向量数据-X分量">
+                {{ uavStatusContent?.debug_vect?.x }}
+              </el-descriptions-item>
+              <el-descriptions-item label="调试向量数据-Y分量">
+                {{ uavStatusContent?.debug_vect?.y }}
+              </el-descriptions-item>
+              <el-descriptions-item label="调试向量数据-Z分量">
+                {{ uavStatusContent?.debug_vect?.z }}
+              </el-descriptions-item>
+              <el-descriptions-item label="调试向量数据-时(MS)">
+                {{ uavStatusContent?.debug_vect?.time_usec }}
+              </el-descriptions-item>
+
+              <!-- 姿态数据 -->
+              <el-descriptions-item label="姿态数据-滚转角(°)">
+                {{ uavStatusContent?.attitude?.roll }}
+              </el-descriptions-item>
+              <el-descriptions-item label="姿态数据-俯仰角（°）">
+                {{ uavStatusContent?.attitude?.pitch }}
+              </el-descriptions-item>
+              <el-descriptions-item label="姿态数据-偏航角（°）">
+                {{ uavStatusContent?.attitude?.yaw }}
+              </el-descriptions-item>
+            </el-descriptions>
+          </div>
+        </el-dialog>
         <!--  返航点设置  -->
-        <el-dialog title="返航点设置" v-model="returnVoyageDialogVisible" width="500px" destroy-on-close>
-          <el-form ref="returnVoyageFormRef" :model="returnVoyageForm" :rules="returnVoyageRules" label-width="100px">
+        <el-dialog
+          title="返航点设置"
+          v-model="returnVoyageDialogVisible"
+          width="500px"
+          destroy-on-close
+        >
+          <el-form
+            ref="returnVoyageFormRef"
+            :model="returnVoyageForm"
+            :rules="returnVoyageRules"
+            label-width="100px"
+          >
             <el-form-item label="经度" prop="longitude">
-              <el-input v-model="returnVoyageForm.longitude" placeholder="请输入经度" />
+              <el-input
+                v-model="returnVoyageForm.longitude"
+                placeholder="请输入经度"
+              />
             </el-form-item>
             <el-form-item label="纬度" prop="latitude">
-              <el-input v-model="returnVoyageForm.latitude" placeholder="请输入纬度" />
+              <el-input
+                v-model="returnVoyageForm.latitude"
+                placeholder="请输入纬度"
+              />
             </el-form-item>
             <el-form-item label="高度" prop="height">
-              <el-input v-model="returnVoyageForm.height" placeholder="请输入高度">
+              <el-input
+                v-model="returnVoyageForm.height"
+                placeholder="请输入高度"
+              >
                 <template #suffix>m</template>
               </el-input>
             </el-form-item>
@@ -587,31 +1275,12 @@
             </div>
           </template>
         </el-dialog>
-        <!-- 分享视频二维码弹窗 -->
-        <el-dialog title="分享视频" v-model="qrCodeDialogVisible" width="400px" center destroy-on-close append-to-body>
-          <div style="text-align: center; padding: 20px;">
-            <div v-if="qrCodeUrl" style="margin-bottom: 15px;">
-              <img :src="qrCodeUrl" alt="二维码" style="width: 250px; height: 250px;" />
-            </div>
-            <div v-else style="padding: 50px 0;">
-              <el-icon :size="60" style="color: #909399;">
-                <Picture />
-              </el-icon>
-              <p style="margin-top: 10px; color: #909399;">二维码加载中...</p>
-            </div>
-            <p style="color: #606266; font-size: 14px; margin-top: 15px;">
-              扫描二维码观看实时视频
-            </p>
-          </div>
-          <template #footer>
-            <div class="dialog-footer">
-              <el-button @click="qrCodeDialogVisible = false">关闭</el-button>
-            </div>
-          </template>
-        </el-dialog>
         <!-- 上传航线 -->
-        <UploadRouteDialog v-model="returnVoyageDialogVisibleUploadRoute" @confirm="handleUploadRouteConfirm"
-          @cancel="handleUploadRouteCancel" />
+        <UploadRouteDialog
+          v-model="returnVoyageDialogVisibleUploadRoute"
+          @confirm="handleUploadRouteConfirm"
+          @cancel="handleUploadRouteCancel"
+        />
       </div>
     </div>
   </div>
@@ -639,11 +1308,9 @@ import {
   droneRtl,
   droneMode,
   droneJoystick,
-  uploadRouteFile,
-  dronesSetServo
+  uploadRouteFile
+
 } from "@/api/drones";
-import { videoStartRecording, videoStopRecording } from "@/api/video.js";
-import { liveStreamShare, liveStreamGetLiveStream } from "@/api/liveStream";
 import { missionAllList, missioRoutes } from "@/api/mission";
 import {
   Bottom,
@@ -658,29 +1325,34 @@ import {
   Search,
   Fold,
   Expand,
-  Picture,
 } from "@element-plus/icons-vue";
 import {
   droneIdStatus,
   setHomePosition,
   doMission,
   oneClickExecute,
-  dronesDrones,
-  dronesStop,
 } from "@/api/drones";
+import ShakaPlayer from "../../component/ShakaPlayer.vue";
 import M3u8Player from "../../component/M3u8Player.vue";
 import { dronePolicyList } from "@/api/dronePolicy.js";
 import { getRouteList } from "@/api/route";
 // import droneIconUrl from "@/assets/mti-无人机.png";
 import planeIcon from "@/assets/飞机.png";
 import localIcon from "@/assets/local.png";
-import shareVideo from "@/assets/分享.png";
-import shareVideo2 from "@/assets/录制_开始录制.png";
-import shareVideo3 from "@/assets/录制_停止录制.png";
-import TaskList from "./components/TaskList.vue";
-import UploadRouteDialog from "./components/UploadRouteDialog.vue";
-import UavDetailDialog from "./components/UavDetailDialog.vue";//无人机监控里面的弹窗
-
+import TaskList from "../components/mission/TaskList.vue";
+import UploadRouteDialog from "../components/mission/UploadRouteDialog.vue";
+import DroneDetailDialog from "../components/mission/DroneDetailDialog.vue";
+// 可选的播放器配置
+const playerConfig = {
+  // 可以在这里添加Shaka Player的配置项
+  // 例如：
+  preferredAudioLanguage: "zh-CN",
+  streaming: {
+    bufferingGoal: 30,
+    rebufferingGoal: 10,
+  },
+};
+let videoStream = "ws://121.41.60.99:8082/live/stream_key.live.flv";
 // 注入父组件提供的上下文
 const collapseContext = inject("collapseContext", {
   isCollapse: ref(false),
@@ -736,17 +1408,6 @@ const trackState = reactive({
 });
 // 搜索相关
 const searchQuery = ref("");
-// 视频录制状态
-const currentRecordId = ref('');
-const isRecording = ref(false);
-// 通道-舵机控制
-const current = ref(0);
-const inputServo = ref('');
-const stepDisabled = ref({
-  left: false,
-  middle: true,
-  right: true
-});
 const taskName = ref("");
 let selectedDeviceInfo = ref(null);
 const isConnected = ref(false); //0816测试无人机按钮是否可用
@@ -885,22 +1546,9 @@ const markers = ref([]);
 const lines = ref([]);
 const animationTimer = ref(null);
 const totalSeconds = 10; // 总动画时长（秒），到达终点或超时停止// 初始化地图
-const flvUrl = ref(""); // 通过API获取的FLV视频流URL
+const droneMonitoringUrl = ref("");
 const droneMonitoringShow = ref(false);
 const dronM3u8PlayerShow = ref(false);
-// WebRTC 原生播放相关
-const videoEl = ref(null);
-const webRTCStatus = ref("idle"); // idle | connecting | connected | error
-const webRTC_PC = ref(null);
-const webrtcConfig = reactive({
-  host: "",
-  port: "",
-  app: "",
-  stream: "",
-});
-// 分享视频二维码弹窗
-const qrCodeDialogVisible = ref(false);
-const qrCodeUrl = ref("");
 // 标记是否是首次加载（用于初始缩放）
 const isFirstLoad = ref(true);
 // 标记用户是否手动缩放过地图（用于后续更新时保持缩放）
@@ -923,303 +1571,6 @@ const taskRouteId = ref(0);
 const toggleTaskList = () => {
   showTaskList.value = !showTaskList.value;
   showTaskDetails.value = false;
-};
-
-// 切换录制状态
-const toggleRecording = async (value) => {
-  console.log(isRecording.value, "=====")
-  if (!flvUrl.value) {
-    ElMessage.warning("请先搜索无人机设备获取视频流");
-    return;
-  }
-
-  // 正在录制 → 停止
-  if (value === 1) {
-    try {
-      if (!currentRecordId.value) {
-        ElMessage.warning("未找到录制ID，无法停止");
-        isRecording.value = false;
-        return;
-      }
-      let res = await videoStopRecording({
-        recordId: currentRecordId.value // 正确传录制ID
-      });
-      console.log("停止录制返回:", res);
-      ElMessage.success("已停止录制");
-    } catch (err) {
-      console.error(err);
-      ElMessage.error("停止录制失败");
-    } finally {
-      // 无论成功失败，都重置状态
-      isRecording.value = false;
-      currentRecordId.value = '';
-    }
-    return;
-  }
-
-  // 未录制 → 开始
-  try {
-    isRecording.value = true; // 先切图标，防止接口慢导致不切换
-    let data = {
-      droneId: searchQuery.value,
-      streamUrl: flvUrl.value,
-    };
-    let res = await videoStartRecording(data);
-    console.log("开始录制返回:", res);
-
-    if (res?.code === 200 && res?.data) {
-      currentRecordId.value = res.data; // 保存后端返回的录制ID
-      ElMessage.success("开始录制成功");
-    } else {
-      ElMessage.error(res?.message || "开始录制失败");
-      isRecording.value = false;
-    }
-  } catch (err) {
-    console.error(err);
-    ElMessage.error("开始录制异常");
-    isRecording.value = false;
-  }
-};
-
-// 分享视频
-const handleShareVideo = async () => {
-  if (!flvUrl.value) {
-    ElMessage.warning("请先搜索无人机设备获取视频流");
-    return;
-  }
-
-  try {
-    const data = {
-      streamUrl: flvUrl.value,
-      title: selectedDeviceInfo.value?.deviceName || '',
-      droneId: searchQuery.value,
-    };
-
-    let res = await liveStreamShare(data);
-    if (res.code === 200 && res.data) {
-      qrCodeUrl.value = res.data.qrCode;
-      qrCodeDialogVisible.value = true;
-      console.log("二维码生成成功:", qrCodeUrl.value);
-    } else {
-      ElMessage.error(res.message || "二维码生成失败");
-    }
-  } catch (error) {
-    console.error("分享视频失败:", error);
-    ElMessage.error("分享视频失败: " + (error.message || "未知错误"));
-  }
-}
-//获取视频（传入设备SN，调用接口获取flv播放地址）
-const getLiveStream = async (deviceSN) => {
-  if (!deviceSN) return;
-  try {
-    let res = await liveStreamGetLiveStream(deviceSN)
-    if (res.code === 200 && res.data) {
-      // API返回的data可能是字符串（WebRTC URL）或对象（含flvUrl）
-      const streamUrl = typeof res.data === "string" ? res.data : res.data.flvUrl;
-      if (!streamUrl) return;
-      flvUrl.value = streamUrl;
-      droneMonitoringShow.value = true;
-      dronM3u8PlayerShow.value = false;
-      // 从URL中解析 host/port/app/stream
-      const urlMatch = streamUrl.match(
-        /^https?:\/\/([^\/:]+)(?::(\d+))?\/.*[?&]app=([^&]+)&stream=([^&]+)/
-      );
-      if (urlMatch) {
-        webrtcConfig.host = urlMatch[1];
-        webrtcConfig.port = urlMatch[2] || "8082";
-        webrtcConfig.app = urlMatch[3];
-        webrtcConfig.stream = urlMatch[4];
-      }
-      console.log("📡 WebRTC 解析结果:", JSON.stringify(webrtcConfig));
-      startWebRTCPlay();
-    }
-  } catch (err) {
-    console.error("获取视频流失败:", err);
-  }
-}
-// ==================== WebRTC 原生播放 ====================
-// 请求 ZLMediaKit SDP
-const fetchWebRTCSDP = async (offerSdp) => {
-  const { host, port, app, stream } = webrtcConfig;
-  const apiUrl = `http://${host}:${port}/index/api/webrtc?app=${app}&stream=${stream}&type=play`;
-  console.log("WebRTC 请求信令:", apiUrl);
-  const res = await fetch(apiUrl, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
-    body: offerSdp,
-  });
-  if (!res.ok) throw new Error(`请求失败 ${res.status}`);
-  const data = await res.json();
-  if (data.code !== 0) throw new Error(`信令错误：${data.msg}`);
-  const sdp = data.sdp || (data.data && data.data.sdp);
-  if (!sdp) throw new Error("无 SDP 返回，流可能不存在");
-  return { sdp };
-};
-// 等待 ICE 候选收集完成
-const waitForIceGatheringComplete = (pc) => {
-  return new Promise((resolve) => {
-    if (pc.iceGatheringState === "complete") return resolve();
-    const check = () => {
-      if (pc.iceGatheringState === "complete") {
-        pc.removeEventListener("icegatheringstatechange", check);
-        resolve();
-      }
-    };
-    pc.addEventListener("icegatheringstatechange", check);
-    setTimeout(() => resolve(), 5000);
-  });
-};
-// 停止 WebRTC 播放
-const stopWebRTCPlay = () => {
-  if (webRTC_PC.value) {
-    webRTC_PC.value.close();
-    webRTC_PC.value = null;
-  }
-  if (videoEl.value?.srcObject) {
-    videoEl.value.srcObject.getTracks().forEach((t) => t.stop());
-    videoEl.value.srcObject = null;
-  }
-  webRTCStatus.value = "idle";
-};
-// 开始 WebRTC 播放
-const startWebRTCPlay = async () => {
-  stopWebRTCPlay();
-  webRTCStatus.value = "connecting";
-  try {
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-      ],
-    });
-    webRTC_PC.value = pc;
-
-    pc.oniceconnectionstatechange = () => {
-      const state = pc.iceConnectionState;
-      console.log("WebRTC ICE 状态:", state);
-      if (state === "connected" || state === "completed") {
-        webRTCStatus.value = "connected";
-      } else if (state === "failed") {
-        webRTCStatus.value = "error";
-      }
-    };
-
-    pc.ontrack = (e) => {
-      if (e.track.kind === "video") {
-        if (videoEl.value) {
-          videoEl.value.srcObject = e.streams[0];
-          videoEl.value.play().catch(() => {});
-          console.log("WebRTC 已接收视频流");
-        } else {
-          console.warn("WebRTC 收到视频流但 videoEl 未就绪");
-        }
-      }
-    };
-
-    const offer = await pc.createOffer({
-      offerToReceiveAudio: true,
-      offerToReceiveVideo: true,
-    });
-    await pc.setLocalDescription(offer);
-    await waitForIceGatheringComplete(pc);
-    if (pc.signalingState !== "closed") {
-      const { sdp } = await fetchWebRTCSDP(pc.localDescription.sdp);
-      await pc.setRemoteDescription(
-        new RTCSessionDescription({ type: "answer", sdp })
-      );
-      console.log("WebRTC 连接成功");
-    }
-  } catch (err) {
-    console.error("WebRTC 播放失败:", err);
-    webRTCStatus.value = "error";
-    stopWebRTCPlay();
-  }
-};
-// ==================== WebRTC END ====================
-
-// 测试按钮
-const aaaaa = async (value) => {
-  try {
-    if (value === 1) {
-      await dronesDrones({ droneId: searchQuery.value });
-    } else {
-      await dronesStop({ droneId: searchQuery.value });
-    }
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// 通道1：左边 / 中间 / 右边（严格状态流转）
-const setServoPosition = async (value) => {
-  console.log("setServoPosition", value);
-
-  if (!searchQuery.value) {
-    ElMessage.warning("请先搜索无人机信息");
-    return;
-  }
-  try {
-    // 先执行接口
-    let data = {
-      droneId: searchQuery.value,
-      servo: value === 1 ? 1050 : value === 2 ? 1500 : 1950,
-      type: 1
-    };
-    let res = await dronesSetServo(data);
-    // ============== 严格状态切换逻辑 ==============
-    if (value === 1) {
-      // 点击左边：左边禁用，中间可点，右边禁用
-      stepDisabled.value = { left: true, middle: false, right: true };
-    } else if (value === 2) {
-      // 点击中间：中间禁用，左右可点
-      stepDisabled.value = { left: false, middle: true, right: false };
-    } else if (value === 3) {
-      // 点击右边：右边禁用，中间可点，左边禁用
-      stepDisabled.value = { left: true, middle: false, right: true };
-    }
-    if (res.code === 200) {
-      ElMessage.success(`操作成功`);
-    }
-  } catch (err) {
-    console.error("请求失败", err);
-  }
-};
-
-// 通道2：失去焦点自动发送
-const sendChannel2 = async () => {
-  if (!searchQuery.value || !inputServo.value) return;
-  try {
-    let data = {
-      droneId: searchQuery.value,
-      servo: Number(inputServo.value),
-      type: 2
-    };
-    let res = await dronesSetServo(data);
-    // ElMessage.success(`通道2 已发送：${inputServo.value}`);
-    if (res.code === 200) {
-      ElMessage.success(`操作成功`);
-    }
-  } catch (err) {
-    console.error("通道2发送失败", err);
-  }
-};
-
-// 输入框失焦校验 + 自动发送
-const handleServoBlur = () => {
-  let val = inputServo.value || '';
-  val = val.replace(/[^\d]/g, '');
-
-  if (val === '') {
-    inputServo.value = '';
-    return;
-  }
-
-  let num = Number(val);
-  if (num < 1050) num = 1050;
-  if (num > 1950) num = 1950;
-  inputServo.value = num;
-
-  sendChannel2();
 };
 // 新增：地图图层切换
 const mapLayerType = ref("satelliteMix"); // 默认卫星混合
@@ -1312,9 +1663,8 @@ const onMapLayerChange = (val) => {
 
 // 处理任务列表展开/收起状态变更
 const handleTaskListToggle = (status) => {
-  console.log(status, "====")
   showTaskList.value = status;
-  // 不再改变 showTaskDetails，保持任务详情原有状态
+  showTaskDetails.value = false; // 保持原有逻辑
 };
 
 // 处理任务列表状态更新（如总数、列表数据）
@@ -1337,7 +1687,7 @@ const selectTask = (value) => {
 };
 //鼠标移出任务
 const mouseleaveTask = () => {
-  showTaskDetails.value = false;
+  // showTaskDetails.value = false;
   console.log("鼠标移出任务");
 };
 const handleSizeChange = (val) => {
@@ -1589,8 +1939,38 @@ const handleSearch = async () => {
       };
       // 设置当前选中的设备ID，用于后续操作
       selectedDeviceId.value = response.data.deviceNumber;
-      // 通过API获取该设备的FLV视频流地址
-      getLiveStream(selectedDeviceId.value);
+
+      const prefixes = ["rtmp://121.41.60.99:", "rtsp://121.41.60.99:"];
+      const rtmpUrl = response.data.videoIp;
+      console.log(rtmpUrl, "rtmpUrl");
+      if (rtmpUrl) {
+        if (rtmpUrl.endsWith("hls.m3u8")) {
+          dronM3u8PlayerShow.value = true; // 符合条件，显示第二个播放器
+        } else {
+          droneMonitoringShow.value = true; // 不符合，显示第一个播放器
+        }
+      }
+      console.log(response.data.videoIp, "==========");
+      // 找到匹配的前缀（如果存在）
+      const matchedPrefix = prefixes.find((prefix) =>
+        rtmpUrl.startsWith(prefix)
+      );
+      const isMatch = !!matchedPrefix; // 转换为布尔值判断是否匹配
+      console.log(isMatch, "isMatch");
+
+      // 如果匹配，则提取路径部分（live/stream2）
+      if (isMatch) {
+        // 使用实际匹配的前缀长度来截取，避免因前缀长度不同导致错误
+        const afterPrefix = rtmpUrl.slice(matchedPrefix.length);
+        const parts = afterPrefix.split("/");
+        droneMonitoringUrl.value = parts.slice(1).join("/");
+        console.log("提取的路径部分: ", droneMonitoringUrl.value);
+        // 注意这里修正了模板字符串的变量名
+        console.log(
+          "完整的url: ",
+          `ws://121.41.60.99:8082/${droneMonitoringUrl.value}.live.flv`
+        );
+      }
       ElMessage.success("搜索成功");
       isConnected.value = true;
       status.value.connected = isConnected.value;
@@ -2300,8 +2680,8 @@ const submitForm = async () => {
             const markerElement = returnVoyageMarker.value._icon._element;
             markerElement.style.cursor = "default"; // 恢复默认光标
             // 移除拖拽事件监听
-            markerElement.removeEventListener("mousedown", () => { });
-            markerElement.removeEventListener("touchstart", () => { });
+            markerElement.removeEventListener("mousedown", () => {});
+            markerElement.removeEventListener("touchstart", () => {});
           }
         } else {
           ElMessage.error(res.message || "设置失败");
@@ -2413,7 +2793,7 @@ const taskManagement = async () => {
       total.value = res.data.total;
     }
     console.log(res, "qwefrfdg");
-  } catch (err) { }
+  } catch (err) {}
 };
 // 任务航线管理
 const handleRouteManage = async (row) => {
@@ -2572,17 +2952,6 @@ watch(
   },
   { immediate: false } // 初始加载时不触发，仅状态变化时触发
 );
-//切换到通道1的时候会清除通道2的输入内容
-watch(
-  current,
-  (newVal) => {
-    if (newVal === 1) {
-      inputServo.value = ''; // 切换通道时清空输入框
-    }
-    console.log("current:", newVal);
-  },
-  { immediate: true }
-);
 // 生命周期钩子
 onMounted(() => {
   // console.log('%c ', 'color:pink; font-size:14px')
@@ -2615,9 +2984,6 @@ parentElement?.addEventListener("click", handleClickOutside);
 
 onBeforeUnmount(() => {
   window.removeEventListener("resize", handleResize);
-
-  // 停止 WebRTC 播放
-  stopWebRTCPlay();
 
   document.removeEventListener("click", handleClickOutside);
   // 清除定时器
@@ -2717,9 +3083,9 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(degreesToRadians(lat1)) *
-    Math.cos(degreesToRadians(lat2)) *
-    Math.sin(dLon / 2) *
-    Math.sin(dLon / 2);
+      Math.cos(degreesToRadians(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return earthRadius * c; // 返回两点距离（米）
@@ -2894,7 +3260,7 @@ const uploadFile = async () => {
 //         console.log("开始调用 doMission 接口...");
 //         const response = await doMission(formData, searchQuery.value);
 //         console.log("doMission 接口响应:", response);
-
+        
 //         if (response.code === 200) {
 //           ElMessage.success("上传成功");
 //           fileName.value = "";
@@ -3155,18 +3521,6 @@ const fitMapToRoute = (routePoints) => {
   if (!map || routePoints.length === 0) return;
 
   try {
-    // 提取所有点的经纬度（兼容LngLat对象和普通对象）
-    const extractLngLat = (point) => {
-      // 如果是LngLat对象，使用getLng()和getLat()
-      if (typeof point.getLng === 'function') {
-        return { lng: point.getLng(), lat: point.getLat() };
-      }
-      // 否则直接使用lng/lat属性
-      return { lng: point.lng, lat: point.lat };
-    };
-
-    const firstPoint = extractLngLat(routePoints[0]);
-
     if (routePoints.length === 1) {
       // 只有一个点时，直接定位到该点
       map.panTo(routePoints[0]); // 使用panTo替代setCenter
@@ -3175,13 +3529,14 @@ const fitMapToRoute = (routePoints) => {
     }
 
     // 计算所有点的经纬度范围（优化版）
-    let minLng = firstPoint.lng;
-    let maxLng = firstPoint.lng;
-    let minLat = firstPoint.lat;
-    let maxLat = firstPoint.lat;
+    let minLng = routePoints[0].lng;
+    let maxLng = routePoints[0].lng;
+    let minLat = routePoints[0].lat;
+    let maxLat = routePoints[0].lat;
 
     routePoints.forEach((point) => {
-      const { lng, lat } = extractLngLat(point);
+      const lng = point.lng;
+      const lat = point.lat;
 
       minLng = Math.min(minLng, lng);
       maxLng = Math.max(maxLng, lng);
@@ -3532,10 +3887,7 @@ const handleClickOutside = (event) => {
   flex-direction: row;
   z-index: 1;
   background: transparent;
-  pointer-events: none;
-
-  /* 关键修复：让子元素自动撑满 */
-  align-items: stretch;
+  pointer-events: none !important;
 }
 
 /* 顶部区域 - 任务列表容器 */
@@ -3546,70 +3898,49 @@ const handleClickOutside = (event) => {
   padding: 20px;
   color: #fff;
   font-size: 16px;
-  overflow-y: auto;
-  /* 仅保留垂直滚动（任务列表需要） */
-  overflow-x: hidden;
-  /* 强制隐藏横向滚动条 */
+  overflow-y: auto; /* 仅保留垂直滚动（任务列表需要） */
+  overflow-x: hidden; /* 强制隐藏横向滚动条 */
   border-radius: 12px;
   border: 2px solid rgba(60, 127, 231, 0.7);
   /* margin: 20px 0 20px 20px; */
-
-  scrollbar-width: thin;
-  /* 火狐：窄滚动条 */
-  scrollbar-color: rgba(60, 127, 231, 0.7) transparent;
-  /* 火狐：滚动条颜色 */
+  
+  scrollbar-width: thin; /* 火狐：窄滚动条 */
+  scrollbar-color: rgba(60, 127, 231, 0.7) transparent; /* 火狐：滚动条颜色 */
 }
-
 .top-section2 {
   height: 100%;
 }
-
 /* 分页滚动容器核心样式 */
 .pagination-wrapper {
   background-color: #2e3649db;
   width: 100%;
-  overflow-x: auto;
-  /* 超出宽度显示滚动条 */
+  overflow-x: auto; /* 超出宽度显示滚动条 */
   -webkit-overflow-scrolling: touch;
   padding-bottom: 8px;
   border-radius: 12px;
 }
-
 /* 强制分页组件整体在一行 */
 :deep(.pagination-wrapper .el-pagination) {
-  display: flex !important;
-  /* 强制flex布局 */
-  flex-wrap: nowrap !important;
-  /* 禁止任何换行 */
-  align-items: center !important;
-  /* 垂直居中 */
-  gap: 12px !important;
-  /* 各模块之间保留间距 */
-  width: fit-content !important;
-  /* 让分页宽度自适应内容（关键） */
+  display: flex !important; /* 强制flex布局 */
+  flex-wrap: nowrap !important; /* 禁止任何换行 */
+  align-items: center !important; /* 垂直居中 */
+  gap: 12px !important; /* 各模块之间保留间距 */
+  width: fit-content !important; /* 让分页宽度自适应内容（关键） */
 }
-
 /* 可选：美化滚动条 */
 .pagination-wrapper::-webkit-scrollbar {
-  height: 6px;
-  /* 滚动条高度 */
+  height: 6px; /* 滚动条高度 */
 }
-
 .pagination-wrapper::-webkit-scrollbar-track {
-  background: rgba(0, 40, 90, 0.1);
-  /* 滚动条轨道背景 */
+  background: rgba(0, 40, 90, 0.1); /* 滚动条轨道背景 */
   border-radius: 3px;
 }
-
 .pagination-wrapper::-webkit-scrollbar-thumb {
-  background: rgba(60, 127, 231, 0.7);
-  /* 滚动条滑块颜色 */
+  background: rgba(60, 127, 231, 0.7); /* 滚动条滑块颜色 */
   border-radius: 3px;
 }
-
 .pagination-wrapper::-webkit-scrollbar-thumb:hover {
-  background: rgba(60, 127, 231, 0.9);
-  /* 滑块hover状态 */
+  background: rgba(60, 127, 231, 0.9); /* 滑块hover状态 */
 }
 
 /* 强制分页内部子元素（总条数、页码、跳转等）不换行 */
@@ -3618,11 +3949,9 @@ const handleClickOutside = (event) => {
   flex-wrap: nowrap !important;
   white-space: nowrap !important;
 }
-
 :deep(.el-pagination__classifier) {
   color: #fff;
 }
-
 :deep(.el-pagination > .is-first),
 :deep(.el-pagination > .is-last),
 :deep(.el-pagination > .el-icon svg) {
@@ -3632,53 +3961,13 @@ const handleClickOutside = (event) => {
 :deep(.route-search .el-input__inner) {
   color: #fff;
 }
-
 .bottom-section {
-  /* 核心：自动占满 flex 剩余宽度 */
-  flex: 1;
+  flex: 0 0 80%;
+  min-width: 80%;
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  /* pointer-events: none; */
 }
-
-/* 任务列表展开时，底部面板留出 20% 空间
-.bottom-section:not(.full-width) {
-  width: calc(100% - 20%);
-} */
-
-/* 任务列表收起时，面板全屏
-.bottom-section.full-width {
-  width: 100%;
-}
-
-.bottom-section.full-width {
-  width: 100%;
-} */
-
-/* 任务列表切换按钮 */
-.task-list-toggle {
-  position: absolute;
-  cursor: pointer;
-  pointer-events: auto !important;
-  left: 00px;
-  top: 0px;
-  z-index: 1000;
-  background: #fff;
-  border-radius: 50%;
-  width: 26px;
-  height: 26px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
-}
-
-.task-list-toggle:hover {
-  background: #f5f5f5;
-}
-
 .top-panel,
 .left-panel,
 .right-panel,
@@ -3687,7 +3976,6 @@ const handleClickOutside = (event) => {
 .task-details-card-wrapper {
   pointer-events: auto;
 }
-
 /* 顶部面板 */
 .top-panel {
   position: absolute;
@@ -3719,7 +4007,7 @@ const handleClickOutside = (event) => {
 .right-panel {
   position: absolute;
   top: 100px;
-  right: 20px;
+  right: 40px;
   bottom: 20px;
   width: 250px;
   z-index: 20;
@@ -3796,32 +4084,6 @@ const handleClickOutside = (event) => {
   box-sizing: border-box;
   color: #fff;
 }
-/* WebRTC 播放器容器 */
-.webrtc-player-container {
-  position: relative;
-  width: 100%;
-  /* min-height: 300px; */
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-}
-.webrtc-player-container video {
-  width: 100%;
-  display: block;
-  /* min-height: 300px; */
-  background: #000;
-}
-.webrtc-loading {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #ccc;
-  font-size: 14px;
-  background: rgba(0, 0, 0, 0.6);
-  padding: 10px 20px;
-  border-radius: 6px;
-}
 
 .device-info {
   margin-bottom: 16px;
@@ -3857,20 +4119,18 @@ const handleClickOutside = (event) => {
   justify-content: center; */
   position: absolute;
   bottom: 20px;
-  left: 316px;
-  right: 290px;
+  left: 315px;
+  right: 310px;
   height: 225px;
   z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-
 .routeProgress {
   color: #fff;
   min-width: 80px;
 }
-
 .control-content {
   width: 100%;
   display: flex;
@@ -4017,7 +4277,7 @@ const handleClickOutside = (event) => {
 
 .lock-slider.cursor-not-allowed {
   cursor: not-allowed;
-  /* pointer-events: none; */
+  pointer-events: none;
   /* 禁用鼠标和触摸事件 */
 }
 
@@ -4050,35 +4310,25 @@ const handleClickOutside = (event) => {
   z-index: 1;
   left: -12px;
 }
-
 .draggable-marker {
-  cursor: move;
-  /* 确保拖拽光标显示 */
-  user-select: none;
-  /* 禁止文本选择 */
-  -webkit-user-drag: none;
-  /* 禁用浏览器默认拖拽 */
+  cursor: move; /* 确保拖拽光标显示 */
+  user-select: none; /* 禁止文本选择 */
+  -webkit-user-drag: none; /* 禁用浏览器默认拖拽 */
 }
-
 .draggable-marker:hover {
-  transform: scale(1.1);
-  /* 悬停放大效果 */
-  z-index: 1001;
-  /* 提升层级 */
+  transform: scale(1.1); /* 悬停放大效果 */
+  z-index: 1001; /* 提升层级 */
 }
-
 /* 任务详情Card容器 - 核心定位 */
 .task-details-card-wrapper {
   position: absolute;
-
+  top: 20px; /* 保持顶部与top-panel对齐 */
   z-index: 99;
 }
-
 /* 任务列表展开时：左侧 = 任务列表宽度(20%) + 任务列表的左margin(20px) */
 .task-details-card-wrapper.task-list-expanded {
-  left: calc(20% + 20px);
+  left: calc(15% + 20px);
 }
-
 
 /* 任务列表收起时：左侧与top-panel对齐（20px） */
 .task-details-card-wrapper:not(.task-list-expanded) {
@@ -4094,19 +4344,14 @@ const handleClickOutside = (event) => {
   color: #fff;
   border-radius: 12px;
 }
-
 /* 统一Card视觉风格（与其他面板一致） */
 :deep(.task-details-card-wrapper .el-card) {
   max-width: 480px;
   box-sizing: border-box;
-  background: rgba(0, 40, 90, 0.9);
-  /* 与其他面板背景统一 */
-  border: 2px solid rgba(60, 127, 231, 0.7);
-  /* 与其他面板边框统一 */
-  color: #fff;
-  /* 文字颜色统一为白色 */
-  border-radius: 12px;
-  /* 与其他面板圆角统一 */
+  background: rgba(0, 40, 90, 0.9); /* 与其他面板背景统一 */
+  border: 2px solid rgba(60, 127, 231, 0.7); /* 与其他面板边框统一 */
+  color: #fff; /* 文字颜色统一为白色 */
+  border-radius: 12px; /* 与其他面板圆角统一 */
 }
 
 /* 统一Card头部样式 */
@@ -4128,19 +4373,15 @@ const handleClickOutside = (event) => {
   border-color: rgba(60, 127, 231, 0.7);
   color: #fff;
 }
-
 :deep(.task-details-card-wrapper .el-button) {
   margin-right: 8px;
 }
-
 :deep(.uploadRoute) {
   max-height: 600px;
 }
-
 :deep(.el-dialog__body) {
   height: calc(100% - 56px);
 }
-
 :deep(.direction-buttons .el-button.is-disabled, .el-button.is-disabled:hover) {
   background: none;
   border: none;
@@ -4157,7 +4398,11 @@ const handleClickOutside = (event) => {
   color: #fff;
 }
 
-:deep(.el-descriptions__body .el-descriptions__table.is-bordered .el-descriptions__cell) {
+:deep(
+    .el-descriptions__body
+      .el-descriptions__table.is-bordered
+      .el-descriptions__cell
+  ) {
   padding: 6px 10px;
   width: 50%;
 }
@@ -4190,8 +4435,8 @@ const handleClickOutside = (event) => {
 
 /* 标记点样式（深度选择器确保生效） */
 :deep(.tdt-div-icon .route-marker) {
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
   border-radius: 50% !important;
   display: flex;
   justify-content: center;
@@ -4217,10 +4462,9 @@ const handleClickOutside = (event) => {
   background-color: #409eff !important;
   /* 中间点蓝色 */
 }
-
 :deep .route-marker {
-  width: 24px;
-  height: 24px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   justify-content: center;
@@ -4232,24 +4476,19 @@ const handleClickOutside = (event) => {
 }
 
 :deep .route-start {
-  background-color: #e74c3c;
-  /* 红色起点 */
+  background-color: #e74c3c; /* 红色起点 */
 }
 
 :deep .route-end {
-  background-color: #27ae60;
-  /* 绿色终点 */
+  background-color: #27ae60; /* 绿色终点 */
 }
 
 :deep .route-point {
-  background-color: #3498db;
-  /* 蓝色中间点 */
+  background-color: #3498db; /* 蓝色中间点 */
 }
-
 :deep(.el-progress__text) {
   color: white;
 }
-
 .route-marker:hover {
   transform: scale(1.1);
 }
@@ -4259,21 +4498,16 @@ const handleClickOutside = (event) => {
   .routeProgress {
     min-width: 80px;
   }
-
   .bottom-panel {
-    left: 306px;
-    right: 284px;
-    height: 240px;
-
+    left: 305px;
+    right: 300px;
   }
-
   .task-details-card-wrapper {
     left: 305px;
   }
 }
 
 @media (max-width: 1400px) {
-
   .left-panel,
   .top-panel {
     width: 250px;
@@ -4285,31 +4519,27 @@ const handleClickOutside = (event) => {
 
   .bottom-panel {
     left: 290px;
-    right: 270px;
-    height: 240px;
-
+    right: 290px;
   }
-
   .task-details-card-wrapper {
     left: 290px;
   }
 }
 
 @media (max-width: 1200px) {
-
   .left-panel,
   .top-panel {
-    width: 120px;
+    width: 180px;
   }
 
   .right-panel {
-    width: 230px;
+    width: 200px;
   }
 
   .bottom-panel {
-    left: 156px;
-    right: 266px;
-    height: 240px;
+    left: 250px;
+    right: 260px;
+    height: 190px;
   }
 
   .left-panel,
@@ -4317,54 +4547,26 @@ const handleClickOutside = (event) => {
     bottom: 20px;
     /* 对应底部面板高度调整 */
   }
-
   .routeProgress {
     min-width: 80px;
   }
-
   .task-details-card-wrapper {
     left: 250px;
   }
-
 }
 
 @media (max-width: 992px) {
-
   .left-panel,
   .right-panel {
-    width: 120px;
+    width: 180px;
     bottom: 20px;
   }
 
   .bottom-panel {
-    left: 156px;
-    right: 156px;
-    height: 240px;
-  }
-
-  .routeProgress {
-    min-width: 80px;
-  }
-
-  .task-details-card-wrapper {
     left: 210px;
+    right: 230px;
+    height: 190px;
   }
-}
-
-@media (max-width: 800px) {
-
-  .left-panel,
-  .right-panel {
-    width: 90px;
-    bottom: 20px;
-  }
-
-  .bottom-panel {
-    left: 120px;
-    right: 120px;
-    height: 240px;
-  }
-
   .routeProgress {
     min-width: 80px;
   }

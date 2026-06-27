@@ -105,7 +105,7 @@
     v-model="editDialogVisible"
     :form-dialog-title="editDialogTitle"
     :form-items="editFormItems"
-    :form-rules="editFormRules"
+    :rules="editFormRules"
     :form-model-value="editFormData"
     :is-edit="true"
     dialog-width="500px"

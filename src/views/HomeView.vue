@@ -8,14 +8,18 @@
           <img src="@/assets/wrj.png" alt="Logo" class="logo" />
           <span v-if="!isCollapse" class="title">无人机管理系统</span>
         </div>
-        <!-- <el-menu-item
-          class="menu-item"
-          index="/gis/weatherInquiry"
-          @click="handleMenuClick('/gis/weatherInquiry')"
-        >
-          <el-icon><MostlyCloudy /></el-icon>
+        <el-menu-item class="menu-item" index="/gis/weatherInquiry" @click="handleMenuClick('/gis/weatherInquiry')">
+          <el-icon>
+            <MostlyCloudy />
+          </el-icon>
           <template #title>气象查询</template>
-        </el-menu-item> -->
+        </el-menu-item>
+        <el-menu-item class="menu-item" index="/test" @click="handleMenuClick('/test')">
+          <el-icon>
+            <MostlyCloudy />
+          </el-icon>
+          <template #title>测试页面</template>
+        </el-menu-item>
         <!-- 替换原有的el-sub-menu循环部分 -->
         <template v-for="item in meunList" :key="item.id">
           <!-- 有子菜单的情况 - 使用el-sub-menu -->
@@ -218,7 +222,9 @@ const menuMap = {
   "/project/object": { parent: " 项目管理", text: "项目设备管理" },
   "/log/list": { parent: " 日志管理", text: "日志列表" },
   "/route": { text: "航线管理" },
-  // "/gis/weatherInquiry": { text: "气象查询" }, //后面再修改，飞行任务 -- 气象查询
+  "/gis/weatherInquiry": { text: "气象查询" }, //后面再修改，飞行任务 -- 气象查询
+  "/test": { text: "测试页面" },
+  "/todo": { text: "冲突待办" },
   "/strategicManagement": { parent: " 策略管理", text: "策略管理" },
 };
 // 图标名称与组件对象的映射表

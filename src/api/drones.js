@@ -162,3 +162,18 @@ export const dronesSetServo = (data) => {
     data,
   });
 };
+//测试1
+export const dronesDrones = () => {
+  return request({
+    url: `/api/drones/port/start`,
+    method: 'GET',
+  });
+};
+
+//测试2
+export const dronesStop = () => {
+  return request({
+    url: `/api/drones/port/stop`,
+    method: 'GET',
+  });
+};

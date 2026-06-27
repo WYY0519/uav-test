@@ -1,40 +1,37 @@
 <template>
   <div class="control-toolbar" v-show="toolbarVisible">
     <h3>
-      区域管理 <el-icon @click="regionClose"><Close /></el-icon>
+      区域管理
+      <el-icon @click="regionClose">
+        <Close />
+      </el-icon>
     </h3>
-    <button
-      @click="startDrawNoFlyPolygon"
-      :class="{
-        btn: true,
-        primary: selectedRegion === 'jf',
-        warningArea: selectedRegion === 'jg',
-      }"
-    >
+
+    <button @click="startDraw('polygon')" :class="{
+      btn: true,
+      primary: selectedRegion === 'jf',
+      warningArea: selectedRegion === 'jg',
+    }">
       <i class="icon-polygon"></i> 绘制多边形区域
     </button>
-    <button
-      @click="startDrawNoFlyCircle"
-      :class="{
-        btn: true,
-        primary: selectedRegion === 'jf',
-        warningArea: selectedRegion === 'jg',
-      }"
-    >
+
+    <button @click="startDraw('circle')" :class="{
+      btn: true,
+      primary: selectedRegion === 'jf',
+      warningArea: selectedRegion === 'jg',
+    }">
       <i class="circle"></i> 绘制圆形区域
     </button>
+
     <div style="display: flex">
-      <button
-        @click="confirmDraw"
-        style="margin-right: 8px"
-        class="btn secondary"
-      >
+      <button @click="confirmDraw" style="margin-right: 8px" class="btn secondary">
         <i class="confirm"></i> 确认绘制
       </button>
-      <button @click="cancelDraw" :disabled="isEditing" class="btn secondary">
+      <button @click="cancelDraw" class="btn secondary">
         <i class="cancel"></i> 取消绘制
       </button>
     </div>
+
     <div class="legend">
       <div class="legend-item" @click="regionSelection('jf')">
         <div class="legend-color red"></div>
@@ -47,56 +44,28 @@
     </div>
   </div>
 
-  <el-dialog
-    v-model="dialogVisible"
-    :title="`完善${regionName}信息`"
-    width="400px"
-    :before-close="handleDialogClose"
-  >
-    <el-form
-      :model="formData"
-      :rules="formRules"
-      ref="formRef"
-      label-width="80px"
-    >
+  <el-dialog v-model="dialogVisible" :title="`完善${regionName}信息`" width="400px" :before-close="handleDialogClose">
+    <el-form :model="formData" :rules="formRules" ref="formRef" label-width="80px">
       <el-form-item label="区域名称" prop="name">
-        <el-input
-          v-model="formData.name"
-          :placeholder="`请输入${regionName}名称`"
-          maxlength="20"
-          show-word-limit
-        />
+        <el-input v-model="formData.name" :placeholder="`请输入${regionName}名称`" maxlength="20" show-word-limit />
       </el-form-item>
       <el-form-item label="区域描述" prop="description">
-        <el-input
-          v-model="formData.description"
-          :placeholder="`请输入${regionName}描述（可选）`"
-          type="textarea"
-          :rows="3"
-          maxlength="200"
-          show-word-limit
-        />
+        <el-input v-model="formData.description" :placeholder="`请输入${regionName}描述（可选）`" type="textarea" :rows="3"
+          maxlength="200" show-word-limit />
       </el-form-item>
     </el-form>
 
     <template #footer>
-      <el-button @click="dialogVisible = false">取消</el-button>
+      <el-button @click="handleDialogClose">取消</el-button>
       <el-button type="primary" @click="submitForm">确认</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup>
-import {
-  ref,
-  computed,
-  onMounted,
-  onBeforeUnmount,
-  watch,
-  nextTick,
-} from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
-import { noflyzoneList, noflyzoneAdd } from "@/api/noflyzone.js";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
+import { ElMessage } from "element-plus";
+import { noflyzoneAdd } from "@/api/noflyzone.js";
 import { Close } from "@element-plus/icons-vue";
 
 const props = defineProps({
@@ -107,37 +76,16 @@ const props = defineProps({
 const emit = defineEmits(["update:visible", "zone-saved"]);
 
 const toolbarVisible = ref(false);
-const noFlyZoneOverlays = ref([]);
-const noFlyZones = ref([]);
-const isDrawing = ref(false);
-const currentDrawType = ref(null);
-const tempShape = ref(null);
-const drawPoints = ref([]);
-const tempMarkers = ref([]);
-const isEditing = ref(false);
 const dialogVisible = ref(false);
 const formRef = ref(null);
 const formData = ref({ name: "", description: "" });
-const tempDrawData = ref(null);
-const isInitialized = ref(false);
-const tempLine = ref(null);
-const firstMarkerPixel = ref({ x: 0, y: 0 });
-const isHoveringFirstPoint = ref(false);
-const isPolygonClosed = ref(false);
-const regionName = ref("禁飞区");
 const selectedRegion = ref("jf");
-const isDraggingRadius = ref(false);
-const dragEndPoint = ref(null);
+const regionName = ref("禁飞区");
 
-const formRules = ref({
-  name: [
-    { required: true, message: "请输入区域名称", trigger: "blur" },
-    { max: 50, message: "名称长度不能超过50个字符", trigger: "blur" },
-  ],
-  description: [
-    { max: 200, message: "描述长度不能超过200个字符", trigger: "blur" },
-  ],
-});
+let mouseTool = null;
+let centerPoint = null;
+let tempCircle = null;
+const currentShape = ref(null);
 
 const regionColors = {
   jf: { borderColor: "#e74c3c", fillColor: "#e74c3c", name: "禁飞区" },
@@ -145,545 +93,226 @@ const regionColors = {
 };
 const currentColor = computed(() => regionColors[selectedRegion.value]);
 
-const closePolygon = () => {
-  if (!props.map || isPolygonClosed.value) return;
-  const tip = document.querySelector(".draw-tooltip");
-  tip && document.body.removeChild(tip);
+const formRules = ref({
+  name: [{ required: true, message: "请输入区域名称", trigger: "blur" }],
+});
 
-  if (tempLine.value) {
-    props.map.remove(tempLine.value);
-    tempLine.value = null;
-  }
-  if (tempShape.value) props.map.remove(tempShape.value);
+watch(() => props.visible, (val) => {
+  toolbarVisible.value = val;
+  if (val) initMouseTool();
+});
 
-  const first = drawPoints.value[0];
-  const closed = [...drawPoints.value, first];
-  tempShape.value = new AMap.Polygon({
-    path: closed,
-    strokeColor: currentColor.value.borderColor,
-    strokeWeight: 2,
-    fillColor: currentColor.value.fillColor,
-    fillOpacity: 0.3,
+function initMouseTool() {
+  if (!props.map || mouseTool) return;
+  AMap.plugin(["AMap.MouseTool", "AMap.Circle", "AMap.GeometryUtil"], () => {
+    if (mouseTool) return; // 防止重复创建
+    mouseTool = new AMap.MouseTool(props.map);
   });
-  tempShape.value._isTempDrawingShape = true;
-  props.map.add(tempShape.value);
-
-  isPolygonClosed.value = true;
-  props.map.off("mousemove", handlePolygonMouseMove);
-  ElMessage.success("多边形已闭合");
-};
-
-const initialize = async () => {
-  if (!props.map) return;
-  try {
-    initNoFlyZones();
-    isInitialized.value = true;
-  } catch (error) {
-    console.error("禁飞区管理器初始化失败:", error);
-  }
-};
-
-watch(
-  () => props.map,
-  (newMap) => {
-    if (newMap && !isInitialized.value) nextTick(() => initialize());
-  },
-  { immediate: true },
-);
-
-watch(
-  () => props.visible,
-  (newVal) => {
-    toolbarVisible.value = newVal;
-    // 当显示禁飞区工具栏时，重新加载禁飞区数据
-    if (newVal && props.map) {
-      initNoFlyZones();
-    }
-  },
-);
-
-onMounted(() => {});
-onBeforeUnmount(() => cleanup());
-
-const initNoFlyZones = async () => {
-  if (!props.map) return;
-  try {
-    clearNoFlyZoneOverlays();
-
-    // 调用接口获取禁飞区列表
-    const res = await noflyzoneList();
-    if (res.code === 200 && res.data && res.data.length > 0) {
-      console.log("加载禁飞区数据:", res.data);
-      res.data.forEach((zone) => {
-        addZoneToMap(zone);
-      });
-      ElMessage.success(`加载了 ${res.data.length} 个禁飞区`);
-    } else {
-      console.log("没有禁飞区数据");
-    }
-  } catch (error) {
-    console.error("初始化禁飞区图层失败:", error);
-    ElMessage.error("加载禁飞区失败");
-  }
-};
-
-const clearNoFlyZoneOverlays = () => {
-  if (!props.map) return;
-  noFlyZoneOverlays.value.forEach((overlay) => {
-    if (overlay) props.map.remove(overlay);
-  });
-  noFlyZoneOverlays.value = [];
-};
-
-const addZoneToMap = (zone) => {
-  if (!props.map) return;
-  let coordinates,
-    zoneCoordinates = [],
-    radius = 0;
-
-  try {
-    const parsedCoords = JSON.parse(zone.coordinates);
-    if (zone.shape === "circle") {
-      const centerLat = parsedCoords[0][0][0];
-      const centerLng = parsedCoords[0][0][1];
-      coordinates = [centerLng, centerLat];
-      zoneCoordinates = [{ lng: centerLng, lat: centerLat }];
-      const areaSquareKm = zone.area || 0;
-      radius = Math.sqrt((areaSquareKm * 1000000) / Math.PI);
-    } else {
-      coordinates = parsedCoords[0].map((point) => [point[1], point[0]]);
-      zoneCoordinates = parsedCoords[0].map((point) => ({
-        lng: point[1],
-        lat: point[0],
-      }));
-    }
-  } catch (e) {
-    console.error("坐标解析失败", e);
-    return;
-  }
-
-  const isWarningZone = zone.fillColor === "#ffa500";
-  const borderColor =
-    zone.borderColor || (isWarningZone ? "#ffa500" : "#e74c3c");
-  const fillColor = zone.fillColor || (isWarningZone ? "#ffa500" : "#e74c3c");
-
-  let shape;
-  if (zone.shape === "circle" && radius > 0) {
-    shape = new AMap.Circle({
-      center: new AMap.LngLat(...coordinates),
-      radius: radius,
-      strokeColor: borderColor,
-      strokeWeight: 2,
-      fillColor: fillColor,
-      fillOpacity: 0.3,
-    });
-  } else {
-    shape = new AMap.Polygon({
-      path: coordinates,
-      strokeColor: borderColor,
-      strokeWeight: 2,
-      fillColor: fillColor,
-      fillOpacity: 0.3,
-    });
-  }
-
-  const zoneData = {
-    id: zone.zoneId,
-    name: zone.name || `${isWarningZone ? "警告区" : "禁飞区"}${zone.zoneId}`,
-    type: zone.shape || "polygon",
-    coordinates: zoneCoordinates,
-    borderColor,
-    fillColor,
-    radius,
-    area: zone.area || 0,
-    regionType: isWarningZone ? "jg" : "jf",
-  };
-
-  shape._zoneId = zone.zoneId;
-  props.map.add(shape);
-  noFlyZoneOverlays.value.push(shape);
-  noFlyZones.value.push(zoneData);
-};
-
-const handlePolygonMouseMove = (e) => {
-  try {
-    if (tempLine.value && props.map) {
-      props.map.remove(tempLine.value);
-      tempLine.value = null;
-    }
-  } catch (err) {}
-
-  if (
-    !props.map ||
-    !isDrawing.value ||
-    currentDrawType.value !== "polygon" ||
-    drawPoints.value.length === 0 ||
-    isPolygonClosed.value
-  )
-    return;
-
-  const lng = e.lnglat.getLng();
-  const lat = e.lnglat.getLat();
-  const currentPoint = [lng, lat];
-  const lastPoint = drawPoints.value[drawPoints.value.length - 1];
-
-  tempLine.value = new AMap.Polyline({
-    path: [lastPoint, currentPoint],
-    strokeColor: "#00c48c",
-    strokeWeight: 2,
-    strokeDasharray: [5, 5],
-    zIndex: 9999,
-  });
-  tempLine.value._isTempPreviewLine = true;
-  props.map.add(tempLine.value);
-};
-
-const regionClose = () => {
-  toolbarVisible.value = !toolbarVisible.value;
-};
-
-const startDrawNoFlyPolygon = () => {
-  if (!props.map) {
-    ElMessage.warning("地图未初始化");
-    return;
-  }
-  resetDrawState();
-  isDrawing.value = true;
-  currentDrawType.value = "polygon";
-  isPolygonClosed.value = false;
-  ElMessage.info("点击地图添加顶点，点击【第一个蓝色圆点】闭合");
-
-  props.map.off("click", handlePolygonDrawClick);
-  props.map.off("mousemove", handlePolygonMouseMove);
-  props.map.on("click", handlePolygonDrawClick);
-  props.map.on("mousemove", handlePolygonMouseMove);
-};
-
-const handlePolygonDrawClick = (e) => {
-  if (
-    !props.map ||
-    !isDrawing.value ||
-    currentDrawType.value !== "polygon" ||
-    isPolygonClosed.value
-  )
-    return;
-
-  const lng = e.lnglat.getLng();
-  const lat = e.lnglat.getLat();
-  const clickPoint = [lng, lat];
-  drawPoints.value.push(clickPoint);
-
-  const firstFlag = drawPoints.value.length === 1;
-  const color = firstFlag ? "#3498db" : currentColor.value.borderColor;
-
-  const marker = new AMap.Marker({
-    position: clickPoint,
-    icon: new AMap.Icon({
-      size: new AMap.Size(24, 24),
-      image: `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="${color}" stroke="#fff" stroke-width="2"/></svg>`)}`,
-      imageSize: new AMap.Size(24, 24),
-    }),
-    anchor: "center",
-    zIndex: firstFlag ? 10000 : 9999,
-    clickable: true,
-    cursor: firstFlag ? "pointer" : "default",
-  });
-
-  if (firstFlag) {
-    marker.on("click", () => {
-      if (drawPoints.value.length >= 3 && !isPolygonClosed.value)
-        closePolygon();
-    });
-  }
-
-  props.map.add(marker);
-  tempMarkers.value.push({ marker, isFirstPoint: firstFlag });
-
-  if (firstFlag) {
-    setTimeout(() => {
-      try {
-        const markerPx = marker.getPosition();
-        const mapPx = props.map.lngLatToContainer(markerPx);
-        firstMarkerPixel.value = { x: mapPx.x, y: mapPx.y };
-      } catch (err) {}
-    }, 100);
-  }
-
-  if (tempShape.value) props.map.remove(tempShape.value);
-  if (drawPoints.value.length >= 2) {
-    tempShape.value = new AMap.Polygon({
-      path: drawPoints.value,
-      strokeColor: currentColor.value.borderColor,
-      strokeWeight: 2,
-      fillColor: currentColor.value.fillColor,
-      fillOpacity: 0.3,
-    });
-    tempShape.value._isTempDrawingShape = true;
-    props.map.add(tempShape.value);
-  }
-};
-
-const startDrawNoFlyCircle = () => {
-  resetDrawState();
-  if (!props.map) {
-    ElMessage.warning("地图未初始化");
-    return;
-  }
-  // 🔥 加这一行：鼠标变成十字准星
-  // props.map.setDefaultCursor("crosshair");
-
-  isDrawing.value = true;
-  currentDrawType.value = "circle";
-
-  ElMessage.info("点击确定圆心");
-  props.map.off("click", handleCircleDrawClick);
-  props.map.on("click", handleCircleDrawClick);
-};
-
-const handleCircleDrawClick = (e) => {
-  if (!isDrawing.value || currentDrawType.value !== "circle" || !props.map)
-    return;
-
-  const point = [e.lnglat.getLng(), e.lnglat.getLat()];
-  if (drawPoints.value.length === 0) {
-    // 第一步：点击确定圆心
-    drawPoints.value.push(point);
-
-    const centerMarker = new AMap.Marker({
-      position: point,
-      icon: new AMap.Icon({
-        size: new AMap.Size(16, 16),
-        image: `data:image/svg+xml;base64,${btoa(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="${currentColor.value.fillColor}" stroke="#fff" stroke-width="1"/></svg>`)}`,
-        imageSize: new AMap.Size(16, 16),
-      }),
-      anchor: "center",
-      clickable: false,
-      zIndex: 9999,
-    });
-
-    props.map.add(centerMarker);
-    tempMarkers.value.push(centerMarker);
-
-    // 绑定 mousemove 实时预览
-    props.map.on("mousemove", handleCircleDragMove);
-    ElMessage.info("移动鼠标调整半径，点击确定");
-  } else if (drawPoints.value.length === 1) {
-    // 第二步：点击确定半径
-    const center = drawPoints.value[0];
-    const finalRadius = AMap.GeometryUtil.distance(
-      new AMap.LngLat(...center),
-      e.lnglat,
-    );
-
-    if (tempShape.value) {
-      tempShape.value.setRadius(finalRadius);
-    }
-    drawPoints.value[1] = [e.lnglat.getLng(), e.lnglat.getLat()];
-    ElMessage.success(`半径：${finalRadius.toFixed(0)}米，点击"确认绘制"完成`);
-
-    // 停止 mousemove 监听，防止继续调整
-    props.map.off("mousemove", handleCircleDragMove);
-  }
-};
-
-const handleCircleDragMove = (e) => {
-  if (!isDrawing.value || drawPoints.value.length !== 1 || !props.map) return;
-
-  // 实时预览圆的半径
-  const center = drawPoints.value[0];
-  const newRadius = AMap.GeometryUtil.distance(
-    new AMap.LngLat(...center),
-    e.lnglat,
-  );
-
-  console.log("鼠标移动，半径:", newRadius.toFixed(1), "米");
-
-  // 每次都删除旧圆，创建新圆（确保可以缩小）
-  if (tempShape.value) {
-    props.map.remove(tempShape.value);
-  }
-
-  tempShape.value = new AMap.Circle({
-    center: new AMap.LngLat(...center),
-    radius: newRadius,
-    strokeColor: currentColor.value.borderColor,
-    strokeWeight: 2,
-    fillColor: currentColor.value.fillColor,
-    fillOpacity: 0.3,
-    zIndex: 10,
-    // 🔥 修复关键：让圆不拦截鼠标事件！
-    bubble: true,
-    clickable: false,
-  });
-  tempShape.value._isTempDrawingShape = true;
-  props.map.add(tempShape.value);
-};
-
-const resetDrawState = () => {
-  // 解锁地图
-  if (props.map)
-    props.map.setStatus({ dragEnable: true, keyboardEnable: true });
-
-  isDrawing.value = false;
-  isDraggingRadius.value = false;
-  currentDrawType.value = null;
-  dragEndPoint.value = null;
-  isHoveringFirstPoint.value = false;
-  isPolygonClosed.value = false;
-
-  const existingTooltip = document.querySelector(".draw-tooltip");
-  if (existingTooltip) document.body.removeChild(existingTooltip);
-
-  try {
-    if (tempLine.value && props.map) {
-      props.map.remove(tempLine.value);
-      tempLine.value = null;
-    }
-    if (props.map) {
-      const allPolylines = props.map.getAllOverlays("polyline");
-      allPolylines.forEach((polyline) => {
-        if (polyline._isTempPreviewLine) props.map.remove(polyline);
-      });
-    }
-  } catch (err) {}
-
-  try {
-    if (tempShape.value && props.map) {
-      props.map.remove(tempShape.value);
-      tempShape.value = null;
-    }
-    if (props.map) {
-      const allCircles = props.map.getAllOverlays("circle");
-      allCircles.forEach((circle) => {
-        if (circle._isTempDrawingShape) props.map.remove(circle);
-      });
-      const allPolygons = props.map.getAllOverlays("polygon");
-      allPolygons.forEach((polygon) => {
-        if (polygon._isTempDrawingShape) props.map.remove(polygon);
-      });
-    }
-  } catch (err) {}
-
-  try {
-    if (props.map) {
-      tempMarkers.value.forEach((item) => {
-        const marker = item.marker || item;
-        if (marker) props.map.remove(marker);
-      });
-    }
-    tempMarkers.value = [];
-    drawPoints.value = [];
-    firstMarkerPixel.value = { x: 0, y: 0 };
-  } catch (err) {}
-
-  if (props.map) {
-    props.map.off("click", handlePolygonDrawClick);
-    props.map.off("mousemove", handlePolygonMouseMove);
-    props.map.off("click", handleCircleDrawClick);
-    props.map.off("mousemove", handleCircleDragMove);
-  }
-};
-
-const confirmDraw = () => {
-  if (!tempShape.value) {
-    ElMessage.warning("请先绘制图形");
-    return;
-  }
-  if (currentDrawType.value === "polygon" && drawPoints.value.length < 3) {
-    ElMessage.warning("多边形至少3个顶点");
-    return;
-  }
-  if (currentDrawType.value === "circle" && drawPoints.value.length < 2) {
-    ElMessage.warning("请确定半径");
-    return;
-  }
-
-  let apiCoordinates = "",
-    zoneCoordinates = [],
-    radius = 0;
-  if (currentDrawType.value === "polygon") {
-    const coords = drawPoints.value.map((p) => [p[0], p[1]]);
-    apiCoordinates = JSON.stringify([coords]);
-    zoneCoordinates = drawPoints.value.map((p) => ({ lng: p[0], lat: p[1] }));
-  } else {
-    const center = drawPoints.value[0];
-    radius = AMap.GeometryUtil.distance(
-      new AMap.LngLat(...center),
-      new AMap.LngLat(...drawPoints.value[1]),
-    );
-    apiCoordinates = JSON.stringify([[[center[0], center[1]]]]);
-    zoneCoordinates = [{ lng: center[0], lat: center[1] }];
-  }
-
-  const area =
-    currentDrawType.value === "polygon"
-      ? calculatePolygonArea(zoneCoordinates)
-      : calculateCircleArea(radius);
-
-  tempDrawData.value = { apiCoordinates, zoneCoordinates, radius, area };
-  formData.value = { name: "", description: "" };
-  dialogVisible.value = true;
-};
-
-const submitForm = async () => {
-  formRef.value.validate(async (valid) => {
-    if (!valid || !tempDrawData.value) return;
-    try {
-      const c = currentColor.value;
-      const res = await noflyzoneAdd({
-        area: tempDrawData.value.area.toFixed(6),
-        borderColor: c.borderColor,
-        coordinates: tempDrawData.value.apiCoordinates,
-        fillColor: c.fillColor,
-        name: formData.value.name,
-        description: formData.value.description || "无",
-        shape: currentDrawType.value,
-        fillOpacity: 0.3,
-        borderWeight: 2,
-        createTime: new Date().toISOString().slice(0, 19).replace("T", " "),
-      });
-      if (res.code === 200) {
-        ElMessage.success("创建成功");
-        emit("zone-saved");
-      } else ElMessage.error("创建失败");
-    } catch (e) {
-      console.error(e);
-      ElMessage.error("接口异常");
-    }
-    dialogVisible.value = false;
-    resetDrawState();
-  });
-};
-
-const handleDialogClose = () => {
-  formRef.value?.resetFields();
-  tempDrawData.value = null;
-};
-
-const cancelDraw = () => {
-  resetDrawState();
-  ElMessage.info("已取消");
-};
-
-const calculateDistance = (p1, p2) =>
-  AMap.GeometryUtil.distance(
-    new AMap.LngLat(p1.lng, p1.lat),
-    new AMap.LngLat(p2.lng, p2.lat),
-  );
-const calculatePolygonArea = (coords) =>
-  Math.abs(AMap.GeometryUtil.ringArea(coords.map((p) => [p.lng, p.lat]))) /
-  1000000;
-const calculateCircleArea = (r) => (Math.PI * r * r) / 1000000;
-
-const cleanup = () => {
-  clearNoFlyZoneOverlays();
-  resetDrawState();
-};
+}
 
 const regionSelection = (val) => {
   selectedRegion.value = val;
   regionName.value = regionColors[val].name;
+  ElMessage.success(`已切换：${regionName.value}`);
 };
+
+function startDraw(type) {
+  cancelDraw(false);
+  // 确保 MouseTool 已加载再开始绘制
+  if (!mouseTool) {
+    initMouseTool();
+    // 等待插件加载完成后重新调用 startDraw
+    const retry = () => {
+      if (mouseTool && props.map) startDraw(type);
+      else setTimeout(retry, 100);
+    };
+    retry();
+    return;
+  }
+  if (type === "polygon") {
+    startPolygonDraw();
+  } else {
+    startCircleDraw();
+  }
+}
+
+// 多边形绘制（双击完成）
+function startPolygonDraw() {
+  const style = {
+    strokeColor: currentColor.value.borderColor,
+    strokeWeight: 2,
+    fillColor: currentColor.value.fillColor,
+    fillOpacity: 0.3,
+  };
+  mouseTool.polygon(style);
+  ElMessage.info("点击绘制多边形 → 双击完成");
+  mouseTool.once("draw", (e) => {
+    currentShape.value = e.obj;
+    mouseTool.close();
+    ElMessage.success("多边形绘制完成");
+  });
+}
+// 
+// 圆形绘制（双击完成）
+function startCircleDraw() {
+  ElMessage.info("单击选圆心 → 拖动调半径 → 双击完成");
+  const map = props.map;
+  centerPoint = null;
+  tempCircle = null;
+
+  const clickCenter = (e) => {
+    if (!e || !e.lnglat) return;
+    centerPoint = e.lnglat;
+    map.off("click", clickCenter);
+    const moveHandler = (ev) => {
+      if (!ev || !ev.lnglat || !centerPoint) return;
+      let r = AMap.GeometryUtil.distance(centerPoint, ev.lnglat);
+      //最小半径80米，保证后端一定能保存
+      // if (r < 80) r = 80;
+      if (tempCircle) {
+        tempCircle.setRadius(r);
+      } else {
+        tempCircle = new AMap.Circle({
+          center: centerPoint,
+          radius: r,
+          strokeColor: currentColor.value.borderColor,
+          fillColor: currentColor.value.fillColor,
+          strokeWeight: 2,
+          fillOpacity: 0.3,
+          clickable: false,
+          bubble: true,
+        });
+        map.add(tempCircle);
+      }
+    };
+
+    map.on("mousemove", moveHandler);
+
+    const dblEnd = () => {
+      map.off("mousemove", moveHandler);
+      map.off("dblclick", dblEnd);
+      if (tempCircle) {
+        currentShape.value = tempCircle;
+        ElMessage.success("圆形绘制完成");
+      }
+    };
+    map.once("dblclick", dblEnd);
+  };
+
+  map.once("click", clickCenter);
+}
+
+// 确认绘制
+function confirmDraw() {
+  if (!currentShape.value) {
+    ElMessage.warning("请先完成绘制！");
+    return;
+  }
+
+  let apiCoordinates, area, radius = 0, shapeType;
+
+  if (currentShape.value instanceof AMap.Polygon) {
+    const path = currentShape.value.getPath().map(p => [p.getLng(), p.getLat()]);
+    apiCoordinates = JSON.stringify([path]);
+    area = Math.abs(AMap.GeometryUtil.ringArea(path)) / 1000000;
+    shapeType = "polygon";
+  } else if (currentShape.value instanceof AMap.Circle) {
+    const center = currentShape.value.getCenter();
+    radius = currentShape.value.getRadius();
+    apiCoordinates = JSON.stringify([[[center.getLng(), center.getLat()]]]);
+    area = Math.PI * radius * radius / 1000000;
+    shapeType = "circle";
+  } else {
+    ElMessage.warning("不支持的图形");
+    return;
+  }
+
+  window._tempDrawData = { apiCoordinates, area, radius, shape: shapeType };
+  formData.value = { name: "", description: "" };
+  dialogVisible.value = true;
+}
+// 取消绘制（showTip = true 显示提示，false 不显示）
+function cancelDraw(showTip = true) {
+  const map = props.map;
+  if (!map) return;
+
+  if (mouseTool) {
+    mouseTool.off("draw");
+    mouseTool.close(true);
+  }
+
+  map.off("click");
+  map.off("mousemove");
+  map.off("dblclick");
+
+  if (currentShape.value) {
+    try { map.remove(currentShape.value); } catch (e) { }
+    currentShape.value = null;
+  }
+
+  if (tempCircle) {
+    try { map.remove(tempCircle); } catch (e) { }
+    tempCircle = null;
+  }
+
+  centerPoint = null;
+
+  // 只有 showTip = true 才提示
+  if (showTip) {
+    ElMessage.info("已取消绘制");
+  }
+}
+
+// 提交保存
+async function submitForm() {
+  await formRef.value.validate();
+  const data = window._tempDrawData;
+  if (!data) return;
+
+  try {
+    const c = currentColor.value;
+    const res = await noflyzoneAdd({
+      area: data.area.toFixed(6),
+      borderColor: c.borderColor,
+      coordinates: data.apiCoordinates,
+      fillColor: c.fillColor,
+      name: formData.value.name,
+      description: formData.value.description || "无",
+      shape: data.shape,
+      fillOpacity: 0.3,
+      borderWeight: 2,
+      createTime: new Date().toISOString().slice(0, 19).replace("T", " "),
+    });
+
+    if (res.code === 200) {
+      ElMessage.success("保存成功！");
+      emit("zone-saved");
+      cancelDraw(false);
+    } else {
+      ElMessage.error("保存失败：" + (res.msg || "参数非法"));
+    }
+  } catch (err) {
+    ElMessage.error("接口异常");
+    console.error(err)
+  }
+
+  dialogVisible.value = false;
+  window._tempDrawData = null;
+}
+
+const regionClose = () => {
+  cancelDraw();
+  emit("update:visible", false);
+};
+
+const handleDialogClose = () => {
+  dialogVisible.value = false;
+  formRef.value?.resetFields();
+};
+
+onBeforeUnmount(() => {
+  cancelDraw();
+});
 </script>
 
 <style scoped>
@@ -698,6 +327,7 @@ const regionSelection = (val) => {
   z-index: 1000;
   width: 220px;
 }
+
 h3 {
   margin: 0 0 15px 0;
   font-size: 16px;
@@ -706,6 +336,7 @@ h3 {
   display: flex;
   justify-content: space-between;
 }
+
 .btn {
   width: 100%;
   padding: 8px;
@@ -715,24 +346,29 @@ h3 {
   cursor: pointer;
   font-size: 13px;
 }
+
 .primary {
   background: #e74c3c;
   color: white;
 }
+
 .warningArea {
   background: #ffa500;
   color: white;
 }
+
 .secondary {
   background: #f5f5f5;
   color: #333;
 }
+
 .legend {
   margin-top: 15px;
   padding: 10px;
   background: #f8f9fa;
   border-radius: 4px;
 }
+
 .legend-item {
   display: flex;
   align-items: center;
@@ -740,14 +376,17 @@ h3 {
   font-size: 13px;
   cursor: pointer;
 }
+
 .legend-color {
   width: 12px;
   height: 12px;
   margin-right: 8px;
 }
+
 .red {
   background: rgba(231, 76, 60, 0.6);
 }
+
 .orange {
   background: rgba(255, 165, 0, 0.6);
 }

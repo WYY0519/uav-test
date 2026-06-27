@@ -7,35 +7,53 @@
         <div ref="mapContainer" class="map-wrapper"></div>
         <!-- 左侧控制面板，浮动在地图上层 -->
         <div class="floating-panel left-panel" v-show="!isPanelCollapsed">
-          <el-card class="control-card" style="background-color: #00285a80; height: 100%">
+          <el-card
+            class="control-card"
+            style="background-color: #00285a80; height: 100%"
+          >
             <div style="height: 100%">
-              <el-card style="
+              <el-card
+                style="
                   background-color: #2e3649db;
                   color: #fff;
                   margin-bottom: 12px;
-                ">
+                "
+              >
                 <template #header>
                   <div class="panel-header" style="color: #fff">
                     <div style="opacity: 0"></div>
                     <span style="margin-left: 20px">区域列表</span>
                   </div>
                 </template>
-                <el-button type="primary" style="width: 100%" @click="regionalManagementDialog"
-                  :disabled="activeRouteId !== null || editingZoneId !== null">绘制限制区域</el-button>
+                <el-button
+                  type="primary"
+                  style="width: 100%"
+                  @click="regionalManagementDialog"
+                  :disabled="activeRouteId !== null || editingZoneId !== null"
+                  >绘制限制区域</el-button
+                >
               </el-card>
 
               <!-- 引入航线列表组件 -->
-              <RouteList v-if="isNoFlyZoneManagerMounted" ref="routeListRef" :map="map"
-                :no-fly-zone-manager-ref="noFlyZoneManagerRef" @route-view="handleRouteView"
-                @route-retract="handleRouteRetract" @route-edit="handleRouteEdit"
-                @route-edit-complete="handleRouteEditComplete" @route-delete="handleRouteDelete" />
+              <RouteList
+                v-if="isNoFlyZoneManagerMounted"
+                ref="routeListRef"
+                :map="map"
+                :no-fly-zone-manager-ref="noFlyZoneManagerRef"
+                @route-view="handleRouteView"
+                @route-retract="handleRouteRetract"
+                @route-edit="handleRouteEdit"
+                @route-edit-complete="handleRouteEditComplete"
+                @route-delete="handleRouteDelete"
+              />
             </div>
           </el-card>
         </div>
       </div>
 
       <!-- 面板收起/展开按钮 -->
-      <div style="
+      <div
+        style="
           position: absolute;
           top: 35px;
           left: 35px;
@@ -43,8 +61,10 @@
           display: flex;
           align-items: center;
           justify-content: flex-end;
-        ">
-        <div style="
+        "
+      >
+        <div
+          style="
             background: #fff;
             border-radius: 50%;
             width: 26px;
@@ -55,24 +75,55 @@
             cursor: pointer;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
             transition: all 0.3s ease;
-          " @click="togglePanel">
+          "
+          @click="togglePanel"
+        >
           <el-icon :style="{ color: '#409eff !important' }">
             <Fold v-if="!isPanelCollapsed" />
             <Expand v-else />
           </el-icon>
         </div>
       </div>
+
+      <!-- 自定义悬浮提示框 -->
+      <div
+        class="image-tooltip"
+        v-show="showImgTooltip"
+        style="
+          position: absolute;
+          min-width: 50px;
+          background: rgb(255, 255, 255);
+          border-radius: 12px;
+          padding: 6px;
+          top: 57px;
+          right: 10px;
+          z-index: 1000;
+          text-align: center;
+        "
+      >
+        <div style="font-size: 14px">{{ tooltipTile }}</div>
+      </div>
       <!-- 3种地图图层下拉选择 -->
-      <div style="position: absolute; top: 20px; right: 20px;">
-        <el-select v-model="mapLayerType" @change="onMapLayerChange" style="width: 130px" size="default">
+      <div style="position: absolute; top: 20px; right: 20px">
+        <el-select
+          v-model="mapLayerType"
+          @change="onMapLayerChange"
+          style="width: 130px"
+          size="default"
+        >
           <el-option label="标准地图" value="normal" />
           <el-option label="卫星地图" value="satellite" />
           <el-option label="卫星混合" value="satelliteMix" />
         </el-select>
       </div>
       <!-- 引入禁飞区管理组件 -->
-      <NoFlyZoneManager ref="noFlyZoneManagerRef" :map="map" :visible="noFlyZoneToolbar"
-        @update:visible="noFlyZoneToolbar = $event" @zone-saved="handleZoneSaved" />
+      <NoFlyZoneManager
+        ref="noFlyZoneManagerRef"
+        :map="map"
+        :visible="noFlyZoneToolbar"
+        @update:visible="noFlyZoneToolbar = $event"
+        @zone-saved="handleZoneSaved"
+      />
     </div>
   </div>
 </template>
@@ -93,10 +144,14 @@ import NoFlyZoneManager from "./components/NoFlyZoneManager.vue";
 
 // 状态变量
 const mapContainer = ref(null);
+// const loading = ref(true);
+
 // 地图相关
 let map = null;
+
 // 面板控制
 const isPanelCollapsed = ref(false);
+
 // 禁飞区相关
 const noFlyZoneManagerRef = ref(null);
 const isNoFlyZoneManagerMounted = ref(false);
@@ -108,17 +163,19 @@ const activeRouteId = ref(null);
 const currentZoneShape = ref(null);
 const editingZoneId = ref(null);
 const isZoneEditing = ref(false);
-// 新增：地图图层切换
+// 🔥 新增：地图图层切换
 const mapLayerType = ref("satelliteMix"); // 默认卫星混合
 // 面板控制
 const togglePanel = () => {
   isPanelCollapsed.value = !isPanelCollapsed.value;
+  ElMessage.success(isPanelCollapsed.value ? "面板已收起" : "面板已展开");
 };
 
 // 地图初始化
 const initMap = () => {
   if (!window.AMap) {
     ElMessage.error("高德地图API未加载，请检查网络连接");
+    // loading.value = false;
     return;
   }
 
@@ -133,8 +190,10 @@ const initMap = () => {
     });
 
     map.on("complete", () => {
-      // 地图初始化完成
+      // loading.value = false;
+      ElMessage.success("地图加载成功");
     });
+
     map.on("zoomend", handleMapZoom);
 
     // 尝试获取当前位置
@@ -147,17 +206,20 @@ const initMap = () => {
           map.setZoom(15);
         },
         (err) => {
+          console.warn("定位失败:", err);
           ElMessage.warning("请授予位置权限，否则无法获取当前位置");
         },
       );
     }
   } catch (error) {
+    console.error("地图初始化失败:", error);
+    // loading.value = false;
     ElMessage.error("地图初始化失败，请检查配置");
   }
 };
 
 const handleMapZoom = () => {
-  // 预留：缩放级别变化处理
+  // 高德地图不需要 checkResize
 };
 
 // 地图图层切换
@@ -185,8 +247,10 @@ const onMapLayerChange = (val) => {
   map.setLayers(layers);
   ElMessage.success("已切换 → " + label);
 };
-// 更新编辑时的区域数据
+// ========== 核心修复1：定义updateZoneDataOnEdit（原updateZoneData重命名+提前定义） ==========
+// 更新编辑时的区域数据（提前定义，确保所有调用处可访问，修复未定义报错）
 const updateZoneDataOnEdit = (id, updates) => {
+  console.log("更新区域数据:", id, updates);
   // 调用子组件RouteList的updateZoneData方法更新本地数据
   if (routeListRef.value) {
     routeListRef.value.updateZoneData(id, updates);
@@ -197,13 +261,16 @@ const updateZoneDataOnEdit = (id, updates) => {
       updates.area > 0 ? Math.sqrt((updates.area * 1000000) / Math.PI) : 100;
   }
 };
+// ========== 修复1结束 ==========
 
 // 处理查看路线/禁飞区
 const handleRouteView = (route) => {
-  // 查看时自动关闭区域管理工具栏
+  console.log("查看路线/禁飞区:", route);
+  // 🔥 新增：查看时自动关闭区域管理工具栏
   if (noFlyZoneToolbar.value) {
     noFlyZoneToolbar.value = false;
   }
+
   // 判断数据类型：禁飞区有 shape 字段
   if (route.shape) {
     // 这是禁飞区数据
@@ -212,25 +279,26 @@ const handleRouteView = (route) => {
     ElMessage.warning("无法识别的数据类型");
   }
 };
-const handleRouteRetract = () => {
-  retractRoute();
-};
+
 // 处理编辑禁飞区
 const handleRouteEdit = (zoneData) => {
-  // 编辑时自动关闭区域管理工具栏
+  // 🔥 新增：编辑时自动关闭区域管理工具栏
   if (noFlyZoneToolbar.value) {
     noFlyZoneToolbar.value = false;
   }
+  console.log("编辑禁飞区:", zoneData);
   editNoFlyZone(zoneData);
 };
 
 // 处理编辑完成
 const handleRouteEditComplete = (zoneId) => {
-  completeEdit(zoneId);
+  console.log("编辑完成:", zoneId);
+  completeEdit(zoneId); // 传参给completeEdit
 };
 
 // 处理删除禁飞区
 const handleRouteDelete = (zoneData) => {
+  console.log("删除禁飞区:", zoneData);
   // 如果有正在查看或编辑的禁飞区被删除，需要清除
   if (activeRouteId.value === zoneData.id) {
     retractRoute();
@@ -242,6 +310,8 @@ const handleRouteDelete = (zoneData) => {
 
 // 查看禁飞区函数
 const viewNoFlyZone = (zoneData) => {
+  console.log("显示禁飞区:", zoneData);
+
   if (!map) {
     ElMessage.error("地图未初始化");
     return;
@@ -254,7 +324,7 @@ const viewNoFlyZone = (zoneData) => {
     // 解析并显示禁飞区
     const parsedZoneData = parseZoneDataForDisplay(zoneData);
 
-    // 如果解析返回null，直接返回
+    // 如果解析返回null（坐标数据无效），直接返回
     if (!parsedZoneData) {
       return;
     }
@@ -286,12 +356,15 @@ const viewNoFlyZone = (zoneData) => {
       ElMessage.error("无法创建禁飞区形状");
     }
   } catch (error) {
+    console.error("显示禁飞区失败:", error);
     ElMessage.error("显示禁飞区失败");
   }
 };
 
 // 编辑禁飞区函数
 const editNoFlyZone = (zoneData) => {
+  console.log("编辑禁飞区:", zoneData);
+
   if (!map) {
     ElMessage.error("地图未初始化");
     return;
@@ -321,13 +394,17 @@ const editNoFlyZone = (zoneData) => {
     activeRouteId.value = zoneData.id;
     ElMessage.success("进入编辑模式，可以拖拽顶点修改形状");
   } catch (error) {
+    console.error("编辑禁飞区失败:", error);
     ElMessage.error("进入编辑模式失败");
   }
 };
+
+// ========== 核心修复2：重构completeEdit（移除routeInfo/emit/未定义接口，修复未定义报错） ==========
 // 完成编辑（主组件专属，仅负责清除状态+刷新子组件，不操作子组件私有变量）
 const completeEdit = (zoneId) => {
   if (!zoneId && !editingZoneId.value) return;
   const targetId = zoneId || editingZoneId.value;
+  console.log("完成编辑禁飞区:", targetId);
 
   // 1. 清除编辑状态
   isZoneEditing.value = false;
@@ -346,11 +423,16 @@ const completeEdit = (zoneId) => {
   if (routeListRef.value) {
     routeListRef.value.routeList();
   }
+
+  // 4. 提示成功
+  // ElMessage.success("编辑完成，列表已刷新");
 };
+// ========== 修复2结束 ==========
 
 // 跳转到圆形禁飞区
 const jumpToCircleZone = (center, radius) => {
   if (!center || !radius) return;
+
   // 计算合适的缩放级别
   const zoomLevel = calculateZoomLevelByRadius(radius);
 
@@ -361,6 +443,10 @@ const jumpToCircleZone = (center, radius) => {
   setTimeout(() => {
     map.setZoom(zoomLevel);
   }, 300);
+
+  console.log(
+    `跳转到圆形禁飞区: 中心(${center.lng}, ${center.lat}), 半径${radius}米, 缩放级别${zoomLevel}`,
+  );
 };
 
 // 根据半径计算合适的缩放级别
@@ -379,8 +465,10 @@ const calculateZoomLevelByRadius = (radius) => {
 };
 
 // 跳转到多边形禁飞区
+// 跳转到多边形禁飞区
 const jumpToPolygonZone = (coordinates) => {
   if (!coordinates || coordinates.length === 0) return;
+
   // 计算多边形的边界
   const lngs = coordinates.map((p) => p.lng);
   const lats = coordinates.map((p) => p.lat);
@@ -401,8 +489,13 @@ const jumpToPolygonZone = (coordinates) => {
     map.setBounds(bounds, false, [50, 50, 50, 50]);
   }, 400);
 };
+
 // 解析禁飞区数据用于显示
+// 主组件 index.vue - 解析禁飞区数据用于显示（完整替换，新增多边形解析）
 const parseZoneDataForDisplay = (zoneData) => {
+  console.log("========== 开始解析禁飞区数据 ==========");
+  console.log("原始数据:", JSON.stringify(zoneData, null, 2));
+
   const result = {
     id: zoneData.id,
     name: zoneData.name || "未命名禁飞区",
@@ -420,8 +513,11 @@ const parseZoneDataForDisplay = (zoneData) => {
   let coordinatesToParse = zoneData.coordinates;
   if (typeof zoneData.coordinates === "string") {
     try {
+      console.log("检测到字符串格式的 coordinates，正在解析...");
       coordinatesToParse = JSON.parse(zoneData.coordinates);
+      console.log("解析后的 coordinates:", coordinatesToParse);
     } catch (e) {
+      console.error("JSON 解析失败:", e);
       coordinatesToParse = null;
     }
   }
@@ -482,6 +578,7 @@ const parseZoneDataForDisplay = (zoneData) => {
       if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
         return { lng, lat };
       }
+      console.warn("坐标值超出有效范围:", { lat, lng });
       return null;
     }
     return null;
@@ -489,6 +586,8 @@ const parseZoneDataForDisplay = (zoneData) => {
 
   // 根据形状提取有效点
   let validPoints = [];
+
+  // 处理三层数组：[[[lat,lng], [lat,lng], ...]]
   if (
     coordinatesToParse &&
     Array.isArray(coordinatesToParse) &&
@@ -539,6 +638,7 @@ const parseZoneDataForDisplay = (zoneData) => {
     // 圆形取第一个有效点作为圆心
     result.coordinates = validPoints.length > 0 ? [validPoints[0]] : [];
     if (result.coordinates.length === 0) {
+      console.error("圆形禁飞区解析失败：无有效圆心坐标");
       return null;
     }
     // 半径处理
@@ -549,11 +649,22 @@ const parseZoneDataForDisplay = (zoneData) => {
     } else {
       result.radius = 100; // 默认100米
     }
+    console.log(
+      "圆形禁飞区解析完成：圆心",
+      result.coordinates[0],
+      "半径",
+      result.radius,
+      "米",
+    );
   } else {
     // 多边形：至少需要3个有效点
     if (validPoints.length >= 3) {
       result.coordinates = validPoints;
     } else {
+      console.error(
+        `多边形禁飞区 ${zoneData.id} 解析失败，有效点数不足3个:`,
+        validPoints.length,
+      );
       ElMessage.error(
         `【${result.name}】多边形坐标点数不足（${validPoints.length}个），至少需要3个有效点`,
       );
@@ -565,7 +676,10 @@ const parseZoneDataForDisplay = (zoneData) => {
 };
 
 // 创建禁飞区形状
+// 创建禁飞区形状（修改多边形部分，新增点数校验）
 const createZoneShape = (zoneData) => {
+  console.log("创建禁飞区形状:", zoneData);
+
   try {
     if (
       zoneData.type === "circle" &&
@@ -601,12 +715,17 @@ const createZoneShape = (zoneData) => {
       polygon._zoneData = zoneData;
       return polygon;
     } else {
+      console.error(
+        "创建形状失败：圆形缺少圆心/半径，或多边形点数不足（需≥3个）",
+        zoneData,
+      );
       ElMessage.warning(
         `【${zoneData.name}】多边形需至少3个有效坐标点，当前仅${zoneData.coordinates.length}个`,
       );
       return null;
     }
   } catch (error) {
+    console.error("创建禁飞区形状失败:", error);
     ElMessage.error("创建禁飞区形状失败，请检查坐标数据");
     return null;
   }
@@ -614,6 +733,8 @@ const createZoneShape = (zoneData) => {
 
 // 创建可编辑的禁飞区形状
 const createEditableZoneShape = (zoneData) => {
+  console.log("创建可编辑的禁飞区形状:", zoneData);
+
   try {
     if (
       zoneData.type === "circle" &&
@@ -626,18 +747,42 @@ const createEditableZoneShape = (zoneData) => {
       // 多边形禁飞区 - 创建可编辑的多边形
       createEditablePolygon(zoneData);
     } else {
+      console.error("缺少创建形状所需的数据");
       return null;
     }
   } catch (error) {
+    console.error("创建可编辑禁飞区形状失败:", error);
     return null;
   }
 };
+// 计算两点之间的角度（弧度）
+const calculateAngle = (point1, point2) => {
+  const dx = point2.lng - point1.lng;
+  const dy = point2.lat - point1.lat;
+  return Math.atan2(dy, dx);
+};
+// 根据圆心、半径和角度计算圆上的点
+const calculatePointOnCircle = (center, radius, angle) => {
+  const earthRadius = 6371000; // 地球半径，单位米
+  const latRad = (center.lat * Math.PI) / 180;
+
+  // 将半径转换为经纬度偏移量
+  const deltaLat = ((radius * Math.sin(angle)) / earthRadius) * (180 / Math.PI);
+  const deltaLng =
+    ((radius * Math.cos(angle)) / (earthRadius * Math.cos(latRad))) *
+    (180 / Math.PI);
+
+  return [center.lng + deltaLng, center.lat + deltaLat];
+};
+// 创建可编辑的圆形
 // 创建可编辑的圆形
 const createEditableCircle = (zoneData) => {
   const center = zoneData.coordinates[0]; // { lng, lat }
   const initialRadius = zoneData.radius; // 当前半径（米）
 
-  // 用局部变量存储拖拽状态
+  console.log(`[编辑圆形] 初始化 - 圆心:`, center, `初始半径:`, initialRadius);
+
+  // 🔴 核心修复：用局部变量存储拖拽状态，替代this
   const dragState = {
     dragStartPos: null,
     radiusMarkerStartPos: null,
@@ -645,7 +790,7 @@ const createEditableCircle = (zoneData) => {
     isDragging: false, // 新增：标记是否正在拖拽
   };
 
-  // 使用ref确保变量响应式更新
+  // 🔴 修复：使用ref确保变量响应式更新
   const currentRadius = ref(initialRadius);
 
   // 1. 创建圆形（编辑样式）
@@ -681,7 +826,7 @@ const createEditableCircle = (zoneData) => {
     // 计算圆上点经纬度（angle=0 为正东方向）
     const newLatRad = Math.asin(
       Math.sin(latRad) * Math.cos(angularDist) +
-      Math.cos(latRad) * Math.sin(angularDist) * Math.cos(angle),
+        Math.cos(latRad) * Math.sin(angularDist) * Math.cos(angle),
     );
     const newLngRad =
       lngRad +
@@ -695,6 +840,7 @@ const createEditableCircle = (zoneData) => {
       lat: (newLatRad * 180) / Math.PI,
     };
 
+    console.log(`[计算半径点] 半径:${radius} → 坐标:`, result);
     return result;
   };
 
@@ -713,6 +859,7 @@ const createEditableCircle = (zoneData) => {
 
   // --- 圆心拖拽逻辑 ---
   centerMarker.on("dragstart", (e) => {
+    console.log(`[圆心拖拽开始] 起始位置:`, e.lnglat);
     dragState.dragStartPos = e.lnglat;
     dragState.radiusMarkerStartPos = radiusMarker.getPosition();
   });
@@ -732,6 +879,13 @@ const createEditableCircle = (zoneData) => {
         dragState.radiusMarkerStartPos.lat + offsetLat,
       ];
       radiusMarker.setPosition(newRadiusPos);
+      console.log(
+        `[圆心拖拽中] 新圆心:`,
+        newCenter,
+        `半径点偏移:`,
+        offsetLng,
+        offsetLat,
+      );
     }
   });
 
@@ -748,6 +902,13 @@ const createEditableCircle = (zoneData) => {
     );
     radiusMarker.setPosition([newRadiusPoint.lng, newRadiusPoint.lat]);
 
+    console.log(
+      `[圆心拖拽结束] 最终圆心:`,
+      newCenter,
+      `重置半径点:`,
+      newRadiusPoint,
+    );
+
     // 更新数据
     updateZoneDataOnEdit(zoneData.id, {
       coordinates: [[[newCenter.lng, newCenter.lat]]],
@@ -762,6 +923,7 @@ const createEditableCircle = (zoneData) => {
 
   // --- 半径点拖拽逻辑 ---
   radiusMarker.on("dragstart", () => {
+    console.log(`[半径拖拽开始] 当前半径:`, currentRadius.value);
     dragState.centerPos = centerMarker.getPosition();
     dragState.isDragging = true;
   });
@@ -772,13 +934,23 @@ const createEditableCircle = (zoneData) => {
     const newRadiusPoint = e.lnglat;
     const centerPos = dragState.centerPos || centerMarker.getPosition();
 
-    // 实时计算并更新半径
+    // 🔴 核心修复1：实时计算并更新半径，移除不必要的限制
     const newRadius = AMap.GeometryUtil.distance(centerPos, newRadiusPoint);
+    console.log(
+      `[半径拖拽中] 新半径:`,
+      newRadius,
+      `当前半径:`,
+      currentRadius.value,
+    );
 
     // 仅限制最小值，不阻止缩小操作
     if (newRadius >= 10) {
       currentRadius.value = newRadius;
+      // 🔴 核心修复2：立即更新圆形半径
       circle.setRadius(currentRadius.value);
+      console.log(`[半径拖拽中] 更新半径为:`, currentRadius.value);
+    } else {
+      console.log(`[半径拖拽中] 半径过小(${newRadius}米)，暂不更新`);
     }
   });
 
@@ -788,8 +960,10 @@ const createEditableCircle = (zoneData) => {
     const centerPos = centerMarker.getPosition();
     const finalRadius = AMap.GeometryUtil.distance(centerPos, newRadiusPoint);
 
+    console.log(`[半径拖拽结束] 最终计算半径:`, finalRadius);
+
     if (finalRadius >= 10) {
-      // 确保最终半径更新
+      // 🔴 确保最终半径更新
       currentRadius.value = finalRadius;
       circle.setRadius(currentRadius.value);
 
@@ -802,6 +976,13 @@ const createEditableCircle = (zoneData) => {
         correctedRadiusPoint.lng,
         correctedRadiusPoint.lat,
       ]);
+
+      console.log(
+        `[半径拖拽结束] 最终半径:`,
+        currentRadius.value,
+        `修正半径点:`,
+        correctedRadiusPoint,
+      );
 
       // 更新数据
       updateZoneDataOnEdit(zoneData.id, {
@@ -818,6 +999,10 @@ const createEditableCircle = (zoneData) => {
         originalRadiusPoint.lng,
         originalRadiusPoint.lat,
       ]);
+      console.log(
+        `[半径拖拽结束] 半径过小(${finalRadius}米)，恢复原半径:`,
+        currentRadius.value,
+      );
       ElMessage.warning(
         `半径不能小于10米，已恢复原半径${currentRadius.value.toFixed(2)}米`,
       );
@@ -838,8 +1023,15 @@ const createEditableCircle = (zoneData) => {
     markers: [centerMarker, radiusMarker],
     type: "circle",
     zoneId: zoneData.id,
-    currentRadius: currentRadius,
+    currentRadius: currentRadius, // 保存ref引用而非原始值
   };
+
+  console.log(
+    `[编辑圆形] 创建完成 - 圆心Marker:`,
+    centerMarker,
+    `半径Marker:`,
+    radiusMarker,
+  );
 
   return circle;
 };
@@ -861,12 +1053,19 @@ const clearAllOverlays = () => {
   activeRouteId.value = null;
   editingZoneId.value = null;
   isZoneEditing.value = false;
+
+  console.log("覆盖物清除完成");
 };
 
 // 创建可编辑的多边形
+// 创建可编辑的多边形（新增前置点数校验，完整替换此函数）
 const createEditablePolygon = (zoneData) => {
   // 前置校验：点数≥3才创建
   if (!zoneData.coordinates || zoneData.coordinates.length < 3) {
+    console.error(
+      "创建可编辑多边形失败：点数不足（需≥3个）",
+      zoneData.coordinates,
+    );
     ElMessage.warning(
       `【${zoneData.name}】无法进入编辑模式，多边形需至少3个有效坐标点`,
     );
@@ -942,12 +1141,15 @@ const updatePolygonPath = (polygon, points, zoneData) => {
       return;
     }
 
+    // 如果以上方法都不可用，重新创建多边形
+    console.warn("未找到多边形更新方法，重新创建多边形");
+
     // 从地图移除旧的多边形
     if (polygon && map) {
       try {
         map.remove(polygon);
       } catch (e) {
-        // 移除多边形失败，忽略
+        console.error("移除多边形失败:", e);
       }
     }
 
@@ -1015,6 +1217,10 @@ const calculatePolygonArea = (points) => {
 };
 
 // 收起航线/禁飞区
+const handleRouteRetract = () => {
+  retractRoute();
+};
+
 const retractRoute = () => {
   console.log("收起航线/禁飞区");
   activeRouteId.value = null;
@@ -1023,6 +1229,10 @@ const retractRoute = () => {
   clearAllOverlays();
   ElMessage.success("已收起");
 };
+
+// 鼠标悬浮提示
+const showImgTooltip = ref(false);
+const tooltipTile = ref("");
 
 // 禁飞区功能
 const regionalManagementDialog = () => {
@@ -1041,6 +1251,7 @@ const handleZoneSaved = () => {
 watch(noFlyZoneManagerRef, (newVal) => {
   if (newVal) {
     isNoFlyZoneManagerMounted.value = true;
+    console.log("NoFlyZoneManager 已挂载");
   }
 });
 
@@ -1063,9 +1274,23 @@ onBeforeUnmount(() => {
 
   if (map) {
     map.off("zoomend", handleMapZoom);
-    map.destroy();
-    map = null;
   }
+
+  try {
+    if (map) {
+      map.clearMap();
+    }
+
+    if (map) {
+      map = null;
+    }
+
+    // loading.value = false;
+  } catch (error) {
+    console.error("清理资源失败:", error);
+  }
+
+  map = null;
 });
 </script>
 
@@ -1073,11 +1298,6 @@ onBeforeUnmount(() => {
 /* 新增样式 - 优化定位逻辑 */
 .panel-header {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #303133;
-  height: 55px;
 }
 
 /* 响应式调整 - 确保不同屏幕下的位置一致性 */
@@ -1326,7 +1546,6 @@ onBeforeUnmount(() => {
   cursor: pointer;
   margin-right: 6px;
 }
-
 .routeOperation-box-foldUp {
   color: rgb(255 255 255 / 34%);
   cursor: pointer;
@@ -1607,26 +1826,22 @@ h3 {
   padding-bottom: 8px;
   margin-bottom: 10px;
 }
-
 .no-fly-tooltip .tooltip-title {
   font-weight: 600;
   color: #e74c3c;
   font-size: 15px;
 }
-
 .no-fly-tooltip .tooltip-content {
   font-size: 13px;
   line-height: 1.8;
   color: #333;
 }
-
 .no-fly-tooltip .label {
   color: #666;
   margin-right: 6px;
   display: inline-block;
   width: 50px;
 }
-
 /* 防止浮层超出视口 */
 .no-fly-tooltip {
   max-width: 300px;
@@ -1653,13 +1868,11 @@ h3 {
     content: "查";
     font-size: 16px;
   }
-
   .routeOperation-box-foldUp::after {
     content: "收";
     font-size: 16px;
   }
 }
-
 :deep(.el-card__body) {
   height: calc(100% - 40px);
 }
@@ -1675,12 +1888,10 @@ h3 {
     box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7);
     border-width: 3px;
   }
-
   70% {
     box-shadow: 0 0 0 10px rgba(255, 152, 0, 0);
     border-width: 2px;
   }
-
   100% {
     box-shadow: 0 0 0 0 rgba(255, 152, 0, 0);
     border-width: 3px;

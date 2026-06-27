@@ -166,3 +166,18 @@ export const deviceDeleteCompanyDeviceByIds = (ids) => {
     data: ids,
   });
 };
+// 拆除设备
+export const dronesCommMode = (droneId) => {
+  return service({
+    url: `/api/drones/${droneId}/commMode`,
+    method: 'GET',
+  });
+};
+// 重置时间
+export const dronesSetRTCTime = (params) => {
+  return service({
+    url: `api/drones/setRTCTime`,
+    method: 'POST',
+    data: params,
+  });
+};

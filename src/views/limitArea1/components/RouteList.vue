@@ -2,13 +2,27 @@
   <div class="route-list-container">
     <!-- 搜索区域 - 适配禁飞区：搜索名称/描述 -->
     <div class="route-search">
-      <el-input v-model="searchKeyword" @input="handleSearchInput" clearable placeholder="请输入要搜索的名称" />
-      <el-input v-model="searchAddress" @input="handleSearchInput" clearable placeholder="请输入要搜索的地址" />
+      <el-input
+        v-model="searchKeyword"
+        @input="handleSearchInput"
+        clearable
+        placeholder="请输入要搜索的名称"
+      />
+      <el-input
+        v-model="searchAddress"
+        @input="handleSearchInput"
+        clearable
+        placeholder="请输入要搜索的地址"
+      />
     </div>
 
     <!-- 禁飞区列表 -->
     <div class="route-list-content">
-      <div v-for="(itemInfo, index) in routeInfo" :key="itemInfo.id" class="routeOperation">
+      <div
+        v-for="(itemInfo, index) in routeInfo"
+        :key="itemInfo.id"
+        class="routeOperation"
+      >
         <div class="routeOperation-box">
           <!-- 第一行：禁飞区名称 -->
           <div class="tooltip-container">
@@ -19,13 +33,19 @@
             <div class="info-row info-row-between">
               <div class="info-item">
                 <span class="info-label">面积：</span>
-                <span class="info-value">{{ itemInfo.area.toFixed(2) }} km²</span>
+                <span class="info-value"
+                  >{{ itemInfo.area.toFixed(2) }} km²</span
+                >
               </div>
               <div class="info-item">
-                <span class="info-tag" :class="itemInfo.borderColor === '#e74c3c'
-                  ? 'tag-danger'
-                  : 'tag-warning'
-                  ">
+                <span
+                  class="info-tag"
+                  :class="
+                    itemInfo.borderColor === '#e74c3c'
+                      ? 'tag-danger'
+                      : 'tag-warning'
+                  "
+                >
                   {{ itemInfo.shape === "polygon" ? "多边形" : "圆形" }}
                   {{ itemInfo.borderColor === "#e74c3c" ? "禁飞区" : "禁高区" }}
                 </span>
@@ -36,7 +56,7 @@
                 <span class="info-label">地址：</span>
                 <span class="info-value">{{
                   itemInfo?.limitAddress || "暂无"
-                  }}</span>
+                }}</span>
               </div>
             </div>
             <div class="info-row info-row-single">
@@ -44,32 +64,47 @@
                 <span class="info-label">创建时间：</span>
                 <span class="info-value">{{
                   formatTime(itemInfo.createTime)
-                  }}</span>
+                }}</span>
               </div>
             </div>
           </div>
           <!-- 操作按钮 - 查看/收起、编辑/完成、取消编辑、删除 -->
           <div class="action-buttons">
-            <span :class="itemInfo.id === activeRouteId
-              ? 'routeOperation-box-foldUp'
-              : 'routeOperation-box-view'
-              " @click="
+            <span
+              :class="
+                itemInfo.id === activeRouteId
+                  ? 'routeOperation-box-foldUp'
+                  : 'routeOperation-box-view'
+              "
+              @click="
                 itemInfo.id === activeRouteId
                   ? retractRoute()
                   : viewRoute(itemInfo)
-                ">
+              "
+            >
               {{ itemInfo.id === activeRouteId ? "收起" : "查看" }}
             </span>
-            <span :class="itemInfo.id === editingZoneId
-              ? 'routeOperation-box-edit-active'
-              : 'routeOperation-box-edit'
-              " @click="editRoute(itemInfo)">
+            <span
+              :class="
+                itemInfo.id === editingZoneId
+                  ? 'routeOperation-box-edit-active'
+                  : 'routeOperation-box-edit'
+              "
+              @click="editRoute(itemInfo)"
+            >
               {{ itemInfo.id === editingZoneId ? "完成编辑" : "编辑" }}
             </span>
-            <span v-if="itemInfo.id === editingZoneId" class="routeOperation-box-cancel" @click="cancelEdit">
+            <span
+              v-if="itemInfo.id === editingZoneId"
+              class="routeOperation-box-cancel"
+              @click="cancelEdit"
+            >
               取消编辑
             </span>
-            <span class="routeOperation-box-delete" @click="deleteRoute(itemInfo)">
+            <span
+              class="routeOperation-box-delete"
+              @click="deleteRoute(itemInfo)"
+            >
               删除
             </span>
           </div>
@@ -79,13 +114,24 @@
 
     <!-- 分页 -->
     <div class="pagination-container">
-      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[5, 10, 20, 30, 50]"
-        :total="total" layout="total, sizes, prev, pager, next, jumper" @size-change="handleSizeChange"
-        @current-change="handleCurrentChange" />
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :page-sizes="[5, 10, 20, 30, 50]"
+        :total="total"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+      />
     </div>
 
     <!-- 删除确认弹窗 -->
-    <el-dialog v-model="deleteDialogVisible" title="确认删除" width="30%" type="warning">
+    <el-dialog
+      v-model="deleteDialogVisible"
+      title="确认删除"
+      width="30%"
+      type="warning"
+    >
       <p>确定要删除该域区吗？此操作不可恢复。</p>
       <template #footer>
         <span class="dialog-footer">
@@ -105,7 +151,7 @@ import { debounce } from "lodash";
 //   limitAreasList,
 //   limitAreasDelete,
 //   limitAreasUpdate,
-// } from "@/api/limitAreas.js"; 
+// } from "@/api/limitAreas.js";
 import {
   noflyzoneList,
   noflyzoneDelete,
@@ -179,7 +225,11 @@ const routeList = async (value = "") => {
             try {
               parsedCoords = JSON.parse(item.coordinates);
             } catch (e) {
-
+              // 如果解析失败，尝试检测是否是对象数组字符串
+              console.log(
+                `JSON.parse失败，尝试其他解析方式:`,
+                item.coordinates,
+              );
               // 如果是对象数组字符串 "[{\"lng\":xx,\"lat\":yy}...]"，则手动解析
               if (
                 item.coordinates.includes('"lng"') &&
@@ -255,7 +305,10 @@ const routeList = async (value = "") => {
 
       routeInfo.value = noFlyList;
       total.value = res.data.total || 0;
-
+      console.log(
+        "禁飞区列表加载完成，coordinates已统一为三层数组:",
+        noFlyList,
+      );
     }
   } catch (error) {
     console.error("获取禁飞区列表失败：", error);
@@ -283,10 +336,9 @@ const handleCurrentChange = (val) => {
 const viewRoute = (itemInfo) => {
   if (!itemInfo || !itemInfo.id) return;
 
-  // 如果正在编辑，先取消编辑（不调用接口，只清除状态）
-  if (editingZoneId.value) {
-    editingZoneId.value = null;
-    isEditing.value = false;
+  // 如果正在编辑其他禁飞区，先取消编辑（不调用接口）
+  if (editingZoneId.value && editingZoneId.value !== itemInfo.id) {
+    cancelEdit();
   }
 
   // 如果当前已经查看此禁飞区，则收起
@@ -294,6 +346,8 @@ const viewRoute = (itemInfo) => {
     retractRoute();
     return;
   }
+
+  console.log("查看禁飞区数据:", itemInfo);
 
   // 构建完整的禁飞区数据【直接复用routeList中已解析的正确坐标/半径，移除冗余二次解析】
   const zoneData = {
@@ -337,10 +391,9 @@ const retractRoute = () => {
 const editRoute = async (itemInfo) => {
   if (!itemInfo || !itemInfo.id) return;
 
-  // 如果正在编辑其他禁飞区，直接取消编辑（不调用接口），切换到新项目
+  // 如果正在编辑其他禁飞区，先完成编辑
   if (editingZoneId.value && editingZoneId.value !== itemInfo.id) {
-    editingZoneId.value = null;
-    isEditing.value = false;
+    await completeEdit();
   }
 
   // 如果是完成编辑（点击的是当前正在编辑的项）
@@ -349,12 +402,7 @@ const editRoute = async (itemInfo) => {
     return;
   }
 
-  // 如果当前正在查看，先取消查看状态（确保互斥）
-  if (activeRouteId.value !== null) {
-    activeRouteId.value = null;
-    emit("route-retract");
-  }
-
+  console.log("开始编辑禁飞区:", itemInfo);
 
   // 构建完整的禁飞区数据【直接复用routeList中已解析的正确坐标/半径】
   const zoneData = {
@@ -392,22 +440,30 @@ const editRoute = async (itemInfo) => {
 const cancelEdit = () => {
   if (!editingZoneId.value) return;
 
+  console.log("取消编辑禁飞区:", editingZoneId.value);
+
   const currentEditingId = editingZoneId.value;
 
   // 清除编辑状态
   editingZoneId.value = null;
   isEditing.value = false;
+
+  // 注意：不主动清除 activeRouteId，让查看状态独立存在
+  // 如果用户取消编辑，仍然可以保持查看状态
+
   // 通知父组件取消编辑
   emit("route-edit-complete", currentEditingId);
 
   // 显示提示消息
   ElMessage.info("已取消编辑");
+  activeRouteId.value = null;
 };
 
 //完成编辑
 const completeEdit = async () => {
   if (!editingZoneId.value) return;
 
+  console.log("完成编辑禁飞区:", editingZoneId.value);
   const currentZone = routeInfo.value.find(
     (item) => item.id === editingZoneId.value,
   );
@@ -418,7 +474,7 @@ const completeEdit = async () => {
 
   try {
     // ==============================================
-    // 编辑时 经纬度顺序反转 [lng, lat] → [lat, lng]
+    // 🔥 核心修复：编辑时 经纬度顺序反转 [lng, lat] → [lat, lng]
     // ==============================================
     let correctedCoordinates = [];
 
@@ -433,6 +489,7 @@ const completeEdit = async () => {
         outer.map((point) => [point[1], point[0]]),
       );
     }
+    console.log(correctedCoordinates, "=====");
 
     const submitData = {
       id: currentZone.id,
@@ -449,23 +506,29 @@ const completeEdit = async () => {
       limitAddress: currentZone.rawData?.limitAddress || "",
       companyId: currentZone.rawData?.companyId || 0,
     };
+
+    console.log("编辑提交坐标（已修正顺序）:", correctedCoordinates);
     const res = await noflyzoneUpdate(submitData);
+
     if (res.code === 200) {
-      ElMessage.success("禁飞区编辑成功");
       emit("route-edit-complete", currentZone.id);
-      editingZoneId.value = null;
-      isEditing.value = false;
-      await routeList(searchKeyword.value);
     } else {
       ElMessage.error("禁飞区编辑失败：" + (res.msg || "未知错误"));
     }
   } catch (error) {
     console.error("编辑提交失败:", error);
     ElMessage.error("禁飞区编辑失败，请重试");
+  } finally {
+    editingZoneId.value = null;
+    isEditing.value = false;
+    await routeList(searchKeyword.value);
   }
 };
-// 更新区域数据
+let updatesDate = ref("");
+// 更新区域数据（在编辑时被父组件调用）
+// 更新区域数据（在编辑/新建时被父组件调用）
 const updateZoneData = (id, updates) => {
+  console.log("更新区域数据:", id, updates);
   const index = routeInfo.value.findIndex((item) => item.id === id);
   if (index !== -1) {
     const updatedItem = { ...routeInfo.value[index] };
@@ -505,6 +568,15 @@ const updateZoneData = (id, updates) => {
 // 删除禁飞区
 const deleteRoute = (noFlyZone) => {
   if (!noFlyZone || !noFlyZone.id) return;
+
+  // 如果正在编辑或查看该禁飞区，先退出
+  if (editingZoneId.value === noFlyZone.id) {
+    completeEdit();
+  }
+  if (activeRouteId.value === noFlyZone.id) {
+    retractRoute();
+  }
+
   deletingRouteIndex.value = noFlyZone;
   deleteDialogVisible.value = true;
 };
@@ -592,17 +664,14 @@ defineExpose({
 .route-list-content::-webkit-scrollbar {
   width: 6px;
 }
-
 .route-list-content::-webkit-scrollbar-track {
   background: rgba(80, 80, 80, 0.1);
   border-radius: 3px;
 }
-
 .route-list-content::-webkit-scrollbar-thumb {
   background: rgba(88, 130, 179, 0.5);
   border-radius: 3px;
 }
-
 .route-list-content::-webkit-scrollbar-thumb:hover {
   background: rgba(88, 130, 179, 0.8);
 }
@@ -730,7 +799,6 @@ defineExpose({
   cursor: pointer;
   transition: all 0.3s ease;
 }
-
 .routeOperation-box-view:hover {
   color: #93d078;
 }
@@ -740,7 +808,6 @@ defineExpose({
   cursor: pointer;
   transition: all 0.3s ease;
 }
-
 .routeOperation-box-foldUp:hover {
   color: rgba(255, 255, 255, 0.6);
 }
@@ -750,7 +817,6 @@ defineExpose({
   cursor: pointer;
   transition: all 0.3s ease;
 }
-
 .routeOperation-box-edit:hover {
   color: #409eff;
 }
@@ -767,7 +833,6 @@ defineExpose({
   cursor: pointer;
   transition: all 0.3s ease;
 }
-
 .routeOperation-box-delete:hover {
   color: #ff7875;
 }
@@ -777,7 +842,6 @@ defineExpose({
   cursor: pointer;
   transition: all 0.3s ease;
 }
-
 .routeOperation-box-cancel:hover {
   color: #a6a9ad;
 }
@@ -786,11 +850,9 @@ defineExpose({
   0% {
     opacity: 1;
   }
-
   50% {
     opacity: 0.7;
   }
-
   100% {
     opacity: 1;
   }
@@ -805,15 +867,12 @@ defineExpose({
   padding: 12px 8px 8px !important;
   border-radius: 12px 12px 0 0;
 }
-
 :deep(.el-pagination__classifier) {
   color: #fff;
 }
-
 :deep(.el-select__wrapper) {
   margin: 6px 0 0 0;
 }
-
 :deep(.el-pagination .el-select__wrapper),
 :deep(.el-pagination .btn-prev),
 :deep(.el-pager li),
@@ -821,11 +880,9 @@ defineExpose({
 :deep(.el-input__wrapper) {
   background: none;
 }
-
 :deep(.el-pager li.is-active, .el-pager li:hover) {
   color: #409eff;
 }
-
 :deep(.el-pagination > .is-first),
 :deep(.el-pagination > .is-last),
 :deep(.el-pagination .el-select__placeholder),
@@ -839,7 +896,6 @@ defineExpose({
 :deep(.route-search .el-input__wrapper) {
   background-color: #2e3649db;
 }
-
 :deep(.route-search .el-input__inner) {
   color: #fff;
 }
@@ -849,37 +905,29 @@ defineExpose({
   .tooltip-container {
     width: 65%;
   }
-
   .zone-info {
     gap: 6px;
     padding: 8px;
   }
-
   .info-row {
     gap: 0;
   }
-
   .info-item {
     font-size: 12px;
   }
-
   .info-label {
     font-size: 12px;
   }
-
   .info-value {
     font-size: 11px;
   }
-
   .info-tag {
     font-size: 11px;
     padding: 1px 6px;
   }
-
   .action-buttons {
     flex-wrap: wrap;
   }
-
   .routeOperation-box-view,
   .routeOperation-box-foldUp,
   .routeOperation-box-edit,
@@ -890,33 +938,27 @@ defineExpose({
     text-align: center;
     margin-right: 8px;
   }
-
   .routeOperation-box-view::after {
     content: "查";
     font-size: 16px;
   }
-
   .routeOperation-box-foldUp::after {
     content: "收";
     font-size: 16px;
   }
-
   .routeOperation-box-edit::after {
     content: "编";
     font-size: 16px;
   }
-
   .routeOperation-box-edit-active::after {
     content: "完";
     font-size: 16px;
     color: #ff9800;
   }
-
   .routeOperation-box-delete::after {
     content: "删";
     font-size: 16px;
   }
-
   .routeOperation-box-cancel::after {
     content: "消";
     font-size: 16px;

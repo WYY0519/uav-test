@@ -1,40 +1,34 @@
 <template>
   <div class="manage-container">
     <!-- 搜索 -->
-    <CommonSearch
+    <!-- <CommonSearch
       :search-items="searchItems"
       :initial-data="searchForm"
       @search="handleSearch"
       @reset="handleReset"
-    />
+    /> -->
 
     <!-- 表格 -->
-    <CommonTable
-      title="航拍列表"
-      :table-data="filteredDeviceList"
-      :columns="columns"
-      :total="total"
-      :loading="loading"
-      :show-selection="false"
-      :show-action="true"
-      action-width="100"
-      @row-click="handleRowClick"
-      ref="tableRef"
-    >
+    <CommonTable title="航拍列表" :table-data="filteredDeviceList" :columns="columns" :total="total" :loading="loading"
+      :show-selection="false" :show-action="true" action-width="100" @row-click="handleRowClick" ref="tableRef">
       <!-- 操作列：纯图标 -->
       <template #action="{ row }">
         <el-button-group>
           <!-- 回放（图标） -->
           <el-tooltip content="回放视频" placement="top">
             <el-button type="primary" link @click="handlePlay(row)">
-              <el-icon><VideoPlay /></el-icon>
+              <el-icon>
+                <VideoPlay />
+              </el-icon>
             </el-button>
           </el-tooltip>
 
           <!-- 下载（图标） -->
           <el-tooltip content="下载视频" placement="top">
             <el-button type="success" link @click="handleDownload(row)">
-              <el-icon><Download /></el-icon>
+              <el-icon>
+                <Download />
+              </el-icon>
             </el-button>
           </el-tooltip>
         </el-button-group>
@@ -42,15 +36,9 @@
 
       <!-- 分页 -->
       <template #pagination>
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[5, 10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="fetchDeviceList"
-          @current-change="fetchDeviceList"
-        />
+        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
+          :page-sizes="[5, 10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
+          @size-change="fetchDeviceList" @current-change="fetchDeviceList" />
       </template>
     </CommonTable>
   </div>
@@ -63,7 +51,7 @@ import { ElMessage } from "element-plus";
 import { VideoPlay, Download } from "@element-plus/icons-vue";
 import CommonSearch from "@/components/CommonSearch.vue";
 import CommonTable from "@/components/CommonTable.vue";
-import { videoList, videoPlayUrl } from "@/api/video";
+import { videoList, videoPlayUrl, videoDownload, videoDownloadUrl } from "@/api/video";
 
 // 状态
 const loading = ref(false);
@@ -156,31 +144,77 @@ const handleReset = async () => {
 };
 
 // 回放
-const handlePlay = (row) => {
-  console.log("回放：", row);
-  // ElMessage.success("打开视频回放：" + row.fileName);
-  let res = videoPlayUrl(row.id);
-
-  console.log(res, "======");
-  // 这里写你的回放逻辑
+const handlePlay = async (row) => {
+  try {
+    let res = await videoPlayUrl(row.id);
+    if (res.code == 200) {
+      window.open(res.data);
+    }
+    console.log(res, "======");
+  } catch (err) {
+    console.log(err)
+  }
 };
 
 // 下载
-const handleDownload = (row) => {
-  console.log("下载：", row);
-  ElMessage.success("开始下载：" + row.fileName);
-  // 这里写你的下载逻辑
+let downloading = false;
+const handleDownload = async (row) => {
+  if (downloading) return alert("正在下载，请稍等");
+  if (!row?.id) return alert("视频ID无效");
+  downloading = true;
+  try {
+    console.log("开始下载视频，ID：", row.id);
+    const res = await videoDownload(row.id);
+    console.log("后端返回完整数据：", res);
+
+    // 兼容两种返回格式：blob 或 JSON（后端报错时返回JSON）
+    let videoBlob;
+    if (res instanceof Blob) {
+      // 如果是 JSON 类型的 Blob，说明后端返回了错误
+      if (res.type === "application/json" || res.size < 1000) {
+        const errText = await res.text();
+        let errMsg = errText;
+        try {
+          const errJson = JSON.parse(errText);
+          errMsg = errJson.msg || errJson.message || "视频资源异常";
+        } catch (e) { }
+        throw new Error(`后端提示：${errMsg}`);
+      }
+      videoBlob = res;
+    } else {
+      throw new Error("接口返回数据格式错误");
+    }
+
+    // 解析文件名
+    let fileName = `video_${row.fileName}.mp4`;
+    if (row.fileName) {
+      fileName = row.fileName;
+    }
+
+    // 创建下载链接并触发
+    const blobUrl = URL.createObjectURL(videoBlob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+    console.log("下载成功：", fileName);
+  } catch (err) {
+    console.error("下载异常详情：", err);
+    alert(`视频下载失败：${err?.message || "获取地址异常"}`);
+  } finally {
+    downloading = false;
+  }
 };
-
-// 行点击
-const handleRowClick = (row) => {};
-
+const handleRowClick = (row) => { };
 // 生命周期
 onMounted(() => {
   fetchDeviceList();
 });
 
-onUnmounted(() => {});
+onUnmounted(() => { });
 </script>
 
 <style scoped>

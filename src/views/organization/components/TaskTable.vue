@@ -87,7 +87,7 @@
   <!-- 编辑任务弹窗 -->
   <CommonFormDialog ref="editFormDialogRef" :form-dialog-title="editDialogTitle" :model-value="editDialogVisible"
     @update:model-value="editDialogVisible = $event" :form-items="editFormItems" :form-model-value="editFormData"
-    :form-rules="editFormRules" :validate-before-submit="true" @submit="handleEditSubmit" />
+    :rules="editFormRules" :validate-before-submit="true" @submit="handleEditSubmit" />
 
   <!-- 成员管理弹窗 -->
   <el-dialog v-model="membersDialogVisible" title="成员管理" width="50%" @close="membersDialogVisible = false">
@@ -1001,12 +1001,10 @@ const handleAddRoute = () => {
 const getAvailableRoutes = async () => {
   addRouteLoading.value = true;
   try {
-    loading.value = true;
     let data = {
       missionId: currentMission.value.missionId,
     };
     const res = await missioAvailableRoutes(data);
-    // const res = await missioAvailableRoutes();
     if (res && res.code === 200 && res.data) {
       addRouteTableData.value = res.data || [];
     }

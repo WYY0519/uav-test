@@ -11,7 +11,7 @@
         <el-button type="primary" :icon="Refresh" @click="refreshList">
           刷新
         </el-button>
-        <!-- <el-button type="success" :icon="Plus" @click="handleAdd">
+        <el-button type="success" :icon="Plus" @click="handleAdd">
           添加设备
         </el-button>
         <el-button type="success" @click="downloadTemplate">
@@ -20,14 +20,8 @@
           </el-icon>
           下载模版
         </el-button>
-        <el-upload
-          class="upload-btn"
-          action="#"
-          :auto-upload="false"
-          :on-change="validateImportFile"
-          ref="uploadRef"
-          :show-file-list="false"
-        >
+        <el-upload class="upload-btn" action="#" :auto-upload="false" :on-change="validateImportFile" ref="uploadRef"
+          :show-file-list="false">
           <el-button type="success">
             <el-icon>
               <DocumentAdd />
@@ -36,8 +30,10 @@
           </el-button>
         </el-upload>
         <el-button type="danger" @click="handleBatchDelete">
-          <el-icon> <Delete /> </el-icon>批量删除
-        </el-button> -->
+          <el-icon>
+            <Delete />
+          </el-icon>批量删除
+        </el-button>
       </template>
 
       <!-- 设备状态列 -->
@@ -58,14 +54,15 @@
           <el-tooltip content="编辑设备" placement="top">
             <el-button type="primary" :icon="Edit" link @click="handleEdit(row)" />
           </el-tooltip>
-          <!-- <el-tooltip content="删除设备" placement="top">
-            <el-button 
-              type="danger"
-              :icon="Delete"
-              link
-              @click="handleDelete(row)" 
-            />
-          </el-tooltip> -->
+          <el-tooltip content="删除设备" placement="top">
+            <el-button type="danger" :icon="Delete" link @click="handleDelete(row)" />
+          </el-tooltip>
+          <el-tooltip content="拆除设备" placement="top">
+            <el-button type="warning" :icon="PriceTag" link @click="dismantleEquipment(row)" />
+          </el-tooltip>
+          <el-tooltip content="重置时间" placement="top">
+            <el-button type="info" :icon="Timer" link @click="resetTime(row)" />
+          </el-tooltip>
         </el-button-group>
       </template>
 
@@ -94,7 +91,7 @@
 <script setup>
 import { ref, onUnmounted, onMounted, computed, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Search, Refresh, Plus, Edit, Delete } from "@element-plus/icons-vue";
+import { Search, Refresh, Plus, Edit, Delete, PriceTag, Timer } from "@element-plus/icons-vue";
 import {
   getCompanyDevices,
   deleteCompanyDevice,
@@ -105,6 +102,8 @@ import {
   createDevice,
   updateCompanyDevice,
   getVideoStreamAddress,
+  dronesCommMode,
+  dronesSetRTCTime
 } from "@/api/device";
 import { Download, DocumentAdd } from "@element-plus/icons-vue";
 import { droneIdStatus } from "../../api/drones";
@@ -376,7 +375,6 @@ const handleEdit = (row) => {
 // 删除设备
 const handleDelete = (row) => {
   const originalSelected = [...selectedRows.value];
-
   ElMessageBox.confirm(`确定要删除设备【${row.name}】`, "提示", {
     type: "warning",
     confirmButtonText: "确定",
@@ -397,6 +395,33 @@ const handleDelete = (row) => {
     .catch(() => {
       restoreSelection(originalSelected);
     });
+};
+//拆除设备
+const dismantleEquipment = async (row) => {
+  try {
+    const res = await dronesCommMode(row.deviceNumber);
+    if (res.code === 200) {
+      ElMessage.success("拆除设备成功");
+      await fetchDeviceList();
+    }
+  } catch (error) {
+    ElMessage.error("拆除设备失败");
+  }
+};
+//重置时间
+const resetTime = async (row) => {
+  try {
+    let data = {
+      droneId: row.deviceNumber
+    }
+    const res = await dronesSetRTCTime(data);
+    if (res.code === 200) {
+      ElMessage.success("重置时间成功");
+      await fetchDeviceList();
+    }
+  } catch (error) {
+    ElMessage.error("重置时间失败");
+  }
 };
 
 // 恢复选中状态的方法
