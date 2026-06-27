@@ -169,11 +169,13 @@ watch(
   { deep: true, immediate: true },
 );
 
-// 🔥 弹窗打开时，只做校验清空，不重置数据
+// 🔥 弹窗打开时，重置数据并清空校验
 watch(
   () => props.modelValue,
   (newVal) => {
     if (newVal) {
+      // 同步父组件最新的数据到内部 formData
+      Object.assign(formData, { ...props.formModelValue });
       nextTick(() => {
         formRef.value?.clearValidate();
       });

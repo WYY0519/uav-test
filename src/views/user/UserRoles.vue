@@ -217,9 +217,10 @@
       :form-dialog-title="dialogTitle"
       :form-items="formItems"
       :rules="userRules"
-      :initial-data="userForm"
+      :form-model-value="userForm"
       @submit="submitForm"
       @cancel="handleDialogCancel"
+      @close="handleDialogCancel"
     />
 
     <!-- 分配菜单对话框 -->
@@ -358,11 +359,10 @@ const formItems = [
   {
     prop: "sort",
     label: "排序",
-    type: "input-number",
+    type: "input",
     placeholder: "请输入排序值",
     required: true,
-    min: 0,
-    max: 9999,
+    maxlength: 5,
   },
   {
     prop: "description",
@@ -380,7 +380,7 @@ const userRules = {
   name: [{ required: true, message: "请输入角色名称", trigger: "blur" }],
   sort: [
     { required: true, message: "请输入排序值", trigger: "blur" },
-    { type: "number", message: "请输入数字", trigger: "blur" },
+    { pattern: /^\d+$/, message: "请输入正整数", trigger: "blur" },
   ],
   description: [
     { required: true, message: "请输入备注", trigger: "blur" },
