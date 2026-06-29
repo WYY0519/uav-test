@@ -162,7 +162,6 @@ const logContent = ref([]);
 const searchKeyword = ref("");
 const showLines = ref(100);
 const searchQuery = ref("");
-const logFiles = ref([]);
 const logTime = ref("");
 const logGps = ref("");
 const logID = ref("");
@@ -194,18 +193,13 @@ const fetchLogList = async () => {
     if (response.code !== 200 || !response.data) {
       throw new Error(response.message || "请求失败，服务端返回异常");
     }
-    filteredLogList.value = response.data.list
     const resData = response.data;
     if (!Array.isArray(resData.list)) {
       throw new Error("响应数据中list不是有效数组");
     }
 
-    logFiles.value = resData.list.map((item) => ({
-      filename: item?.name,
-      id: item?.id,
-      name: item?.name,
-      createTime: "--",
-      size: "--",
+    filteredLogList.value = resData.list.map((item) => ({
+      ...item,
       ...parseLogInfo(item?.name),
       loading: false,
     }));
@@ -248,7 +242,7 @@ const refreshLogs = () => {
 const routeReplay = async (filename) => {
   console.log("父组件: 调用routeReplay，参数filename:", filename);
 
-  const file = logFiles.value.find((f) => f.name === filename);
+  const file = filteredLogList.value.find((f) => f.name === filename);
   if (!file) {
     console.error("父组件: 未找到文件:", filename);
     ElMessage.error("未找到对应的日志文件");
@@ -280,7 +274,7 @@ const handleNewDialogClose = () => {
 
 // 查看日志内容
 const showLogContent = async (filename) => {
-  const file = logFiles.value.find((f) => f.name === filename);
+  const file = filteredLogList.value.find((f) => f.name === filename);
   if (!file) return;
 
   try {
@@ -590,14 +584,15 @@ onMounted(() => {
   gap: 16px;
   align-items: center;
   width: 100%;
+  justify-content: flex-start;
 }
 
-/* 关键修改3：每个搜索项平均分配宽度，不写死，自适应屏幕 */
+/* 关键修改3：每个搜索项固定基础宽度，不拉伸，自适应屏幕 */
 .search-form-item {
   display: flex;
   align-items: center;
-  flex: 1;
-  /* 平均分配宽度 */
+  flex: 0 1 280px;
+  /* 固定基础宽度280px，允许收缩 */
   min-width: 0;
   /* 允许宽度收缩，适配小屏幕 */
 }

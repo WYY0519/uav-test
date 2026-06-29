@@ -131,10 +131,10 @@
             <div>
               <img style="width: 16px; height: 16px; cursor: pointer;" :src="shareVideo" alt="分享视频" title="分享视频"
                 class="logo" @click="handleShareVideo" />
-              <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo2" alt="开始录制"
+              <!-- <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo2" alt="开始录制"
                 title="开始录制" class="logo" @click="toggleRecording(0)" />
               <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo3" alt='停止录制'
-                title='停止录制' class="logo" @click="toggleRecording(1)" />
+                title='停止录制' class="logo" @click="toggleRecording(1)" /> -->
             </div>
 
           </div>
