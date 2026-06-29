@@ -9,23 +9,13 @@
             <!-- 仅保留3个搜索条件 -->
             <div class="search-form-item">
               <label class="search-label">日志ID：</label>
-              <el-input
-                v-model="logID"
-                placeholder="请输入ID"
-                clearable
-                @clear="handleLogameClea"
-              />
+              <el-input v-model="logID" placeholder="请输入ID" clearable @clear="handleLogameClea" />
             </div>
             <div class="search-form-item">
               <label class="search-label">飞控编号：</label>
-              <el-input
-                v-model="logGps"
-                placeholder="请输入飞控编号"
-                clearable
-                @clear="handleLogameClea"
-              />
+              <el-input v-model="logGps" placeholder="请输入飞控编号" clearable @clear="handleLogameClea" />
             </div>
-            <div class="search-form-item">
+            <!-- <div class="search-form-item">
               <label class="search-label">截止日期：</label>
               <el-input
                 v-model="logTime"
@@ -33,15 +23,19 @@
                 clearable
                 @clear="handleLogameClea"
               />
-            </div>
+            </div> -->
           </div>
         </div>
         <div class="search-form-right">
           <el-button type="primary" @click="fetchLogList" :loading="loading">
-            <el-icon> <Search /> </el-icon>搜索
+            <el-icon>
+              <Search />
+            </el-icon>搜索
           </el-button>
           <el-button type="primary" @click="refreshLogs" :loading="loading">
-            <el-icon> <Refresh /> </el-icon>刷新
+            <el-icon>
+              <Refresh />
+            </el-icon>刷新
           </el-button>
         </div>
       </div>
@@ -62,18 +56,9 @@
           </el-button> -->
         </div>
       </template>
-      <el-table
-        ref="logTableRef"
-        :data="filteredLogList"
-        border
-        stripe
-        v-loading="loading"
-        style="width: 100%"
-        :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
-        @row-click="handleRowClick"
-        @selection-change="handleSelectionChange"
-        :row-key="(row) => row.id"
-      >
+      <el-table ref="logTableRef" :data="filteredLogList" border stripe v-loading="loading" style="width: 100%"
+        :header-cell-style="{ background: '#f5f7fa', color: '#606266' }" @row-click="handleRowClick"
+        @selection-change="handleSelectionChange" :row-key="(row) => row.id">
         <!-- 替换单选为多选列 -->
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column min-width="80" label="序号">
@@ -82,34 +67,14 @@
           </template>
         </el-table-column>
         <el-table-column prop="id" label="日志ID" min-width="80" />
-        <el-table-column
-          prop="flightControlId"
-          label="飞控号"
-          min-width="200"
-          show-overflow-tooltip
-        />
-        <el-table-column
-          prop="name"
-          label="日志名称"
-          min-width="350"
-          show-overflow-tooltip
-        />
-        <el-table-column
-          prop="createTime"
-          label="创建时间"
-          min-width="200"
-          show-overflow-tooltip
-        />
+        <el-table-column prop="flightNo" label="飞控号" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="name" label="日志名称" min-width="350" show-overflow-tooltip />
+        <el-table-column prop="startTime" label="创建时间" min-width="200" show-overflow-tooltip />
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button-group>
               <el-tooltip content="查看日志" placement="top">
-                <el-button
-                  type="primary"
-                  link
-                  @click="showLogContent(row.name)"
-                  :loading="row.loading"
-                >
+                <el-button type="primary" link @click="showLogContent(row.name)" :loading="row.loading">
                   <el-icon>
                     <View />
                   </el-icon>
@@ -143,50 +108,22 @@
         </el-table-column>
       </el-table>
       <div class="pagination">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[5, 10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
+        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
+          :page-sizes="[5, 10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange" @current-change="handleCurrentChange" />
       </div>
     </el-card>
 
     <!-- 新日志弹窗组件 -->
-    <viewLogsDialog
-      :visible="newDialogVisible"
-      @update:visible="newDialogVisible = $event"
-      :log-filename="newCurrentLogFile"
-      :file-loading="newFileLoading"
-      :debug="true"
-      @close="handleNewDialogClose"
-      class="new-log-dialog"
-    />
+    <viewLogsDialog :visible="newDialogVisible" @update:visible="newDialogVisible = $event"
+      :log-filename="newCurrentLogFile" :file-loading="newFileLoading" :debug="true" @close="handleNewDialogClose"
+      class="new-log-dialog" />
     <!-- 日志内容弹窗 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="currentLogFile"
-      width="80%"
-      destroy-on-close
-    >
+    <el-dialog v-model="dialogVisible" :title="currentLogFile" width="80%" destroy-on-close>
       <div class="log-content-container">
         <div class="log-toolbar">
-          <el-input
-            v-model="searchKeyword"
-            placeholder="输入关键词过滤"
-            clearable
-            style="width: 200px"
-          />
-          <el-input-number
-            v-model="showLines"
-            :min="10"
-            :max="1000"
-            controls-position="right"
-            label="显示行数"
-          />
+          <el-input v-model="searchKeyword" placeholder="输入关键词过滤" clearable style="width: 200px" />
+          <el-input-number v-model="showLines" :min="10" :max="1000" controls-position="right" label="显示行数" />
         </div>
         <pre class="log-content">{{ filteredLogContent }}</pre>
       </div>
@@ -257,7 +194,7 @@ const fetchLogList = async () => {
     if (response.code !== 200 || !response.data) {
       throw new Error(response.message || "请求失败，服务端返回异常");
     }
-
+    filteredLogList.value = response.data.list
     const resData = response.data;
     if (!Array.isArray(resData.list)) {
       throw new Error("响应数据中list不是有效数组");
@@ -455,16 +392,17 @@ const filteredLogContent = computed(() => {
 });
 
 // 过滤后的日志列表
-const filteredLogList = computed(() => {
-  if (!searchQuery.value) return logFiles.value;
-  return logFiles.value.filter(
-    (log) =>
-      log.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      log.flightControlId
-        .toLowerCase()
-        .includes(searchQuery.value.toLowerCase()),
-  );
-});
+const filteredLogList = ref([])
+// const filteredLogList = computed(() => {
+//   if (!searchQuery.value) return logFiles.value;
+//   return logFiles.value.filter(
+//     (log) =>
+//       log.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+//       log.flightControlId
+//         .toLowerCase()
+//         .includes(searchQuery.value.toLowerCase()),
+//   );
+// });
 
 // 处理行点击
 const handleRowClick = (row) => {
@@ -642,7 +580,8 @@ onMounted(() => {
 /* 左侧搜索条件区域：占满剩余空间，禁止换行 */
 .search-form-left {
   flex: 1;
-  min-width: 0; /* 关键：解决弹性布局下内容溢出问题 */
+  min-width: 0;
+  /* 关键：解决弹性布局下内容溢出问题 */
 }
 
 /* 搜索项分组：弹性布局，强制3个item在一行，禁止换行 */
@@ -657,8 +596,10 @@ onMounted(() => {
 .search-form-item {
   display: flex;
   align-items: center;
-  flex: 1; /* 平均分配宽度 */
-  min-width: 0; /* 允许宽度收缩，适配小屏幕 */
+  flex: 1;
+  /* 平均分配宽度 */
+  min-width: 0;
+  /* 允许宽度收缩，适配小屏幕 */
 }
 
 /* 输入框宽度自适应父容器 */
@@ -671,15 +612,18 @@ onMounted(() => {
   font-size: 14px;
   margin-right: 8px;
   white-space: nowrap;
-  flex: 0 0 auto; /* label宽度自适应内容，不伸缩 */
+  flex: 0 0 auto;
+  /* label宽度自适应内容，不伸缩 */
 }
 
 /* 右侧按钮区域：固定不换行 */
 .search-form-right {
-  flex: 0 0 auto; /* 关键：固定宽度，不伸缩、不换行 */
+  flex: 0 0 auto;
+  /* 关键：固定宽度，不伸缩、不换行 */
   display: flex;
   gap: 8px;
-  white-space: nowrap; /* 强制按钮在一行 */
+  white-space: nowrap;
+  /* 强制按钮在一行 */
 }
 
 .list-card {
@@ -748,19 +692,23 @@ onMounted(() => {
   font-family: monospace;
   white-space: pre-wrap;
 }
+
 :deep(.el-dialog__body) {
   padding: 10px;
 }
+
 /* 响应式优化：小屏幕下调整布局 */
 @media (max-width: 768px) {
   .search-form {
-    flex-direction: column; /* 小屏幕下按钮区域换行到下方 */
+    flex-direction: column;
+    /* 小屏幕下按钮区域换行到下方 */
     align-items: stretch;
     gap: 8px;
   }
 
   .search-form-item-group {
-    flex-direction: column; /* 小屏幕下搜索项垂直排列 */
+    flex-direction: column;
+    /* 小屏幕下搜索项垂直排列 */
     gap: 8px;
     align-items: stretch;
   }

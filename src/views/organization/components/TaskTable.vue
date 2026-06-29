@@ -96,6 +96,11 @@
         :table-data="membersTableData" :columns="memberColumns" :total="membersTableData.length"
         :loading="membersLoading" :show-selection="false" :show-action="true" :action-width="100"
         :row-key="(row) => row.userId">
+        <template #role="{ row }">
+          <el-tag v-show="row.rolename">{{ row.rolename }}</el-tag>
+          <!-- <el-tag v-if="row.role === 'admin'" type="danger">管理员</el-tag> -->
+          <!-- <el-tag v-else type="success">成员</el-tag> -->
+        </template>
         <template #action="{ row }">
           <el-button type="danger" link @click="handleDeleteMember(row)">
             <el-icon>
@@ -361,6 +366,7 @@ const memberColumns = [
     label: "角色",
     width: "120",
     align: "center",
+    slotName: "role",
     showOverflowTooltip: true,
   },
   // {
@@ -747,7 +753,7 @@ const handleDeleteMember = (row) => {
         }
       } catch (error) {
         console.error("删除成员失败:", error);
-        ElMessage.error("删除成员失败，请重试");
+        // ElMessage.error("删除成员失败，请重试");
       }
     })
     .catch(() => { });
@@ -863,7 +869,7 @@ const handleDeleteUav = async (row) => {
       }
     } catch (error) {
       console.error("删除无人机失败:", error);
-      ElMessage.error("删除无人机失败");
+      // ElMessage.error("删除无人机失败");
     } finally {
       loading.value = false;
     }
@@ -982,7 +988,7 @@ const handleDeleteRoute = async (row) => {
       }
     } catch (error) {
       console.error("删除航线失败:", error);
-      ElMessage.error("删除航线失败");
+      // ElMessage.error("删除航线失败");
     } finally {
       loading.value = false;
     }

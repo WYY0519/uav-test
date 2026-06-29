@@ -1,41 +1,32 @@
 <template>
-  <CommonTable
-    title="项目列表"
-    :table-data="tableData"
-    :columns="columns"
-    :total="total"
-    :loading="loading"
-    :row-key="(row) => row.projectId"
-    :show-selection="true"
-    :action-width="200"
-    @row-click="handleRowClick"
-    @selection-change="handleSelectionChange"
-  >
+  <CommonTable title="项目列表" :table-data="tableData" :columns="columns" :total="total" :loading="loading"
+    :row-key="(row) => row.projectId" :show-selection="true" :action-width="200" @row-click="handleRowClick"
+    @selection-change="handleSelectionChange">
     <template #org-header>
       <div class="org-header-wrapper">所属组织：{{ orgName }}</div>
     </template>
     <template #header-actions>
-      <el-input
-        v-model="searchQuery"
-        placeholder="搜索项目名称"
-        class="search-input"
-        clearable
-        @clear="handleSearchClear"
-        @input="handleInputSearch"
-      >
+      <el-input v-model="searchQuery" placeholder="搜索项目名称" class="search-input" clearable @clear="handleSearchClear"
+        @input="handleInputSearch">
         <template #prefix>
-          <el-icon><Search /></el-icon>
+          <el-icon>
+            <Search />
+          </el-icon>
         </template>
       </el-input>
       <!-- <el-button type="primary" :icon="Search" @click="handleSearch">
         搜索
       </el-button> -->
       <el-button type="primary" @click="refreshList" :loading="loading">
-        <el-icon><Refresh /></el-icon>
+        <el-icon>
+          <Refresh />
+        </el-icon>
         刷新
       </el-button>
       <el-button type="success" @click="handleAddProject">
-        <el-icon><Plus /></el-icon>
+        <el-icon>
+          <Plus />
+        </el-icon>
         新增项目
       </el-button>
     </template>
@@ -62,89 +53,82 @@
     <template #action="{ row }">
       <el-tooltip content="编辑" placement="top">
         <el-button type="primary" link @click="handleEdit(row)">
-          <el-icon><Edit /></el-icon>
+          <el-icon>
+            <Edit />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="成员管理" placement="top">
         <el-button type="warning" link @click="handleMembers(row)">
-          <el-icon><User /></el-icon>
+          <el-icon>
+            <User />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="无人机管理" placement="top">
         <el-button type="success" link @click="handleUavManage(row)">
-          <el-icon><List /></el-icon>
+          <el-icon>
+            <List />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="详情" placement="top">
         <el-button type="info" link @click="handleView(row)">
-          <el-icon><InfoFilled /></el-icon>
+          <el-icon>
+            <InfoFilled />
+          </el-icon>
         </el-button>
       </el-tooltip>
       <el-tooltip content="删除" placement="top">
         <el-button type="danger" link @click="handleDelete(row)">
-          <el-icon><Delete /></el-icon>
+          <el-icon>
+            <Delete />
+          </el-icon>
         </el-button>
       </el-tooltip>
     </template>
 
     <template #pagination>
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[5, 10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
+      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[5, 10, 20, 50, 100]"
+        :total="total" layout="total, sizes, prev, pager, next, jumper" @size-change="handleSizeChange"
+        @current-change="handleCurrentChange" />
     </template>
   </CommonTable>
 
   <!-- 编辑项目弹窗 -->
-  <CommonFormDialog
-    v-model="editDialogVisible"
-    :form-dialog-title="editDialogTitle"
-    :form-items="editFormItems"
-    :rules="editFormRules"
-    :form-model-value="editFormData"
-    :is-edit="true"
-    dialog-width="500px"
-    @submit="handleEditSubmit"
-    @cancel="editDialogVisible = false"
-  />
+  <CommonFormDialog v-model="editDialogVisible" :form-dialog-title="editDialogTitle" :form-items="editFormItems"
+    :rules="editFormRules" :form-model-value="editFormData" :is-edit="true" dialog-width="500px"
+    @submit="handleEditSubmit" @cancel="editDialogVisible = false" />
 
   <!-- 成员管理弹窗 -->
-  <el-dialog
-    v-model="membersDialogVisible"
-    width="50%"
-    @close="membersDialogVisible = false"
-  >
+  <el-dialog v-model="membersDialogVisible" width="50%" @close="membersDialogVisible = false">
     <template #header>
       <div class="members-dialog-header">
         <span>{{ currentProject?.name || "" }} - 成员管理</span>
       </div>
     </template>
     <div class="members-table-container">
-      <CommonTable
-        title="成员列表"
-        :table-data="membersTableData"
-        :columns="membersColumns"
-        :total="membersTableData.length"
-        :loading="membersLoading"
-        :show-selection="false"
-        :show-action="true"
-        :action-width="150"
-        :row-key="(row) => row.userId"
-      >
+      <CommonTable title="成员列表" :table-data="membersTableData" :columns="membersColumns"
+        :total="membersTableData.length" :loading="membersLoading" :show-selection="false" :show-action="true"
+        :action-width="150" :row-key="(row) => row.userId">
         <template #header-actions>
           <el-button type="success" @click="handleAddMember">
-            <el-icon><User /></el-icon>
+            <el-icon>
+              <User />
+            </el-icon>
             添加成员
           </el-button>
         </template>
+        <template #role="{ row }">
+          <el-tag v-show="row.rolename">{{ row.rolename }}</el-tag>
+          <!-- <el-tag v-if="row.role === 'admin'" type="danger">管理员</el-tag> -->
+          <!-- <el-tag v-else type="success">成员</el-tag> -->
+        </template>
         <template #action="{ row }">
           <el-button type="danger" link @click="handleDeleteMember(row)">
-            <el-icon><Delete /></el-icon>
+            <el-icon>
+              <Delete />
+            </el-icon>
           </el-button>
         </template>
       </CommonTable>
@@ -152,26 +136,12 @@
   </el-dialog>
 
   <!-- 添加成员弹窗 -->
-  <el-dialog
-    v-model="addMemberDialogVisible"
-    title="添加成员"
-    width="50%"
-    @close="addMemberDialogVisible = false"
-  >
+  <el-dialog v-model="addMemberDialogVisible" title="添加成员" width="50%" @close="addMemberDialogVisible = false">
     <div class="add-member-table-container">
-      <CommonTable
-        ref="addMemberTableComponent"
-        title="可添加的成员列表"
-        :table-data="addMemberTableData"
-        :columns="addMemberColumns"
-        :total="addMemberTableData.length"
-        :loading="addMemberLoading"
-        :show-selection="true"
-        :show-action="false"
-        :row-key="(row) => row.userId"
-        :reserve-selection="false"
-        @selection-change="handleAddMemberSelectionChange"
-      />
+      <CommonTable ref="addMemberTableComponent" title="可添加的成员列表" :table-data="addMemberTableData"
+        :columns="addMemberColumns" :total="addMemberTableData.length" :loading="addMemberLoading"
+        :show-selection="true" :show-action="false" :row-key="(row) => row.userId" :reserve-selection="false"
+        @selection-change="handleAddMemberSelectionChange" />
     </div>
     <template #footer>
       <el-button @click="addMemberDialogVisible = false">取消</el-button>
@@ -182,37 +152,28 @@
   </el-dialog>
 
   <!-- 无人机管理弹窗 -->
-  <el-dialog
-    v-model="uavManageDialogVisible"
-    width="50%"
-    @close="uavManageDialogVisible = false"
-  >
+  <el-dialog v-model="uavManageDialogVisible" width="50%" @close="uavManageDialogVisible = false">
     <template #header>
       <div class="members-dialog-header">
         <span>{{ currentProject?.name || "" }} - 无人机管理</span>
       </div>
     </template>
     <div class="uav-table-container">
-      <CommonTable
-        title="无人机列表"
-        :table-data="uavTableData"
-        :columns="uavColumns"
-        :total="uavTableData.length"
-        :loading="uavLoading"
-        :show-selection="false"
-        :show-action="true"
-        :action-width="80"
-        :row-key="(row) => row.id"
-      >
+      <CommonTable title="无人机列表" :table-data="uavTableData" :columns="uavColumns" :total="uavTableData.length"
+        :loading="uavLoading" :show-selection="false" :show-action="true" :action-width="80" :row-key="(row) => row.id">
         <template #header-actions>
           <el-button type="success" @click="handleAddUav">
-            <el-icon><Plus /></el-icon>
+            <el-icon>
+              <Plus />
+            </el-icon>
             添加无人机
           </el-button>
         </template>
         <template #action="{ row }">
           <el-button type="danger" link @click="handleDeleteUav(row)">
-            <el-icon><Delete /></el-icon>
+            <el-icon>
+              <Delete />
+            </el-icon>
           </el-button>
         </template>
       </CommonTable>
@@ -220,26 +181,11 @@
   </el-dialog>
 
   <!-- 添加无人机弹窗 -->
-  <el-dialog
-    v-model="addUavDialogVisible"
-    title="添加无人机"
-    width="50%"
-    @close="addUavDialogVisible = false"
-  >
+  <el-dialog v-model="addUavDialogVisible" title="添加无人机" width="50%" @close="addUavDialogVisible = false">
     <div class="add-uav-table-container">
-      <CommonTable
-        ref="addUavTableComponent"
-        title="可添加的设备列表"
-        :table-data="addUavTableData"
-        :columns="addUavColumns"
-        :total="addUavTableData.length"
-        :loading="addUavLoading"
-        :show-selection="true"
-        :show-action="false"
-        :row-key="(row) => row.id"
-        :reserve-selection="false"
-        @selection-change="handleAddUavSelectionChange"
-      />
+      <CommonTable ref="addUavTableComponent" title="可添加的设备列表" :table-data="addUavTableData" :columns="addUavColumns"
+        :total="addUavTableData.length" :loading="addUavLoading" :show-selection="true" :show-action="false"
+        :row-key="(row) => row.id" :reserve-selection="false" @selection-change="handleAddUavSelectionChange" />
     </div>
     <template #footer>
       <el-button @click="addUavDialogVisible = false">取消</el-button>
@@ -248,13 +194,8 @@
   </el-dialog>
 
   <!-- 项目详情抽屉 -->
-  <el-drawer
-    v-model="detailDrawerVisible"
-    title="项目详情"
-    direction="rtl"
-    size="500px"
-    @close="detailDrawerVisible = false"
-  >
+  <el-drawer v-model="detailDrawerVisible" title="项目详情" direction="rtl" size="500px"
+    @close="detailDrawerVisible = false">
     <div v-if="currentProjectDetail" class="project-detail">
       <div class="detail-header">
         <div class="project-avatar">
@@ -301,69 +242,22 @@
             <span>共 {{ uavTableData.length }} 台设备</span>
           </div>
           <div class="detail-list-container detail-uavs-container">
-            <el-table
-              :data="uavTableData"
-              style="width: 100%"
-              max-height="400"
-              size="small"
-            >
-              <el-table-column
-                type="index"
-                label="序号"
-                width="60"
-                align="center"
-              />
-              <el-table-column
-                prop="name"
-                label="设备名称"
-                show-overflow-tooltip
-              />
-              <el-table-column
-                prop="deviceNumber"
-                label="设备编号"
-                width="150"
-                align="center"
-              />
-              <el-table-column
-                prop="ip"
-                label="IP地址"
-                width="120"
-                align="center"
-              />
-              <el-table-column
-                prop="dataPort"
-                label="数据端口"
-                width="100"
-                align="center"
-              />
-              <el-table-column
-                prop="controlPort"
-                label="控制端口"
-                width="100"
-                align="center"
-              />
-              <el-table-column
-                label="操作"
-                width="80"
-                align="center"
-                fixed="right"
-              >
+            <el-table :data="uavTableData" style="width: 100%" max-height="400" size="small">
+              <el-table-column type="index" label="序号" width="60" align="center" />
+              <el-table-column prop="name" label="设备名称" show-overflow-tooltip />
+              <el-table-column prop="deviceNumber" label="设备编号" width="150" align="center" />
+              <el-table-column prop="ip" label="IP地址" width="120" align="center" />
+              <el-table-column prop="dataPort" label="数据端口" width="100" align="center" />
+              <el-table-column prop="controlPort" label="控制端口" width="100" align="center" />
+              <el-table-column label="操作" width="80" align="center" fixed="right">
                 <template #default="{ row }">
-                  <el-button
-                    type="danger"
-                    link
-                    @click="handleDeleteUavInDetail(row)"
-                  >
+                  <el-button type="danger" link @click="handleDeleteUavInDetail(row)">
                     删除
                   </el-button>
                 </template>
               </el-table-column>
             </el-table>
-            <el-empty
-              v-if="uavTableData.length === 0"
-              description="暂无设备"
-              :image-size="80"
-            />
+            <el-empty v-if="uavTableData.length === 0" description="暂无设备" :image-size="80" />
           </div>
         </el-tab-pane>
 
@@ -373,60 +267,25 @@
             <span>共 {{ membersTableData.length }} 名成员</span>
           </div>
           <div class="detail-list-container detail-members-container">
-            <el-table
-              :data="membersTableData"
-              style="width: 100%"
-              max-height="400"
-              size="small"
-            >
-              <el-table-column
-                type="index"
-                label="序号"
-                width="60"
-                align="center"
-              />
-              <el-table-column
-                prop="username"
-                label="成员名称"
-                show-overflow-tooltip
-              />
-              <el-table-column
-                prop="phone"
-                label="手机号"
-                width="120"
-                align="center"
-              />
-              <el-table-column
-                prop="role"
-                label="角色"
-                width="100"
-                align="center"
-              />
-              <el-table-column
-                prop="joinedAt"
-                label="加入时间"
-                width="180"
-                align="center"
-              >
+            <el-table :data="membersTableData" style="width: 100%" max-height="400" size="small">
+              <el-table-column type="index" label="序号" width="60" align="center" />
+              <el-table-column prop="username" label="成员名称" show-overflow-tooltip />
+              <el-table-column prop="phone" label="手机号" width="120" align="center" />
+              <el-table-column prop="role" label="角色" width="100" align="center" />
+              <el-table-column prop="joinedAt" label="加入时间" width="180" align="center">
                 <template #default="{ row }">
                   {{ formatDate(row.joinedAt) }}
                 </template>
               </el-table-column>
             </el-table>
-            <el-empty
-              v-if="membersTableData.length === 0"
-              description="暂无成员"
-              :image-size="80"
-            />
+            <el-empty v-if="membersTableData.length === 0" description="暂无成员" :image-size="80" />
           </div>
         </el-tab-pane>
       </el-tabs>
 
       <div class="drawer-footer">
         <el-button @click="detailDrawerVisible = false">关闭</el-button>
-        <el-button type="primary" @click="handleEdit(currentProjectDetail)"
-          >编辑项目</el-button
-        >
+        <el-button type="primary" @click="handleEdit(currentProjectDetail)">编辑项目</el-button>
       </div>
     </div>
   </el-drawer>
@@ -598,11 +457,19 @@ const membersColumns = [
     align: "center",
     showOverflowTooltip: true,
   },
+  // {
+  //   prop: "role",
+  //   label: "角色",
+  //   width: "120",
+  //   align: "center",
+  //   showOverflowTooltip: true,
+  // },
   {
     prop: "role",
     label: "角色",
     width: "120",
     align: "center",
+    slotName: "role",
     showOverflowTooltip: true,
   },
   {
@@ -920,10 +787,10 @@ const handleDeleteMember = (row) => {
         }
       } catch (error) {
         console.error("删除成员失败:", error);
-        ElMessage.error("删除成员失败，请重试");
+        // ElMessage.error("删除成员失败，请重试");
       }
     })
-    .catch(() => {});
+    .catch(() => { });
 };
 
 // 打开添加成员弹窗
@@ -1026,7 +893,7 @@ const handleDelete = (row) => {
         loading.value = false;
       }
     })
-    .catch(() => {});
+    .catch(() => { });
 };
 const handleDeleteUav = async (row) => {
   ElMessageBox.confirm(`确定要删除无人机 【${row.name}】 吗？`, "提示", {
@@ -1049,7 +916,7 @@ const handleDeleteUav = async (row) => {
       }
     } catch (error) {
       console.error("删除无人机失败:", error);
-      ElMessage.error("删除无人机失败");
+      // ElMessage.error("删除无人机失败");
     } finally {
       loading.value = false;
     }

@@ -99,7 +99,7 @@
             </el-button>
           </template>
           <template #role="{ row }">
-            <el-tag>{{ row.rolename }}</el-tag>
+            <el-tag v-show="row.rolename">{{ row.rolename }}</el-tag>
             <!-- <el-tag v-if="row.role === 'admin'" type="danger">管理员</el-tag> -->
             <!-- <el-tag v-else type="success">成员</el-tag> -->
           </template>
@@ -817,7 +817,7 @@ const handleAddMemberSubmit = async () => {
     }
   } catch (error) {
     console.error("添加成员失败:", error);
-    ElMessage.error("添加成员失败，请重试");
+    // ElMessage.error("添加成员失败，请重试");
   }
 };
 
@@ -846,7 +846,7 @@ const handleDeleteMember = async (member) => {
         }
       } catch (error) {
         console.error("移除成员失败:", error);
-        ElMessage.error("移除成员失败，请重试");
+        // ElMessage.error("移除成员失败，请重试");
       }
     })
     .catch(() => { });
@@ -889,7 +889,7 @@ const handleDelete = async (row) => {
         }
       } catch (error) {
         console.error("删除组织失败:", error);
-        ElMessage.error("删除组织失败，请重试");
+        // ElMessage.error("删除组织失败，请重试");
       }
     })
     .catch(() => { });
@@ -916,7 +916,7 @@ const handleDeleteeQuipment = async (row) => {
         }
       } catch (error) {
         console.error("删除组织失败:", error);
-        ElMessage.error("删除组织失败，请重试");
+        // ElMessage.error("删除组织失败，请重试");
       }
     })
     .catch(() => { });

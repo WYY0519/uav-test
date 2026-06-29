@@ -148,8 +148,7 @@
                     margin: 5px 0 0 0;
                     background: #2c3d45;
                     color: #fff;
-                  " class="direction-btn right" @click.stop="uavViewDetails()"
-                  :disabled="!isConnected || !canOperate">
+                  " class="direction-btn right" @click.stop="uavViewDetails()" :disabled="!isConnected || !canOperate">
                   查看详情
                 </el-button>
               </div>
@@ -190,10 +189,10 @@
                 <div>
                   <img style="width: 16px; height: 16px; cursor: pointer;" :src="shareVideo" alt="分享视频" title="分享视频"
                     class="logo" @click="handleShareVideo" />
-                  <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo2" alt="开始录制"
+                  <!-- <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo2" alt="开始录制"
                     title="开始录制" class="logo" @click="toggleRecording(0)" />
                   <img style="width: 16px; height: 16px; cursor: pointer;margin-left:10px" :src="shareVideo3" alt='停止录制'
-                    title='停止录制' class="logo" @click="toggleRecording(1)" />
+                    title='停止录制' class="logo" @click="toggleRecording(1)" /> -->
                 </div>
               </div>
               <!-- 监控内容区域 -->
@@ -430,7 +429,7 @@
                     </div>
                     <span class="slider-text">{{
                       isLocked ? "已加锁" : "未加锁"
-                    }}</span>
+                      }}</span>
                   </div>
                 </div>
               </el-button>
@@ -1108,7 +1107,7 @@ const startWebRTCPlay = async () => {
       if (e.track.kind === "video") {
         if (videoEl.value) {
           videoEl.value.srcObject = e.streams[0];
-          videoEl.value.play().catch(() => {});
+          videoEl.value.play().catch(() => { });
           console.log("WebRTC 已接收视频流");
         } else {
           console.warn("WebRTC 收到视频流但 videoEl 未就绪");
@@ -3796,6 +3795,7 @@ const handleClickOutside = (event) => {
   box-sizing: border-box;
   color: #fff;
 }
+
 /* WebRTC 播放器容器 */
 .webrtc-player-container {
   position: relative;
@@ -3805,12 +3805,14 @@ const handleClickOutside = (event) => {
   border-radius: 8px;
   overflow: hidden;
 }
+
 .webrtc-player-container video {
   width: 100%;
   display: block;
   /* min-height: 300px; */
   background: #000;
 }
+
 .webrtc-loading {
   position: absolute;
   top: 50%;
