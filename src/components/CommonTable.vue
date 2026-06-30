@@ -24,16 +24,34 @@
       :row-key="rowKey"
       @row-click="handleRowClick"
       @selection-change="handleSelectionChange"
+      @current-change="handleCurrentChange"
+      :highlight-current-row="selectionMode === 'single'"
       :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
     >
       <!-- 多选列 -->
       <el-table-column
-        v-if="showSelection"
+        v-if="showSelection && selectionMode === 'multiple'"
         type="selection"
         width="55"
         align="center"
         :reserve-selection="reserveSelection"
       />
+
+      <!-- 单选列 -->
+      <el-table-column
+        v-if="selectionMode === 'single'"
+        width="55"
+        align="center"
+        label=""
+      >
+        <template #default="{ row }">
+          <el-radio
+            :model-value="currentRow ? currentRow[rowKey] : null"
+            :label="row[rowKey]"
+            @change="handleRadioChange(row)"
+          >&nbsp;</el-radio>
+        </template>
+      </el-table-column>
 
       <!-- 动态列 -->
       <el-table-column
@@ -116,11 +134,17 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  selectionMode: {
+    type: String,
+    default: "multiple",
+    validator: (value) => ["multiple", "single"].includes(value),
+  },
 });
 
 const emit = defineEmits(["row-click", "selection-change"]);
 
 const tableRef = ref();
+const currentRow = ref(null);
 
 const handleRowClick = (row) => {
   emit("row-click", row);
@@ -128,6 +152,17 @@ const handleRowClick = (row) => {
 
 const handleSelectionChange = (val) => {
   emit("selection-change", val);
+};
+
+const handleCurrentChange = (val) => {
+  currentRow.value = val;
+  emit("current-change", val);
+};
+
+const handleRadioChange = (row) => {
+  // 更新当前选中行
+  currentRow.value = row;
+  emit("current-change", row);
 };
 
 // 清空所有选中
@@ -144,10 +179,18 @@ const toggleRowSelection = (row, selected) => {
   }
 };
 
+// 设置当前行（单选模式）
+const setCurrentRow = (row) => {
+  if (tableRef.value) {
+    tableRef.value.setCurrentRow(row);
+  }
+};
+
 // 暴露方法
 defineExpose({
   clearSelection,
   toggleRowSelection,
+  setCurrentRow,
 });
 </script>
 

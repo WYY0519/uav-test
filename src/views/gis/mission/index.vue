@@ -176,8 +176,8 @@
 
         <!-- 右侧监控面板 -->
         <div class="right-panel">
-          <el-button type="primary" @click="aaaaa(1)">测试1</el-button>
-          <el-button type="primary" style="margin: 12px 0 0 0;" @click="aaaaa(2)">测试2</el-button>
+          <!-- <el-button type="primary" @click="aaaaa(1)">测试1</el-button>
+          <el-button type="primary" style="margin: 12px 0 0 0;" @click="aaaaa(2)">测试2</el-button> -->
           <div class="panel-content">
             <div class="monitor-section">
               <div style="

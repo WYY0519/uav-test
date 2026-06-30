@@ -1075,26 +1075,17 @@ const handleAddUavSubmit = async () => {
   }
 
   try {
-    // 这里根据后端接口调整批量添加逻辑
-    // 示例：循环添加，也可以改成批量提交（如果后端支持）
-    let successCount = 0;
     const deviceIds = addUavSelectedDevice.value.map(
       (device) => device.deviceNumber,
     );
-    for (const device of addUavSelectedDevice.value) {
-      // 替换为实际的添加无人机接口
-      const res = await service({
-        url: `/api/project/manage/${currentProject.value.projectId}/addDevices`,
-        method: "POST",
-        data: deviceIds,
-      });
-      if (res && res.code === 200) {
-        successCount++;
-      }
-    }
-
-    if (successCount > 0) {
-      ElMessage.success(`成功添加 ${successCount} 个无人机设备`);
+    // 直接批量添加
+    const res = await service({
+      url: `/api/project/manage/${currentProject.value.projectId}/addDevices`,
+      method: "POST",
+      data: deviceIds,
+    });
+    if (res && res.code === 200) {
+      ElMessage.success(`成功添加 ${addUavSelectedDevice.value.length} 个无人机设备`);
       addUavDialogVisible.value = false;
       await getUavList();
     } else {

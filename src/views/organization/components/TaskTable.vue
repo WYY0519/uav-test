@@ -159,8 +159,8 @@
   <el-dialog v-model="addUavDialogVisible" title="添加无人机" width="50%" @close="addUavDialogVisible = false">
     <div class="add-uav-table-container">
       <CommonTable ref="addUavTableComponent" title="可添加的设备列表" :table-data="addUavTableData" :columns="addUavColumns"
-        :total="addUavTableData.length" :loading="addUavLoading" :show-selection="true" :show-action="false"
-        :row-key="(row) => row.id" :reserve-selection="false" @selection-change="handleAddUavSelectionChange" />
+        :total="addUavTableData.length" :loading="addUavLoading" :show-selection="false" :show-action="false"
+        row-key="id" :reserve-selection="false" selection-mode="single" @current-change="handleAddUavSelectionChange" />
     </div>
     <template #footer>
       <el-button @click="addUavDialogVisible = false">取消</el-button>
@@ -275,34 +275,40 @@ const membersDialogVisible = ref(false);
 const currentMission = ref(null);
 const membersTableData = ref([]);
 const membersLoading = ref(false);
+const membersTableComponent = ref(null);
 
 // 添加成员弹窗状态
 const addMemberDialogVisible = ref(false);
 const addMemberTableData = ref([]);
 const addMemberLoading = ref(false);
 const addMemberSelectedUser = ref([]);
+const addMemberTableComponent = ref(null);
 
 // 无人机管理弹窗状态
 const uavManageDialogVisible = ref(false);
 const uavTableData = ref([]);
 const uavLoading = ref(false);
+const uavTableComponent = ref(null);
 
 // 添加无人机弹窗状态
 const addUavDialogVisible = ref(false);
 const addUavTableData = ref([]);
 const addUavLoading = ref(false);
 const addUavSelectedDevice = ref([]);
+const addUavTableComponent = ref(null);
 
 // 航线管理弹窗状态
 const routeManageDialogVisible = ref(false);
 const routeTableData = ref([]);
-const routeLoading = ref(false);
+const routeLoading = ref(null);
+const routeTableComponent = ref(null);
 
 // 添加航线弹窗状态
 const addRouteDialogVisible = ref(false);
 const addRouteTableData = ref([]);
 const addRouteLoading = ref(false);
 const addRouteSelectedRoute = ref([]);
+const addRouteTableComponent = ref(null);
 
 // 表格列配置
 const columns = [
@@ -880,6 +886,8 @@ const handleDeleteUav = async (row) => {
 const handleAddUav = () => {
   addUavSelectedDevice.value = [];
   addUavTableData.value = [];
+  // 重置单选状态
+  addUavTableComponent.value?.setCurrentRow(null);
   addUavDialogVisible.value = true;
   getAvailableDevices();
 };
@@ -894,6 +902,8 @@ const getAvailableDevices = async () => {
     const res = await missioAvailableDevices(props.projectId, data);
     if (res && res.code === 200 && res.data) {
       addUavTableData.value = res.data || [];
+      // 数据更新后重置单选状态
+      addUavTableComponent.value?.setCurrentRow(null);
     }
   } catch (error) {
     console.error("获取可用设备列表失败:", error);
@@ -903,9 +913,9 @@ const getAvailableDevices = async () => {
   }
 };
 
-// 无人机选择变化
+// 无人机选择变化（单选模式）
 const handleAddUavSelectionChange = (selection) => {
-  addUavSelectedDevice.value = selection;
+  addUavSelectedDevice.value = selection ? [selection] : [];
 };
 
 // 提交添加无人机

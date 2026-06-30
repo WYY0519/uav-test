@@ -11,16 +11,16 @@
         <el-button type="primary" :icon="Refresh" @click="refreshList">
           刷新
         </el-button>
-        <el-button type="success" :icon="Plus" @click="handleAdd">
+        <!-- <el-button type="success" :icon="Plus" @click="handleAdd">
           添加设备
-        </el-button>
-        <el-button type="success" @click="downloadTemplate">
+        </el-button> -->
+        <!-- <el-button type="success" @click="downloadTemplate">
           <el-icon>
             <Download />
           </el-icon>
           下载模版
-        </el-button>
-        <el-upload class="upload-btn" action="#" :auto-upload="false" :on-change="validateImportFile" ref="uploadRef"
+        </el-button> -->
+        <!-- <el-upload class="upload-btn" action="#" :auto-upload="false" :on-change="validateImportFile" ref="uploadRef"
           :show-file-list="false">
           <el-button type="success">
             <el-icon>
@@ -28,7 +28,7 @@
             </el-icon>
             批量导入
           </el-button>
-        </el-upload>
+        </el-upload> -->
         <el-button type="danger" @click="handleBatchDelete">
           <el-icon>
             <Delete />
@@ -57,9 +57,9 @@
           <el-tooltip content="删除设备" placement="top">
             <el-button type="danger" :icon="Delete" link @click="handleDelete(row)" />
           </el-tooltip>
-          <el-tooltip content="拆除设备" placement="top">
+          <!-- <el-tooltip content="拆除设备" placement="top">
             <el-button type="warning" :icon="PriceTag" link @click="dismantleEquipment(row)" />
-          </el-tooltip>
+          </el-tooltip> -->
           <el-tooltip content="重置时间" placement="top">
             <el-button type="info" :icon="Timer" link @click="resetTime(row)" />
           </el-tooltip>
