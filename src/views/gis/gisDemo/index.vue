@@ -389,16 +389,23 @@ const handleWaypointUpdated = (data) => {
   viewRoute(route);
   ElMessage.success(`航点 ${pointIndex + 1} 已更新，地图已同步`);
 };
-const handleRouteSave = () => {
+const handleRouteSave = async () => {
   console.log("航线保存，刷新地图显示");
+  // 先清除地图上的航线覆盖物
+  clearRouteOverlaysOnly();
+  
+  // 刷新航线列表（等待完成）
+  const routeListComponent = routeListRef.value;
+  if (routeListComponent) {
+    await routeListComponent.routeList();
+  }
   if (activeRouteId.value) {
-    const routeListComponent = routeListRef.value;
     if (routeListComponent && routeListComponent.routeInfo) {
-      const currentRoute = routeListComponent.routeInfo[0].find(
+      const currentRoute = routeListComponent.routeInfo[0]?.find(
         (item) => item.id === activeRouteId.value,
       );
       if (currentRoute) {
-        //  修复：编辑完立刻重新渲染，不用再点查看
+        // 重新渲染最新数据到地图
         viewRoute(currentRoute, false);
       }
     }
@@ -1014,21 +1021,20 @@ const confirmSaveRoute = async () => {
         if (res.code === 200) {
           saveRouteDialogVisible.value = false;
           ElMessage.success("编辑成功");
-          routeListRef.value.routeList();
-          // 🔴 关键修改：更新地图上的航线显示
+          // 先清除地图上的旧航线
+          clearRouteOverlaysOnly();
+          // 等待航线列表刷新完成
+          await routeListRef.value.routeList();
+          // 重新获取最新的航线数据并更新地图
           if (listRouteEditId.value) {
-            // 重新获取最新的航线数据并更新地图
-            setTimeout(async () => {
-              // 等待列表刷新完成
-              const currentRoute = routeListRef.value.routeInfo[0].find(
-                (item) => item.id === listRouteEditId.value,
-              );
+            const currentRoute = routeListRef.value.routeInfo[0]?.find(
+              (item) => item.id === listRouteEditId.value,
+            );
 
-              if (currentRoute) {
-                // 保存后恢复到查看模式（不可编辑）
-                viewRoute(currentRoute, false);
-              }
-            }, 500);
+            if (currentRoute) {
+              // 保存后恢复到查看模式（不可编辑）
+              viewRoute(currentRoute, false);
+            }
           }
 
           emit("route-save");

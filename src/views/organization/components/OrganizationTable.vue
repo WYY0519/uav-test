@@ -205,7 +205,7 @@
             {{ formatDate(currentOrganization.createdAt) }}
           </el-descriptions-item>
           <el-descriptions-item label="创建人">
-            {{ currentOrganization.createdBy || "-" }}
+            {{ currentOrganization.creatorName || "-" }}
           </el-descriptions-item>
           <el-descriptions-item label="组织描述" :span="2">
             {{ currentOrganization.description || "-" }}
@@ -461,7 +461,7 @@ const columns = [
     slotName: "name",
   },
   {
-    prop: "createdBy",
+    prop: "creatorName",
     label: "创建人",
     width: "120",
     align: "center",
@@ -638,7 +638,16 @@ const handleEditSubmit = async (formData) => {
     if (res && res.code === 200) {
       ElMessage.success("更新成功");
       editDialogVisible.value = false;
-      getOrganizationList();
+      await getOrganizationList();
+      // 更新详情抽屉中的数据，确保内容同步刷新
+      if (currentOrganization.value && detailDialogVisible.value) {
+        const updatedOrg = tableData.value.find(
+          (item) => item.organizationId === formData.organizationId,
+        );
+        if (updatedOrg) {
+          currentOrganization.value = updatedOrg;
+        }
+      }
     } else {
       ElMessage.error(res?.message || "更新失败");
     }
@@ -1063,6 +1072,10 @@ watch(
 .detail-descriptions {
   margin-bottom: 20px;
 }
+
+
+
+
 
 .drawer-footer {
   margin-top: 30px;

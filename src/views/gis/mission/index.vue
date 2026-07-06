@@ -43,7 +43,7 @@
               selectedMission?.assignedDevice?.deviceNumber &&
               selectedMission?.assignedDevice?.deviceNumber.trim()
             ) || !selectedRouteValue
-              " type="primary" @click="executeMission(selectedMission)">开始</el-button>
+              " type="primary" @click="executeMission(selectedMission)">开始 </el-button>
           </div>
         </el-card>
       </div>
@@ -429,7 +429,7 @@
                     </div>
                     <span class="slider-text">{{
                       isLocked ? "已加锁" : "未加锁"
-                      }}</span>
+                    }}</span>
                   </div>
                 </div>
               </el-button>
@@ -2521,12 +2521,28 @@ const executeMission = async (value) => {
     // 6. 调用地图标注方法
     markRouteOnMap(validRoutePoints);
 
-    // 7. 显示成功消息
+    // 7. 调用 doMission 接口执行任务
+    try {
+      const missionRes = await doMission({
+        droneId: searchQuery.value,
+        missionId: selectedRoute.routeId + "",
+      });
+      if (missionRes.code === 200) {
+        ElMessage.success("任务执行指令已发送");
+      } else {
+        ElMessage.warning("任务执行指令发送失败: " + (missionRes.message || "未知错误"));
+      }
+    } catch (missionError) {
+      console.error("调用 doMission 接口失败:", missionError);
+      ElMessage.error("调用 doMission 接口失败: " + (missionError.message || "未知错误"));
+    }
+
+    // 8. 显示成功消息
     ElMessage.success(
       `航线 "${selectedRoute.routeName || "未命名航线"}" 已加载到地图`
     );
 
-    // 8. 关闭任务详情面板
+    // 9. 关闭任务详情面板
     showTaskDetails.value = false;
 
     // 9. 自动计算并显示航线总距离

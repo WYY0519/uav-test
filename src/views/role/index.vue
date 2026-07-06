@@ -29,11 +29,11 @@
             批量导入
           </el-button>
         </el-upload> -->
-        <el-button type="danger" @click="handleBatchDelete">
+        <!-- <el-button type="danger" @click="handleBatchDelete">
           <el-icon>
             <Delete />
           </el-icon>批量删除
-        </el-button>
+        </el-button> -->
       </template>
 
       <!-- 设备状态列 -->

@@ -67,20 +67,20 @@ export function convertItem(item) {
   const convertedPoints = pointsObj?.routeData?.points.map((point) => ({
     lat: point.lat,
     lng: point.lon,
-    alt: point.alt,
-    action: point.action,
+    alt: point.alt ?? 0,
+    action: point.action || "",
     headingAngle: {
       mode: point.heading_angle?.mode || "",
       angle: point.heading_angle?.angle || "",
       lon: point.heading_angle?.lon || "",
       lat: point.heading_angle?.lat || "",
     },
-    heightStrategy: point.height_strategy,
-    residenceTime: point.residence_time,
-    routeLossBehavior: point.route_loss_behavior,
-    velocity: point.velocity,
-    priority: point.priority,
-    sort: point.sort,
+    heightStrategy: point.height_strategy || "",
+    residenceTime: point.residence_time ?? 0,
+    routeLossBehavior: point.route_loss_behavior || "",
+    velocity: point.velocity ?? 0,
+    priority: point.priority || "",
+    sort: point.sort || "",
   }));
 
   return {
@@ -104,6 +104,14 @@ export function convertPoints(points) {
     lat: point.lat,
     lon: point.lng,
     alt: point.alt,
+    action: point.action || "",
+    heading_angle: point.headingAngle || {},
+    height_strategy: point.heightStrategy || "",
+    residence_time: point.residenceTime ?? 0,
+    velocity: point.velocity ?? 0,
+    priority: point.priority || "",
+    sort: point.sort || "",
+    route_loss_behavior: point.routeLossBehavior || "",
   }));
 
   const homePos =

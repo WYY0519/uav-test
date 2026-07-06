@@ -21,8 +21,7 @@
           }}
         </p>
 
-        <el-select style="margin: 12px 0" :value="selectedRouteValue" placeholder="请选择航线"
-          @change="handleRouteSelect">
+        <el-select style="margin: 12px 0" :value="selectedRouteValue" placeholder="请选择航线" @change="handleRouteSelect">
           <el-option v-for="item in taskOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
         <div>

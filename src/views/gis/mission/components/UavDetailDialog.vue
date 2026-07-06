@@ -1,10 +1,5 @@
 <template>
-  <el-dialog
-    :modal="false"
-    v-model="dialogVisible"
-    :append-to-body="true"
-    width="40%"
-    :modal-append-to-body="false"
+  <el-dialog :modal="false" v-model="dialogVisible" :append-to-body="true" width="40%" :modal-append-to-body="false"
     style="
       height: 55%;
       overflow-y: auto;
@@ -13,9 +8,7 @@
       background: rgba(0, 40, 90, 0.7) !important;
       color: #fff;
       border: 2px solid rgba(60, 127, 231, 0.9);
-    "
-    :before-close="handleClose"
-  >
+    " :before-close="handleClose">
     <template #header>
       <div style="color: #fff; font-size: 16px; font-weight: bold">
         任务详情
@@ -224,9 +217,7 @@
         <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-陀螺仪Y轴">
           {{ uavStatusContent?.scaled_imu2?.gyro_y }}
         </el-descriptions-item>
-        <el-descriptions-item
-          label="第二缩放惯性测量单元数据(IMU2)-加速度计Z轴"
-        >
+        <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-加速度计Z轴">
           {{ uavStatusContent?.scaled_imu2?.acc_z }}
         </el-descriptions-item>
         <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-陀螺仪X轴">
@@ -235,14 +226,10 @@
         <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-陀螺仪Z轴">
           {{ uavStatusContent?.scaled_imu2?.gyro_z }}
         </el-descriptions-item>
-        <el-descriptions-item
-          label="第二缩放惯性测量单元数据(IMU2)-加速度计Y轴"
-        >
+        <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-加速度计Y轴">
           {{ uavStatusContent?.scaled_imu2?.acc_y }}
         </el-descriptions-item>
-        <el-descriptions-item
-          label="第二缩放惯性测量单元数据(IMU2)-加速度计X轴"
-        >
+        <el-descriptions-item label="第二缩放惯性测量单元数据(IMU2)-加速度计X轴">
           {{ uavStatusContent?.scaled_imu2?.acc_x }}
         </el-descriptions-item>
         <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-磁力计Y轴">
@@ -257,9 +244,7 @@
         <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-陀螺仪Y轴">
           {{ uavStatusContent?.scaled_imu3?.gyro_y }}
         </el-descriptions-item>
-        <el-descriptions-item
-          label="第三缩放惯性测量单元数据(IMU3)-加速度计Z轴"
-        >
+        <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-加速度计Z轴">
           {{ uavStatusContent?.scaled_imu3?.acc_z }}
         </el-descriptions-item>
         <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-陀螺仪X轴">
@@ -268,14 +253,10 @@
         <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-陀螺仪Z轴">
           {{ uavStatusContent?.scaled_imu3?.gyro_z }}
         </el-descriptions-item>
-        <el-descriptions-item
-          label="第三缩放惯性测量单元数据(IMU3)-加速度计Y轴"
-        >
+        <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-加速度计Y轴">
           {{ uavStatusContent?.scaled_imu3?.acc_y }}
         </el-descriptions-item>
-        <el-descriptions-item
-          label="第三缩放惯性测量单元数据(IMU3)-加速度计X轴"
-        >
+        <el-descriptions-item label="第三缩放惯性测量单元数据(IMU3)-加速度计X轴">
           {{ uavStatusContent?.scaled_imu3?.acc_x }}
         </el-descriptions-item>
         <el-descriptions-item label="缩放的遥控通道数据-第6通道缩放值">
@@ -459,16 +440,19 @@ const handleClose = () => {
 :deep(.el-dialog) {
   background: rgba(0, 40, 90, 0.7) !important;
 }
+
 :deep(.el-dialog__header) {
   background: rgba(0, 40, 90, 0.7);
   padding: 15px 20px;
   border-bottom: 1px solid rgba(60, 127, 231, 0.5);
 }
+
 :deep(.el-dialog__body) {
   background: rgba(0, 40, 90, 0.7);
   color: #fff;
   padding: 20px;
 }
+
 :deep(.el-dialog__title) {
   color: #fff;
 }
@@ -477,15 +461,19 @@ const handleClose = () => {
 /* 1. 按钮容器：强制白色，覆盖默认 */
 :deep(.el-dialog__headerbtn) {
   color: #fff !important;
-  background: transparent !important; /* 去掉默认背景 */
+  background: transparent !important;
+  /* 去掉默认背景 */
 }
 
 /* 2. SVG 图标：强制白色，覆盖所有默认属性 */
 :deep(.el-dialog__close svg) {
   color: #fff !important;
-  fill: #fff !important; /* SVG 填充色（核心） */
-  stroke: #fff !important; /* SVG 描边色（兜底） */
-  transition: none !important; /* 禁用默认过渡，防止闪烁 */
+  fill: #fff !important;
+  /* SVG 填充色（核心） */
+  stroke: #fff !important;
+  /* SVG 描边色（兜底） */
+  transition: none !important;
+  /* 禁用默认过渡，防止闪烁 */
 }
 
 /* 3. 鼠标悬浮状态：强制白色，彻底禁止变蓝 */
@@ -493,6 +481,7 @@ const handleClose = () => {
   color: #fff !important;
   background: transparent !important;
 }
+
 :deep(.el-dialog__headerbtn:hover .el-dialog__close svg) {
   color: #fff !important;
   fill: #fff !important;
@@ -505,6 +494,7 @@ const handleClose = () => {
   color: #fff !important;
   background: transparent !important;
 }
+
 :deep(.el-dialog__headerbtn:focus .el-dialog__close svg),
 :deep(.el-dialog__headerbtn:active .el-dialog__close svg) {
   color: #fff !important;
@@ -516,16 +506,19 @@ const handleClose = () => {
 :deep(.el-descriptions) {
   color: #fff;
 }
+
 :deep(.el-descriptions__label) {
   background: rgba(0, 40, 90, 0.7) !important;
   color: #fff !important;
   border-color: rgba(60, 127, 231, 0.5);
 }
+
 :deep(.el-descriptions__content) {
   background: rgba(0, 40, 90, 0.7) !important;
   color: #fff;
   border-color: rgba(60, 127, 231, 0.5);
 }
+
 :deep(.el-descriptions__body),
 :deep(.el-descriptions__table),
 :deep(.el-descriptions__cell) {

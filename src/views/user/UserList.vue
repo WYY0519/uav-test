@@ -4,37 +4,27 @@
       <el-form :inline="true" :model="formInline" class="demo-form-inline">
         <!-- 用户名表单项 -->
         <el-form-item label="用户名:" class="form-item">
-          <el-input
-            v-model="formInline.username"
-            placeholder="请输入用户名"
-            clearable
-            @clear="handleUserClea"
-          />
+          <el-input v-model="formInline.username" placeholder="请输入用户名" clearable @clear="handleUserClea" />
         </el-form-item>
 
         <!-- 手机号表单项 -->
         <el-form-item label="手机号:" class="form-item">
-          <el-input
-            v-model="formInline.phone"
-            :formatter="formatNumber"
-            :parser="parseNumber"
-            placeholder="请输入手机号"
-            clearable
-            @clear="handleUserClea"
-          />
+          <el-input v-model="formInline.phone" :formatter="formatNumber" :parser="parseNumber" placeholder="请输入手机号"
+            clearable @clear="handleUserClea" />
         </el-form-item>
 
         <!-- 按钮组容器，使用Flex布局靠右 -->
         <div class="button-group">
           <el-form-item>
             <el-button type="primary" @click="queryData">
-              <el-icon> <Search /> </el-icon>搜索</el-button
-            >
+              <el-icon>
+                <Search />
+              </el-icon>搜索</el-button>
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="resetForm"
-              ><el-icon> <Refresh /> </el-icon>刷新</el-button
-            >
+            <el-button type="primary" @click="resetForm"><el-icon>
+                <Refresh />
+              </el-icon>刷新</el-button>
           </el-form-item>
         </div>
       </el-form>
@@ -51,34 +41,21 @@
 
           <div class="header-right">
             <el-button-group>
-              <el-button
-                type="success"
-                :disabled="!isSuperAdminUser"
-                @click="handleAdd"
-              >
-                <el-icon> <Plus /> </el-icon>添加用户
+              <el-button type="success" :disabled="!isSuperAdminUser" @click="handleAdd">
+                <el-icon>
+                  <Plus />
+                </el-icon>添加用户
               </el-button>
             </el-button-group>
           </div>
         </div>
       </template>
 
-      <el-table
-        :data="filteredUserList"
-        border
-        stripe
-        v-loading="loading"
-        style="width: 100%"
-        @row-click="handleRowClick"
-        :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
-      >
+      <el-table :data="filteredUserList" border stripe v-loading="loading" style="width: 100%"
+        @row-click="handleRowClick" :header-cell-style="{ background: '#f5f7fa', color: '#606266' }">
         <el-table-column width="55">
           <template #default="{ row }">
-            <el-radio
-              v-model="selectedUserId"
-              :label="row.userId"
-              @change="() => handleRadioChange(row)"
-            >
+            <el-radio v-model="selectedUserId" :label="row.userId" @change="() => handleRadioChange(row)">
               <span></span>
             </el-radio>
           </template>
@@ -86,12 +63,7 @@
         <el-table-column prop="username" label="用户名" min-width="120" />
         <el-table-column prop="email" label="邮箱" min-width="180" />
         <el-table-column prop="phone" label="手机号" min-width="120" />
-        <el-table-column
-          prop="role"
-          label="角色权限"
-          width="120"
-          show-overflow-tooltip
-        >
+        <el-table-column prop="role" label="角色权限" width="120" show-overflow-tooltip>
           <template #default="{ row }">
             <div v-for="item in row.roleList" :key="item">
               <el-tag :type="getRoleType(row.role)">
@@ -106,7 +78,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="adminId" label="添加者" min-width="120" />
+        <el-table-column prop="addByName" label="添加者" min-width="120" />
         <!-- 状态 -->
         <el-table-column label="状态">
           <template #default="{ row }">
@@ -118,24 +90,14 @@
           <template #default="{ row }">
             <el-button-group>
               <el-tooltip content="编辑用户" placement="top">
-                <el-button
-                  type="primary"
-                  link
-                  :disabled="!isSuperAdminUser"
-                  @click="handleEdit(row)"
-                >
+                <el-button type="primary" link :disabled="!isSuperAdminUser" @click="handleEdit(row)">
                   <el-icon>
                     <Edit />
                   </el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="删除用户" placement="top">
-                <el-button
-                  type="danger"
-                  link
-                  :disabled="!isSuperAdminUser"
-                  @click="handleDelete(row)"
-                >
+                <el-button type="danger" link :disabled="!isSuperAdminUser" @click="handleDelete(row)">
                   <el-icon>
                     <Delete />
                   </el-icon>
@@ -146,31 +108,15 @@
         </el-table-column>
       </el-table>
       <div class="pagination">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[5, 10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
+        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize"
+          :page-sizes="[5, 10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange" @current-change="handleCurrentChange" />
       </div>
     </el-card>
 
     <!-- 用户表单对话框 -->
-    <el-dialog
-      :title="dialogTitle"
-      v-model="dialogVisible"
-      width="500px"
-      destroy-on-close
-    >
-      <el-form
-        ref="userFormRef"
-        :model="userForm"
-        :rules="userRules"
-        label-width="100px"
-      >
+    <el-dialog :title="dialogTitle" v-model="dialogVisible" width="500px" destroy-on-close>
+      <el-form ref="userFormRef" :model="userForm" :rules="userRules" label-width="100px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="userForm.username" placeholder="请输入用户名" />
         </el-form-item>
@@ -181,18 +127,8 @@
           <el-input v-model="userForm.email" placeholder="请输入邮箱" />
         </el-form-item>
         <el-form-item label="角色权限" prop="roleList">
-          <el-select
-            v-model="userForm.roleList"
-            placeholder="请选择角色"
-            style="width: 100%"
-            clearable
-          >
-            <el-option
-              v-for="item in roleOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value"
-            />
+          <el-select v-model="userForm.roleList" placeholder="请选择角色" style="width: 100%" clearable>
+            <el-option v-for="item in roleOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
       </el-form>

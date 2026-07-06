@@ -977,6 +977,16 @@ const handleEditSubmit = async (formData) => {
       ElMessage.success(isAddProject.value ? "新增项目成功" : "编辑项目成功");
       editDialogVisible.value = false;
       await getProjectListData();
+      // 更新详情抽屉中的数据，确保内容同步刷新
+      if (currentProjectDetail.value && detailDrawerVisible.value) {
+        const updatedProject = tableData.value.find(
+          (item) => item.projectId === formData.projectId,
+        );
+        if (updatedProject) {
+          currentProjectDetail.value = updatedProject;
+          currentProject.value = updatedProject;
+        }
+      }
     } else {
       ElMessage.error(res?.message || "操作失败");
     }

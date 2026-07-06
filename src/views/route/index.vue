@@ -33,11 +33,11 @@
         </el-table-column>
         <el-table-column prop="id" label="航线ID" width="80" />
         <el-table-column prop="name" label="航线名称" min-width="150" />
-        <el-table-column prop="pointsJson" label="航线信息" min-width="100">
+        <el-table-column prop="pointsJson" label="航线信息" min-width="120">
           <template #default="{ row }">
-            <div class="tooltip-container" @click="handleRouteInfoClick(row?.pointsJson)">
+            <el-button type="primary" class="route-info-btn" @click="handleRouteInfoClick(row?.pointsJson)">
               {{ JSON.parse(row?.pointsJson).routeData?.type }}
-            </div>
+            </el-button>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="航线描述" min-width="200" show-overflow-tooltip>
@@ -552,6 +552,10 @@ onMounted(() => {
 }
 
 .tooltip-container {
+  cursor: pointer;
+}
+
+.route-info-btn {
   cursor: pointer;
 }
 
